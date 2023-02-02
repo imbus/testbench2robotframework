@@ -1,0 +1,45 @@
+{
+  "rfLibraryRoots": [
+    "Interactions",
+    "RF-Library"
+  ],
+  "rfResourceRoots": [
+    "RF-Resource"
+  ],
+  "fullyQualified": true,
+  "generationDirectory": "{root}/Generated",
+  "createOutputZip": true,
+  "resourceDirectory": "{root}/Resources",
+  "clearGenerationDirectory": true,
+  "logSuiteNumbering": true,
+  "logCompoundInteractions": true,
+  "subdivisionsMapping": {
+    "libraries": {
+      "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
+      "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
+    },
+    "resources": {
+      "MyKeywords": "{root}/../MyKeywords.resource",
+      "MyOtherKeywords": "{resourceDirectory}/subdir/MyOtherKeywords.resource"
+    }
+  },
+  "forcedImport": {
+    "libraries": [
+      "SuperRemoteLibrary",
+      "SeleniumLibrary"
+    ],
+    "resources":
+    [
+      "technical_keywords.resource"
+    ],
+    "variables": [
+      "myVars.py"
+    ]
+  },
+  "testCaseSplitPathRegEx": "^splitting\\..*",
+  "loggingConfiguration": {
+    "console": {
+      "logLevel": "info"
+    }
+  }
+}

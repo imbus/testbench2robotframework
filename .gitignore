@@ -127,3 +127,16 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+*.egg-info
+__pycache__
+build
+.vscode
+json_report
+testbench2robotframework.log*
+result_example
+Generated/
+.idea
+*.zip
+json-report_out
+report_out
+dist

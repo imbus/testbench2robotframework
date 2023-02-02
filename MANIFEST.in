@@ -1,0 +1,13 @@
+include *.bat
+include *.json
+include *.md
+include *.sh
+include *.txt
+recursive-include images *.PNG
+recursive-include images *.png
+recursive-include tests *.json
+recursive-include tests *.py
+
+# added by check-manifest
+recursive-include dist *.gz
+recursive-include dist *.whl
