@@ -517,7 +517,7 @@ class ResultWriter(ResultVisitor):
         if robot_status == "FAIL":
             return InteractionVerdict.Fail
         if robot_status == "NOT RUN":
-            return InteractionVerdict.Undefined
+            return InteractionVerdict.Skipped
         return InteractionVerdict.Skipped
 
 
