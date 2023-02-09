@@ -291,8 +291,16 @@ class ResultWriter(ResultVisitor):
             else:
                 interaction.exec.verdict = InteractionVerdict.Undefined
 
+    def _get_keyword_messages(self, keyword: Keyword):
+        if hasattr(keyword, "messages"):
+            for message in keyword.messages:
+                yield self._create_itb_exec_comment(message)
+        if hasattr(keyword, "body"):
+            for keyword in keyword.body:
+                yield from self._get_keyword_messages(keyword)
+
     def get_html_keyword_comment(self, keyword: Keyword):
-        messages = [self._create_itb_exec_comment(message) for message in keyword.messages]
+        messages = list(self._get_keyword_messages(keyword))
         return (
             "<html>"
             "<body>"
