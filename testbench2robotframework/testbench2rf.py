@@ -28,6 +28,7 @@ from robot.parsing.model.statements import (
     Setup,
     Statement,
     Tags,
+    Teardown,
     TestCaseName,
     VariablesImport,
 )
@@ -237,23 +238,43 @@ class RfTestCase:
             indent=interaction_indent,
         )
 
-    def _create_setup_keyword(
-        self, setup_keyword_name: str, setup_interactions: List[InteractionCall]
+    def _create_rf_keyword_from_interaction_list(
+        self, keyword_name: str, interactions: List[InteractionCall]
     ):
-        keyword_calls_lists = self._create_rf_keyword_calls(setup_interactions)
-        setup_keyword = Keyword(header=TestCaseName.from_params(setup_keyword_name))
-        setup_keyword.body.extend(keyword_calls_lists[0])
-        setup_keyword.body.extend(LINE_SEPARATOR)
-        return setup_keyword
+        keyword_calls_lists = self._create_rf_keyword_calls(interactions)
+        keyword = Keyword(header=TestCaseName.from_params(keyword_name))
+        keyword.body.extend(keyword_calls_lists[0])
+        keyword.body.extend(LINE_SEPARATOR)
+        return keyword
 
     def _create_rf_setup(self, setup_interactions: List[InteractionCall]) -> Optional[Setup]:
         rf_setup = None
         if len(setup_interactions) == 1:
             rf_setup = self._create_rf_setup_call(setup_interactions[0])
         elif len(setup_interactions) > 1:
-            self.setup_keyword = self._create_setup_keyword(f"Setup-{self.uid}", setup_interactions)
+            self.setup_keyword = self._create_rf_keyword_from_interaction_list(
+                f"Setup-{self.uid}", setup_interactions
+            )
             rf_setup = Setup.from_params(name=self.setup_keyword.name)
         return rf_setup
+
+    def _get_teardown_params(self, interaction_calls: List[InteractionCall]):
+        if len(interaction_calls) == 1:
+            interaction = interaction_calls[0]
+            return {
+                "name": f"{self._get_interaction_import_prefix(interaction)}{interaction.name}",
+                "args": tuple(self._create_cbv_parameters(interaction)),
+                "indent": self._get_interaction_indent(interaction),
+            }
+        return {"name": f"Setup-{self.uid}"}
+
+    def _create_rf_teardown(self, teardown_interactions: List[InteractionCall]) -> Optional[Setup]:
+        teardown_params = self._get_teardown_params(teardown_interactions)
+        if len(teardown_interactions) > 1:
+            self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
+                f"Teardown-{self.uid}", teardown_interactions
+            )
+        return Teardown.from_params(**teardown_params)
 
     def to_robot_ast_test_cases(
         self,
@@ -274,12 +295,13 @@ class RfTestCase:
             )
         )
         rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_interactions)
-        # teardown_interactions = list(
-        #     filter(
-        #         lambda interaction: interaction.sequence_phase == SequencePhase.Teardown,
-        #         self.interaction_calls,
-        #     )
-        # )
+        teardown_interactions = list(
+            filter(
+                lambda interaction: interaction.sequence_phase == SequencePhase.Teardown,
+                self.interaction_calls,
+            )
+        )
+        rf_teardown = self._create_rf_teardown(teardown_interactions)
         rf_test_cases: List[TestCase] = []
         multiple_tests = len(rf_keyword_call_lists) > 1
         for index, rf_keywords in enumerate(rf_keyword_call_lists):
@@ -298,6 +320,8 @@ class RfTestCase:
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
+            if index == len(rf_keywords) - 1 and rf_teardown:
+                rf_test_case.body.append(rf_teardown)
             rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
         return rf_test_cases
@@ -460,6 +484,7 @@ class RobotSuiteFileBuilder:
             for test_case in self.test_case_set.test_cases.values()
         ]
         self.setup_keywords: List[Keyword] = []
+        self.teardown_keywords: List[Keyword] = []
 
     def create_test_suite_file(self) -> File:
         sections = [self._create_setting_section(), self._create_test_case_section()]
@@ -475,15 +500,18 @@ class RobotSuiteFileBuilder:
             robot_ast_test_cases.extend(test_case.to_robot_ast_test_cases())
             if test_case.setup_keyword:
                 self.setup_keywords.append(test_case.setup_keyword)
+            if test_case.teardown_keyword:
+                self.teardown_keywords.append(test_case.teardown_keyword)
         test_case_section.body.extend(robot_ast_test_cases)
         test_case_section.body.extend(SECTION_SEPARATOR)
         return test_case_section
 
     def _create_keywords_section(self) -> Optional[KeywordSection]:
-        if not self.setup_keywords:
+        if not self.setup_keywords and not self.teardown_keywords:
             return None
         keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
         keywords_section.body.extend(self.setup_keywords)
+        keywords_section.body.extend(self.teardown_keywords)
         keywords_section.body.extend(SECTION_SEPARATOR)
         return keywords_section
 
