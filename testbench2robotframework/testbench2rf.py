@@ -4,11 +4,18 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple, Union
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token
-from robot.parsing.model.blocks import File, SettingSection, TestCase, TestCaseSection
+from robot.parsing.model.blocks import (
+    File,
+    Keyword,
+    KeywordSection,
+    SettingSection,
+    TestCase,
+    TestCaseSection,
+)
 from robot.parsing.model.statements import (
     Comment,
     EmptyLine,
@@ -18,6 +25,7 @@ from robot.parsing.model.statements import (
     Metadata,
     ResourceImport,
     SectionHeader,
+    Setup,
     Statement,
     Tags,
     TestCaseName,
@@ -31,6 +39,7 @@ from .model import (
     InteractionDetails,
     InteractionType,
     ParameterUseType,
+    SequencePhase,
     TestCaseDetails,
     TestStructureTreeNode,
     UdfType,
@@ -42,7 +51,7 @@ SEPARATOR = "    "
 ROBOT_PATH_SEPARATOR = "/"
 RELATIVE_RESOURCE_INDICATOR = r"^{root}"
 SECTION_SEPARATOR = [EmptyLine.from_params()] * 2
-TESTCASE_SEPARATOR = [EmptyLine.from_params()]
+LINE_SEPARATOR = [EmptyLine.from_params()]
 UNKNOWN_IMPORT_TYPE = str(uuid4())
 LIBRARY_IMPORT_TYPE = str(uuid4())
 RESOURCE_IMPORT_TYPE = str(uuid4())
@@ -59,6 +68,7 @@ class AtomicInteractionCall(InteractionCall):
     cbr_parameters: Dict[str, str]
     indent: int
     import_prefix: str
+    sequence_phase: str
 
 
 @dataclass
@@ -66,6 +76,7 @@ class CompoundInteractionCall(InteractionCall):
     cbv_parameters: Dict[str, str]
     cbr_parameters: Dict[str, str]
     indent: int
+    sequence_phase: str
 
 
 class RfTestCase:
@@ -79,6 +90,8 @@ class RfTestCase:
         for interaction in test_case_details.interactions:
             self._get_interaction_calls(interaction)
         self.rf_tags = self._get_tags(test_case_details)
+        self.setup_keyword: Keyword = None
+        self.teardown_keyword: Keyword = None
         # TODO description
 
     @staticmethod
@@ -137,6 +150,7 @@ class RfTestCase:
                 cbr_parameters=cbr_params,
                 indent=indent,
                 import_prefix=import_prefix,
+                sequence_phase=interaction.spec.sequencePhase,
             )
         )
 
@@ -174,12 +188,13 @@ class RfTestCase:
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
+                sequence_phase=interaction_detail.spec.sequencePhase,
             )
         )
         for interaction in interaction_detail.interactions:
             self._get_interaction_calls(interaction, indent)
 
-    def _create_rf_keywords(
+    def _create_rf_keyword_calls(
         self, interaction_calls: List[InteractionCall]
     ) -> List[List[Statement]]:
         keyword_lists: List[List[Statement]] = [[]]
@@ -209,19 +224,69 @@ class RfTestCase:
             and keyword_lists[tc_index]
         )
 
+    def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
+        cbr_parameters = self._create_cbr_parameters(setup_interaction)
+        if cbr_parameters:
+            logger.error("No variable assignment in [setup] possible.")
+        import_prefix = self._get_interaction_import_prefix(setup_interaction)
+        interaction_indent = self._get_interaction_indent(setup_interaction)
+        cbv_parameters = self._create_cbv_parameters(setup_interaction)
+        return Setup.from_params(
+            name=f"{import_prefix}{setup_interaction.name}",
+            args=tuple(cbv_parameters),
+            indent=interaction_indent,
+        )
+
+    def _create_setup_keyword(
+        self, setup_keyword_name: str, setup_interactions: List[InteractionCall]
+    ):
+        keyword_calls_lists = self._create_rf_keyword_calls(setup_interactions)
+        setup_keyword = Keyword(header=TestCaseName.from_params(setup_keyword_name))
+        setup_keyword.body.extend(keyword_calls_lists[0])
+        setup_keyword.body.extend(LINE_SEPARATOR)
+        return setup_keyword
+
+    def _create_rf_setup(self, setup_interactions: List[InteractionCall]) -> Optional[Setup]:
+        rf_setup = None
+        if len(setup_interactions) == 1:
+            rf_setup = self._create_rf_setup_call(setup_interactions[0])
+        elif len(setup_interactions) > 1:
+            self.setup_keyword = self._create_setup_keyword(f"Setup-{self.uid}", setup_interactions)
+            rf_setup = Setup.from_params(name=self.setup_keyword.name)
+        return rf_setup
+
     def to_robot_ast_test_cases(
         self,
     ) -> List[
         TestCase
     ]:  # TODO: Separate testcase splitting from this method --> new method: to_robot_ast_test_case
-        rf_keyword_lists = self._create_rf_keywords(self.interaction_calls)
+        setup_interactions = list(
+            filter(
+                lambda interaction: interaction.sequence_phase == SequencePhase.Setup,
+                self.interaction_calls,
+            )
+        )
+        rf_setup = self._create_rf_setup(setup_interactions)
+        test_step_interactions = list(
+            filter(
+                lambda interaction: interaction.sequence_phase == SequencePhase.TestStep,
+                self.interaction_calls,
+            )
+        )
+        rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_interactions)
+        # teardown_interactions = list(
+        #     filter(
+        #         lambda interaction: interaction.sequence_phase == SequencePhase.Teardown,
+        #         self.interaction_calls,
+        #     )
+        # )
         rf_test_cases: List[TestCase] = []
-        multiple_tests = len(rf_keyword_lists) > 1
-        for index, rf_keywords in enumerate(rf_keyword_lists):
+        multiple_tests = len(rf_keyword_call_lists) > 1
+        for index, rf_keywords in enumerate(rf_keyword_call_lists):
             phase_pattern = self.config.phasePattern
             tc_name = (
                 phase_pattern.format(
-                    testcase=self.uid, index=index + 1, length=len(rf_keyword_lists)
+                    testcase=self.uid, index=index + 1, length=len(rf_keyword_call_lists)
                 )
                 if multiple_tests
                 else self.uid
@@ -230,8 +295,10 @@ class RfTestCase:
             # tc_name = f"{self.uid}{suffix}"  # TODO later UID or Comments
             rf_test_case = TestCase(header=TestCaseName.from_params(tc_name))
             rf_test_case.body.append(Tags.from_params(self.rf_tags))
+            if index == 0 and rf_setup:
+                rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
-            rf_test_case.body.extend(TESTCASE_SEPARATOR)
+            rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
         return rf_test_cases
 
@@ -261,11 +328,17 @@ class RfTestCase:
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
+    def _get_interaction_import_prefix(self, interaction: AtomicInteractionCall) -> str:
+        return (self.config.fullyQualified or False) * f"{interaction.import_prefix}."
+
+    def _get_interaction_indent(
+        self, interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
+    ) -> str:
+        return SEPARATOR * interaction.indent if self.config.logCompoundInteractions else SEPARATOR
+
     def _create_rf_keyword(self, interaction: AtomicInteractionCall) -> KeywordCall:
-        import_prefix = (self.config.fullyQualified or False) * f"{interaction.import_prefix}."
-        interaction_indent = (
-            SEPARATOR * interaction.indent if self.config.logCompoundInteractions else SEPARATOR
-        )
+        import_prefix = self._get_interaction_import_prefix(interaction)
+        interaction_indent = self._get_interaction_indent(interaction)
         cbv_parameters = self._create_cbv_parameters(interaction)
         cbr_parameters = self._create_cbr_parameters(interaction)
         return KeywordCall.from_params(
@@ -386,9 +459,13 @@ class RobotSuiteFileBuilder:
             RfTestCase(test_case_details=test_case, config=config)
             for test_case in self.test_case_set.test_cases.values()
         ]
+        self.setup_keywords: List[Keyword] = []
 
     def create_test_suite_file(self) -> File:
         sections = [self._create_setting_section(), self._create_test_case_section()]
+        keyword_section = self._create_keywords_section()
+        if keyword_section:
+            sections.append(keyword_section)
         return File(sections, source=str(self.tcs_path))
 
     def _create_test_case_section(self) -> TestCaseSection:
@@ -396,9 +473,19 @@ class RobotSuiteFileBuilder:
         robot_ast_test_cases = []
         for test_case in self._rf_test_cases:
             robot_ast_test_cases.extend(test_case.to_robot_ast_test_cases())
+            if test_case.setup_keyword:
+                self.setup_keywords.append(test_case.setup_keyword)
         test_case_section.body.extend(robot_ast_test_cases)
         test_case_section.body.extend(SECTION_SEPARATOR)
         return test_case_section
+
+    def _create_keywords_section(self) -> Optional[KeywordSection]:
+        if not self.setup_keywords:
+            return None
+        keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
+        keywords_section.body.extend(self.setup_keywords)
+        keywords_section.body.extend(SECTION_SEPARATOR)
+        return keywords_section
 
     def _get_used_subdivisions(self) -> Dict[str, Set[str]]:
         import_dict: Dict[str, Set[str]] = {}

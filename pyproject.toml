@@ -42,7 +42,7 @@ disable = '''
 max-nested-blocks = 3
 
 [tool.mypy]
-python_version = "3.7"
+python_version = "3.8"
 ignore_missing_imports = true
 no_implicit_optional = true
 strict_optional = true
@@ -52,10 +52,16 @@ warn_unreachable = true
 pretty = true
 
 [tool.black]
-target-version = ['py37']
+target-version = ['py38']
 line-length = 100
 include_trailing_comma = false
 skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+src_paths = ["testbench2robotframework"]
+skip_gitignore = true
+skip = ['external']
 
 [tool.pytest.ini_options]
 minversion = "6.0"
