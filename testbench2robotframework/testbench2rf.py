@@ -266,7 +266,7 @@ class RfTestCase:
                 "args": tuple(self._create_cbv_parameters(interaction)),
                 "indent": self._get_interaction_indent(interaction),
             }
-        return {"name": f"Setup-{self.uid}"}
+        return {"name": f"Teardown-{self.uid}"}
 
     def _create_rf_teardown(self, teardown_interactions: List[InteractionCall]) -> Optional[Setup]:
         teardown_params = self._get_teardown_params(teardown_interactions)
@@ -320,7 +320,7 @@ class RfTestCase:
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
-            if index == len(rf_keywords) - 1 and rf_teardown:
+            if index == len(rf_keyword_call_lists) - 1 and rf_teardown:
                 rf_test_case.body.append(rf_teardown)
             rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
