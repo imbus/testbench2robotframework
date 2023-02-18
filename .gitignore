@@ -135,6 +135,7 @@ json_report
 testbench2robotframework.log*
 result_example
 Generated/
+TestBench2RobotFrameworkExecutor
 .idea
 *.zip
 json-report_out

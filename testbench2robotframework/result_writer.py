@@ -268,19 +268,22 @@ class ResultWriter(ResultVisitor):
             self._set_itb_test_case_status(itb_test_case, "undef")
 
     def _get_test_phase_body(self, test_phase: TestCase):
-        setup_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.setup.body))
-        if setup_keywords:
-            test_phase_setup = setup_keywords
-        else:
-            test_phase_setup = [test_phase.setup]
-        test_phase_body = test_phase_setup
+        test_phase_body = []
+        if test_phase.has_setup:
+            setup_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.setup.body))
+            if setup_keywords:
+                test_phase_setup = setup_keywords
+            else:
+                test_phase_setup = [test_phase.setup]
+            test_phase_body.extend(test_phase_setup)
         test_phase_body.extend(test_phase.body)
-        teardown_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.teardown.body))
-        if teardown_keywords:
-            test_phase_teardown = teardown_keywords
-        else:
-            test_phase_teardown = [test_phase.teardown]
-        test_phase_body.extend(test_phase_teardown)
+        if test_phase.has_teardown:
+            teardown_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.teardown.body))
+            if teardown_keywords:
+                test_phase_teardown = teardown_keywords
+            else:
+                test_phase_teardown = [test_phase.teardown]
+            test_phase_body.extend(test_phase_teardown)
         return test_phase_body
 
     def _set_atomic_interactions_execution_result(
