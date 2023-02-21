@@ -298,6 +298,7 @@ class ResultWriter(ResultVisitor):
     def _set_atomic_interactions_execution_result(
         self, atomic_interactions: List[InteractionDetails], test_chain: List[TestCase]
     ):
+        self._test_setup_passed = True
         test_chain_setup = [
             keyword
             for test_phase in test_chain
@@ -455,7 +456,6 @@ class ResultWriter(ResultVisitor):
                     f"had no exec details and therefore ignored."
                 )
                 atomic.exec = InteractionExecutionSummary.from_dict({})
-                # continue
             if atomic.exec.verdict is InteractionVerdict.Fail:
                 compound_interaction.exec.verdict = InteractionVerdict.Fail
                 break
