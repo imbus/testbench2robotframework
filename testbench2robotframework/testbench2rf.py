@@ -551,7 +551,7 @@ class RobotSuiteFileBuilder:
 
     def _create_resource_path(self, resource: str) -> str:
         subdivision_mapping = self.config.subdivisionsMapping.resources.get(resource)
-        resource = re.sub(".resource","", resource)
+        resource = re.sub(".resource", "", resource)
         if not subdivision_mapping:
             if not self.config.resourceDirectory:
                 return f"{resource}.resource"
@@ -559,14 +559,18 @@ class RobotSuiteFileBuilder:
                 return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
             else:
                 relative_resource_dir = self._get_relative_resource_directory()
-                robot_file_path = Path(self.config.generationDirectory)/self.tcs_path.parent
+                robot_file_path = Path(self.config.generationDirectory) / self.tcs_path.parent
                 resource_import = f"{os.path.relpath(Path(relative_resource_dir).absolute(), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
                 return re.sub(r'\\', '/', resource_import)
         else:
             root_path = Path(os.curdir).absolute()
             resource_dir_indicator = r"^{resourceDirectory}"
-            subdivision_mapping=re.sub(resource_dir_indicator, self.config.resourceDirectory, subdivision_mapping)
-            subdivision_mapping=re.sub(RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping)
+            subdivision_mapping = re.sub(
+                resource_dir_indicator, self.config.resourceDirectory, subdivision_mapping
+            )
+            subdivision_mapping = re.sub(
+                RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+            )
             return str(subdivision_mapping)
 
     def _get_relative_resource_directory(self) -> str:
