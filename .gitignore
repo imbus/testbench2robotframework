@@ -141,3 +141,9 @@ TestBench2RobotFrameworkExecutor
 json-report_out
 report_out
 dist
+atest/
+IssueDebugging/
+log.html
+output.xml
+playwright-log.txt
+report.html

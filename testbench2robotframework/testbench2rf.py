@@ -223,6 +223,7 @@ class RfTestCase:
                 f"{interaction_call.import_prefix}.{interaction_call.name}",
             )
             and keyword_lists[tc_index]
+            and self.config.testCaseSplitPathRegEx
         )
 
     def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
@@ -549,22 +550,26 @@ class RobotSuiteFileBuilder:
         return [ResourceImport.from_params(res) for res in sorted(resource_paths)]
 
     def _create_resource_path(self, resource: str) -> str:
-        if (
-            not self.config.resourceDirectory
-        ):  # TODO Fehler: Hier springt er raus weil resourceDir nicht gesetzt, sollte aber mindestens das Mapping noch mitnehmen.
-            return f"{resource}.resource"
-        if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resourceDirectory):
-            return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
-        resource_dir = self._get_resource_directory()
-        resource_path = self.config.subdivisionsMapping.resources.get(resource)
-        resource_base_path = (
-            f"{('..' + ROBOT_PATH_SEPARATOR) * len(self.tcs_path.parts)}{resource_dir}"
-        )
-        if resource_path:
-            return f"{resource_base_path}{ROBOT_PATH_SEPARATOR}{resource_path}"
-        return f"{resource_base_path}{ROBOT_PATH_SEPARATOR}{resource}.resource"
+        subdivision_mapping = self.config.subdivisionsMapping.resources.get(resource)
+        resource = re.sub(".resource","", resource)
+        if not subdivision_mapping:
+            if not self.config.resourceDirectory:
+                return f"{resource}.resource"
+            if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resourceDirectory):
+                return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
+            else:
+                relative_resource_dir = self._get_relative_resource_directory()
+                robot_file_path = Path(self.config.generationDirectory)/self.tcs_path.parent
+                resource_import = f"{os.path.relpath(Path(relative_resource_dir).absolute(), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
+                return re.sub(r'\\', '/', resource_import)
+        else:
+            root_path = Path(os.curdir).absolute()
+            resource_dir_indicator = r"^{resourceDirectory}"
+            subdivision_mapping=re.sub(resource_dir_indicator, self.config.resourceDirectory, subdivision_mapping)
+            subdivision_mapping=re.sub(RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping)
+            return str(subdivision_mapping)
 
-    def _get_resource_directory(self) -> str:
+    def _get_relative_resource_directory(self) -> str:
         root_path = Path(os.curdir).absolute()
         return os.path.relpath(
             re.sub(
