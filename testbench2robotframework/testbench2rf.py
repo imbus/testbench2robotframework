@@ -270,12 +270,13 @@ class RfTestCase:
 
     def _create_rf_teardown(self, teardown_interactions: List[InteractionCall]) -> Optional[Setup]:
         rf_teardown = None
-        if len(teardown_interactions) > 1:
+        if teardown_interactions:
             teardown_params = self._get_teardown_params(teardown_interactions)
-            self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
-                f"Teardown-{self.uid}", teardown_interactions
-            )
             rf_teardown = Teardown.from_params(**teardown_params)
+            if len(teardown_interactions) > 1:
+                self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
+                    f"Teardown-{self.uid}", teardown_interactions
+                )
         return rf_teardown
 
     def to_robot_ast_test_cases(
@@ -336,7 +337,8 @@ class RfTestCase:
             if name.endswith('='):
                 parameters.append(f"{name}{escaped_value}")
             else:
-                parameters.append(escaped_value)
+                if escaped_value != 'undef.':
+                    parameters.append(escaped_value)
         return parameters
 
     @staticmethod
