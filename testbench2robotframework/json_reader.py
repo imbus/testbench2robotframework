@@ -6,7 +6,12 @@ from os import path
 from typing import Dict, List, Optional
 
 from .log import logger
-from .model import TestCaseDetails, TestCaseSetDetails, TestStructureTree, TestStructureTreeNodeType
+from .model import (
+    TestCaseDetails,
+    TestCaseSetDetails,
+    TestStructureTree,
+    TestStructureTreeNodeType,
+)
 
 TEST_STRUCTURE_TREE_FILE = "TestThemeTree.json"
 

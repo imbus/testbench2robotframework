@@ -25,6 +25,7 @@ from .model import (
     InteractionVerdict,
     Reference,
     ReferenceType,
+    SequencePhase,
     TestCaseDetails,
     TestCaseExecutionDetails,
 )
@@ -94,6 +95,7 @@ class ResultWriter(ResultVisitor):
                 )
 
     def end_test(self, test: TestCase):
+        self._test_setup_passed: Optional[bool] = None
         test_chain = get_test_chain(test.name, self.phase_pattern)
         if test_chain:
             if test_chain.index == 1:
@@ -267,29 +269,128 @@ class ResultWriter(ResultVisitor):
         else:
             self._set_itb_test_case_status(itb_test_case, "undef")
 
+    def _get_test_phase_body(self, test_phase: TestCase):
+        return test_phase.body
+
+    def _get_test_phase_setup(self, test_phase: TestCase):
+        test_phase_setup = []
+        if test_phase.has_setup:
+            self._test_setup_passed = test_phase.setup.passed
+            setup_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.setup.body))
+            if setup_keywords:
+                test_phase_setup = setup_keywords
+            else:
+                test_phase_setup = [test_phase.setup]
+        return test_phase_setup
+
+    def _get_test_phase_teardown(self, test_phase: TestCase):
+        test_phase_teardown = []
+        if test_phase.has_teardown:
+            teardown_keywords = list(
+                filter(lambda kw: isinstance(kw, Keyword), test_phase.teardown.body)
+            )
+            if teardown_keywords:
+                test_phase_teardown = teardown_keywords
+            else:
+                test_phase_teardown = [test_phase.teardown]
+        return test_phase_teardown
+
     def _set_atomic_interactions_execution_result(
         self, atomic_interactions: List[InteractionDetails], test_chain: List[TestCase]
     ):
-        test_chain_body = [keyword for test_phase in test_chain for keyword in test_phase.body]
-        for index, interaction in enumerate(atomic_interactions):
+        self._test_setup_passed = True
+        test_chain_setup = [
+            keyword
+            for test_phase in test_chain
+            for keyword in self._get_test_phase_setup(test_phase)
+        ]
+        test_chain_body = [
+            keyword
+            for test_phase in test_chain
+            for keyword in self._get_test_phase_body(test_phase)
+        ]
+        test_chain_teardown = [
+            keyword
+            for test_phase in test_chain
+            for keyword in self._get_test_phase_teardown(test_phase)
+        ]
+        setup_interactions = list(
+            filter(
+                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
+                == SequencePhase.Setup,
+                atomic_interactions,
+            )
+        )
+        test_step_interactions = list(
+            filter(
+                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
+                == SequencePhase.TestStep,
+                atomic_interactions,
+            )
+        )
+        teardown_interactions = list(
+            filter(
+                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
+                == SequencePhase.Teardown,
+                atomic_interactions,
+            )
+        )
+        for index, interaction in enumerate(setup_interactions):
             if interaction.exec is None:
                 interaction.exec = InteractionExecutionSummary.from_dict({})
-            if index < len(test_chain_body):
+            if index < len(test_chain_setup):
+                keyword = test_chain_setup[index]
+                self._check_matching_interaction_and_keyword_name(keyword, interaction)
+                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
+            else:
+                if self._test_setup_passed:
+                    interaction.exec.verdict = InteractionVerdict.Undefined
+                else:
+                    interaction.exec.verdict = InteractionVerdict.Skipped
+
+        for index, interaction in enumerate(test_step_interactions):
+            if interaction.exec is None:
+                interaction.exec = InteractionExecutionSummary.from_dict({})
+            if not self._test_setup_passed:
+                interaction.exec.verdict = InteractionVerdict.Skipped
+            elif index < len(test_chain_body):
                 keyword = test_chain_body[index]
-                if not is_normalized_equal(
-                    keyword.kwname, interaction.name
-                ) and not is_normalized_equal(keyword.kwname.split('.')[-1], interaction.name):
-                    raise NameError(
-                        f"Execution can not be parsed, "
-                        f"because keyword name '{keyword.kwname}' does not match with "
-                        f"interaction '{interaction.name}' name."
-                    )
-                interaction.exec.verdict = self._get_interaction_result(keyword.status)
-                interaction.exec.time = keyword.endtime
-                interaction.exec.duration = keyword.elapsedtime
-                interaction.exec.comments = self.get_html_keyword_comment(keyword)
+                self._check_matching_interaction_and_keyword_name(keyword, interaction)
+                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
             else:
                 interaction.exec.verdict = InteractionVerdict.Undefined
+
+        for index, interaction in enumerate(teardown_interactions):
+            if interaction.exec is None:
+                interaction.exec = InteractionExecutionSummary.from_dict({})
+            if index < len(test_chain_teardown):
+                keyword = test_chain_teardown[index]
+                self._check_matching_interaction_and_keyword_name(keyword, interaction)
+                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
+            else:
+                interaction.exec.verdict = InteractionVerdict.Undefined
+
+    def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
+        return InteractionExecutionSummary.from_dict(
+            {
+                'verdict': self._get_interaction_result(keyword.status),
+                'time': keyword.endtime,
+                'duration': keyword.elapsedtime,
+                'comments': self.get_html_keyword_comment(keyword),
+            }
+        )
+
+    def _check_matching_interaction_and_keyword_name(
+        self, keyword: Keyword, interaction: InteractionDetails
+    ) -> None:
+        if not is_normalized_equal(keyword.kwname, interaction.name) and not is_normalized_equal(
+            keyword.kwname.split('.')[-1], interaction.name
+        ):
+            raise NameError(
+                f"Execution can not be parsed, "
+                f"because keyword name '{keyword.kwname}' does not match with "
+                f"interaction '{interaction.name}' name."
+            )
 
     def _get_keyword_messages(self, keyword: Keyword):
         if hasattr(keyword, "messages"):
@@ -355,7 +456,6 @@ class ResultWriter(ResultVisitor):
                     f"had no exec details and therefore ignored."
                 )
                 atomic.exec = InteractionExecutionSummary.from_dict({})
-                # continue
             if atomic.exec.verdict is InteractionVerdict.Fail:
                 compound_interaction.exec.verdict = InteractionVerdict.Fail
                 break
