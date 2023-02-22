@@ -335,18 +335,34 @@ class RfTestCase:
     @staticmethod
     def _create_cbv_parameters(interaction: AtomicInteractionCall) -> List[str]:
         parameters = []
+        previous_arg_is_pos_only = False
+        previous_arg_was_undefined = False
         for name, value in interaction.cbv_parameters.items():
+            if value == "undef.":
+                previous_arg_was_undefined = True
+                continue
             escaped_value = RfTestCase.escape_argument_value(value)
-            if name.endswith('='):
+            if name.startswith('* '):
+                escaped_value = RfTestCase.escape_argument_value(value, False)
+                parameters.append(escaped_value)
+                previous_arg_is_pos_only = True
+            elif name.startswith('** '):
+                escaped_value = RfTestCase.escape_argument_value(value, False, False)
+                parameters.append(escaped_value)
+            elif name.startswith('- ') or previous_arg_is_pos_only or previous_arg_was_undefined:
+                name = re.sub("- ", "", name)
+                name = re.sub("=$", "", name)
+                parameters.append(f"{name}={escaped_value}")
+            elif name.endswith('='):
                 parameters.append(f"{name}{escaped_value}")
             else:
-                if escaped_value != 'undef.':
-                    parameters.append(escaped_value)
+                parameters.append(escaped_value)
         return parameters
 
     @staticmethod
-    def escape_argument_value(value: str) -> str:
-        value = re.sub(r'^(?= )|(?<= )$|(?<= )(?= )', r'\\', value)
+    def escape_argument_value(value: str, space_escaping=True, equal_sign_escaping=True) -> str:
+        if space_escaping:
+            value = re.sub(r'^(?= )|(?<= )$|(?<= )(?= )', r'\\', value)
         value = re.sub(r'(?<!\\)=', r'\=', value)
         value = re.sub(r'^#', r'\#', value)
         return value
