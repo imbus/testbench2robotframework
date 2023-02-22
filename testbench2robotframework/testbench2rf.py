@@ -320,7 +320,9 @@ class RfTestCase:
             # suffix = f' : Phase {index + 1}/{len(rf_keyword_lists)}' if multiple_tests else ''
             # tc_name = f"{self.uid}{suffix}"  # TODO later UID or Comments
             rf_test_case = TestCase(header=TestCaseName.from_params(tc_name))
-            rf_test_case.body.append(Tags.from_params(self.rf_tags))
+            if self.rf_tags:
+                logger.info(self.rf_tags)
+                rf_test_case.body.append(Tags.from_params(self.rf_tags))
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
