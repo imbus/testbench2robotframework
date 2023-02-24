@@ -143,6 +143,7 @@ report_out
 dist
 atest/
 IssueDebugging/
+MyResources/
 log.html
 output.xml
 playwright-log.txt

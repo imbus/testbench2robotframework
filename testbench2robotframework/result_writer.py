@@ -276,9 +276,8 @@ class ResultWriter(ResultVisitor):
         test_phase_setup = []
         if test_phase.has_setup:
             self._test_setup_passed = test_phase.setup.passed
-            setup_keywords = list(filter(lambda kw: isinstance(kw, Keyword), test_phase.setup.body))
-            if setup_keywords:
-                test_phase_setup = setup_keywords
+            if test_phase.setup.name == f"Setup-{test_phase.name}":
+                test_phase_setup = list(filter(lambda kw: isinstance(kw, Keyword) and kw.parent.name == f"Setup-{test_phase.name}", test_phase.setup.body))
             else:
                 test_phase_setup = [test_phase.setup]
         return test_phase_setup

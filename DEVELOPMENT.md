@@ -10,6 +10,10 @@
 
     > /path/to/python38/python -m venv .venv
 
+4. Activate the virtual environment
+
+    > .venv/scripts/activate
+
 4. Install the dependencies
 
     > pip install -r requirements.txt
@@ -35,7 +39,13 @@ The package is built using setuptools. The build configuration is defined in `se
     > tb2robot
 
 - Build a pure-Python wheel
+    > pip install wheel
     > python setup.py bdist_wheel
+
+- Build a pure-Python wheel and publish new version to pypi
+    > pip install wheel
+    > pip install twine
+    > CreatePipWheel.bat oder CreatePipWheel.sh
 
 
 ## Adding New Dependencies
