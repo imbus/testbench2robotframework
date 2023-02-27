@@ -277,7 +277,13 @@ class ResultWriter(ResultVisitor):
         if test_phase.has_setup:
             self._test_setup_passed = test_phase.setup.passed
             if test_phase.setup.name == f"Setup-{test_phase.name}":
-                test_phase_setup = list(filter(lambda kw: isinstance(kw, Keyword) and kw.parent.name == f"Setup-{test_phase.name}", test_phase.setup.body))
+                test_phase_setup = list(
+                    filter(
+                        lambda kw: isinstance(kw, Keyword)
+                        and kw.parent.name == f"Setup-{test_phase.name}",
+                        test_phase.setup.body,
+                    )
+                )
             else:
                 test_phase_setup = [test_phase.setup]
         return test_phase_setup
@@ -286,7 +292,13 @@ class ResultWriter(ResultVisitor):
         test_phase_teardown = []
         if test_phase.has_teardown:
             if test_phase.teardown.name == f"Teardown-{test_phase.name}":
-                test_phase_teardown = list(filter(lambda kw: isinstance(kw, Keyword) and kw.parent.name == f"Teardown-{test_phase.name}", test_phase.teardown.body))
+                test_phase_teardown = list(
+                    filter(
+                        lambda kw: isinstance(kw, Keyword)
+                        and kw.parent.name == f"Teardown-{test_phase.name}",
+                        test_phase.teardown.body,
+                    )
+                )
             else:
                 test_phase_teardown = [test_phase.teardown]
         return test_phase_teardown
