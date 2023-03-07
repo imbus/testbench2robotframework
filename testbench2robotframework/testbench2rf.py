@@ -575,9 +575,10 @@ class RobotSuiteFileBuilder:
             if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resourceDirectory):
                 return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
             else:
-                relative_resource_dir = self._get_relative_resource_directory()
-                robot_file_path = Path(self.config.generationDirectory) / self.tcs_path.parent
-                resource_import = f"{os.path.relpath(Path(relative_resource_dir).absolute(), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
+                generation_directory = self._replace_relative_resource_indicator(self.config.generationDirectory)
+                robot_file_path = Path(generation_directory) / self.tcs_path.parent
+                resource_directory = self._replace_relative_resource_indicator(self.config.resourceDirectory)
+                resource_import = f"{os.path.relpath(Path(resource_directory), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
                 return re.sub(r'\\', '/', resource_import)
         else:
             root_path = Path(os.curdir).absolute()
@@ -590,17 +591,24 @@ class RobotSuiteFileBuilder:
             )
             return str(subdivision_mapping)
 
+    def _replace_relative_resource_indicator(self, path: Path) -> str:
+        root_path = Path(os.curdir).absolute()
+        return re.sub(
+                RELATIVE_RESOURCE_INDICATOR,
+                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+                path,
+                flags=re.IGNORECASE,
+            ).replace('\\', ROBOT_PATH_SEPARATOR)
+
+
     def _get_relative_resource_directory(self) -> str:
         root_path = Path(os.curdir).absolute()
-        return os.path.relpath(
-            re.sub(
+        return re.sub(
                 RELATIVE_RESOURCE_INDICATOR,
-                str(root_path).replace('\\', '\\\\'),
+                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
                 self.config.resourceDirectory,
                 flags=re.IGNORECASE,
-            ),
-            root_path,
-        ).replace('\\', ROBOT_PATH_SEPARATOR)
+            ).replace('\\', ROBOT_PATH_SEPARATOR)
 
     @staticmethod
     def _is_library(root_subdivision: str) -> bool:
