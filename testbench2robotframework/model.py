@@ -1,6 +1,5 @@
 # pylint: skip-file
 from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import Enum, auto
 from optparse import Option
@@ -21,10 +20,10 @@ class StrEnum(str, Enum):
         return name
 
 
-class FilterType(StrEnum):
-    TestThemeFilter = "TestThemeFilter"
-    TestCaseSetFilter = "TestCaseSetFilter"
-    TestCaseFilter = "TestCaseFilter"
+class TestFilterType(StrEnum):
+    TestTheme = "TestTheme"
+    TestCaseSet = "TestCaseSet"
+    TestCase = "TestCase"
 
 
 class TestStructureTreeNodeType(StrEnum):
@@ -34,6 +33,7 @@ class TestStructureTreeNodeType(StrEnum):
 
 
 class Priority(StrEnum):
+    Undefined = "Undefined"
     High = "High"
     Medium = "Medium"
     Low = "Low"
@@ -204,7 +204,7 @@ class UserDefinedField:
     key: str
     name: str
     value: str
-    valueType: UdfType
+    udfType: UdfType
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -212,16 +212,16 @@ class UserDefinedField:
             key=dictionary.get("key", ""),
             name=dictionary.get("name", ""),
             value=dictionary.get("value", ""),
-            valueType=UdfType(dictionary.get("valueType", UdfType.String)),
+            udfType=UdfType(dictionary.get("udfType", UdfType.String)),
         )
 
     @property
     def robot_tag(self) -> Optional[str]:
-        if self.valueType == UdfType.Enumeration:
+        if self.udfType == UdfType.Enumeration:
             return f"{self.name}:{self.value}"
-        elif self.valueType == UdfType.String and self.value:
+        elif self.udfType == UdfType.String and self.value:
             return f"{self.name}:{self.value}"
-        elif self.valueType == UdfType.Boolean and self.value == "true":
+        elif self.udfType == UdfType.Boolean and self.value == "true":
             return self.name
         return None
 
@@ -261,6 +261,8 @@ class UserReference:
 
     @classmethod
     def from_dict(cls, dictionary):
+        if dictionary is None:
+            return None
         return cls(key=dictionary.get("key", ""), name=dictionary.get("name", ""))
 
 
@@ -298,8 +300,8 @@ class TestCaseSetSpecificationSummary:
     key: str
     description: str
     reviewComment: str
-    status: SpecificationStatus
-    priority: Optional[Priority]
+    specificationStatus: SpecificationStatus
+    priority: Priority
     responsible: Optional[UserReference]
     dueDate: Optional[str]
     reviewer: Optional[UserReference]
@@ -316,7 +318,9 @@ class TestCaseSetSpecificationSummary:
             key=dictionary.get("key", ""),
             description=dictionary.get("description", ""),
             reviewComment=dictionary.get("reviewComment", ""),
-            status=SpecificationStatus(dictionary.get("status", SpecificationStatus.Planned)),
+            specificationStatus=SpecificationStatus(
+                dictionary.get("specificationStatus", SpecificationStatus.Planned)
+            ),
             priority=Priority(dictionary.get("priority")) if dictionary.get("priority") else None,
             responsible=UserReference.from_dict(dictionary.get("responsible", {}))
             if dictionary.get("responsible")
@@ -346,6 +350,7 @@ class TestCaseSetSpecificationSummary:
 @dataclass
 class TestCaseSpecificationDetails:
     key: str
+    version: Optional[str]
     comments: str
     udfs: List[UserDefinedField]
     keywords: List[Keyword]
@@ -355,6 +360,7 @@ class TestCaseSpecificationDetails:
     def from_dict(cls, dictionary):
         return cls(
             key=dictionary.get("key", ""),
+            version=dictionary.get("version", ""),
             comments=dictionary.get("comments", ""),
             udfs=[UserDefinedField.from_dict(udf) for udf in dictionary.get("udfs", [])],
             keywords=[Keyword.from_dict(keyword) for keyword in dictionary.get("keywords", [])],
@@ -419,7 +425,7 @@ class TestCaseExecutionSummary:
             verdict=ExecutionVerdict(dictionary.get("verdict", ExecutionVerdict.Undefined)),
             comments=dictionary.get("comments", ""),
             defects=dictionary.get("defects", []),
-            tester=UserReference.from_dict(dictionary.get("tester"))
+            tester=UserReference.from_dict(dictionary.get("tester"), {})
             if dictionary.get("tester")
             else None,
         )
@@ -517,7 +523,7 @@ class InteractionExecutionSummary:
     time: str
     duration: int
     currentUser: UserReference
-    tester: UserReference
+    tester: Optional[UserReference]
     comments: str
     references: List[Reference]
 
@@ -701,7 +707,7 @@ class TestStructureExecution:
     locker: Optional[UserReference]
     status: ActivityStatus
     execStatus: ExecutionStatus
-    verdict: ExecutionVerdict
+    verdictStatus: ExecutionVerdict
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -712,7 +718,9 @@ class TestStructureExecution:
             else None,
             status=ActivityStatus(dictionary.get("status", ActivityStatus.Planned)),
             execStatus=ExecutionStatus(dictionary.get("execStatus", ExecutionStatus.NotBlocked)),
-            verdict=ExecutionVerdict(dictionary.get("verdict", ExecutionVerdict.Undefined)),
+            verdictStatus=ExecutionVerdict(
+                dictionary.get("verdictStatus", ExecutionVerdict.Undefined)
+            ),
         )
 
 
@@ -720,7 +728,7 @@ class TestStructureExecution:
 class AttachedFilter:
     key: str
     name: str
-    filterType: FilterType
+    filterType: TestFilterType
     content: str
 
     @classmethod
@@ -728,7 +736,7 @@ class AttachedFilter:
         return cls(
             key=dictionary.get("key", "-1"),
             name=dictionary.get("name", ""),
-            filterType=FilterType(dictionary.get("filterType", FilterType.TestCaseSetFilter)),
+            filterType=TestFilterType(dictionary.get("TestFilterType", TestFilterType.TestCaseSet)),
             content=dictionary.get("content", ""),
         )
 
@@ -789,7 +797,7 @@ class TestStructureTreeNode:
 
 @dataclass
 class TestStructureTree:
-    root: TestStructureTreeNode
+    root: Optional[TestStructureTreeNode]
     nodes: List[TestStructureTreeNode]
 
     @classmethod

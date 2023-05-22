@@ -13,7 +13,7 @@ from .model import (
     TestStructureTreeNodeType,
 )
 
-TEST_STRUCTURE_TREE_FILE = "TestThemeTree.json"
+TEST_STRUCTURE_TREE_FILE = "cycle_structure.json"
 
 
 @dataclass

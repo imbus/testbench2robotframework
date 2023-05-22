@@ -7,7 +7,7 @@ from .config import Configuration
 from .log import logger
 from .model import TestCaseDetails, TestCaseSetDetails, TestStructureTree
 
-TEST_STRUCTURE_TREE_FILE = "TestThemeTree"
+TEST_STRUCTURE_TREE_FILE = "cycle_structure"
 
 
 def write_test_structure_element(
