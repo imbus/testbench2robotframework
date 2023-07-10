@@ -327,7 +327,7 @@ class RfTestCase:
             rf_test_case.body.extend(rf_keywords)
             if index == len(rf_keyword_call_lists) - 1 and rf_teardown:
                 rf_test_case.body.append(rf_teardown)
-            if index < len(rf_keyword_call_lists) - 1:
+            if index != len(rf_keyword_call_lists) - 1:
                 rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
         return rf_test_cases
@@ -523,8 +523,10 @@ class RobotSuiteFileBuilder:
     def _create_test_case_section(self) -> TestCaseSection:
         test_case_section = TestCaseSection(header=SectionHeader.from_params(Token.TESTCASE_HEADER))
         robot_ast_test_cases = []
-        for test_case in self._rf_test_cases:
+        for index, test_case in enumerate(self._rf_test_cases):
             robot_ast_test_cases.extend(test_case.to_robot_ast_test_cases())
+            if index != len(self._rf_test_cases) - 1:
+                robot_ast_test_cases[-1].body.extend(LINE_SEPARATOR)
             if test_case.setup_keyword:
                 self.setup_keywords.append(test_case.setup_keyword)
             if test_case.teardown_keyword:
