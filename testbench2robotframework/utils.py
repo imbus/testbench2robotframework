@@ -44,7 +44,7 @@ write_parser.add_argument(
     help=CONFIG_ARGUMENT_HELP,
     type=str,
     required=False,
-    default=os.path.join(os.path.abspath(os.curdir), "config.json"),
+    default=str(Path(os.curdir, "config.json").resolve()),
 )
 
 write_parser.add_argument("jsonReport", nargs=1, type=str, help=JSON_PATH_ARGUMENT_HELP)
@@ -56,7 +56,7 @@ read_parser.add_argument(
     help=CONFIG_ARGUMENT_HELP,
     type=str,
     required=False,
-    default=os.path.join(os.path.abspath(os.curdir), "config.json"),
+    default=str(Path(os.curdir, "config.json").resolve()),
 )
 read_parser.add_argument(
     "-r",
@@ -143,15 +143,16 @@ class PathResolver:
 def get_directory(json_report_path: Optional[str]) -> str:
     if json_report_path is None:
         return ""
-    if not os.path.exists(json_report_path):
+    if not Path(json_report_path).exists():
         sys.exit("Error opening " + json_report_path + ". Path does not exist.")
-    if os.path.isdir(json_report_path):
-        return os.path.abspath(json_report_path)
-    filename, ext = os.path.splitext(json_report_path)
+    if Path(json_report_path).is_dir():
+        return str(Path(json_report_path).resolve())
+    ext = Path(json_report_path).suffix
+    filename = str(Path(json_report_path).parent / Path(json_report_path).stem)
     if ext.lower() == ".zip":
         with ZipFile(json_report_path, 'r') as zip_ref:
             zip_ref.extractall(filename)
-        return os.path.abspath(filename)
+        return str(Path(filename).resolve())
     sys.exit("Error opening " + json_report_path + ". File is not a ZIP file.")
 
 

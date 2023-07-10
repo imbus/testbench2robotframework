@@ -4,6 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
+from typing import Union
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token
@@ -104,11 +105,9 @@ class RfTestCase:
     def _get_udf_tags(user_defined_fields: list[UserDefinedField]) -> list[str]:
         udfs = []
         for udf in user_defined_fields:
-            if udf.valueType == UdfType.Enumeration:
+            if udf.valueType in [UdfType.Enumeration, UdfType.String] and udf.value:
                 udfs.append(f"{udf.name}:{udf.value}")
-            elif udf.valueType == UdfType.String and udf.value:
-                udfs.append(f"{udf.name}:{udf.value}")
-            elif udf.valueType == UdfType.Boolean and udf.value == "true":
+            elif udf.valueType == UdfType.Boolean and udf.value.lower() == "true":
                 udfs.append(udf.name)
         return udfs
 
@@ -202,10 +201,12 @@ class RfTestCase:
         is_first_atomic = True
         for interaction_call in interaction_calls:
             if isinstance(interaction_call, AtomicInteractionCall):
-                if self.is_splitting_ia(interaction_call, keyword_lists, tc_index):
-                    if not is_first_atomic:
-                        tc_index += 1
-                        keyword_lists.append([])
+                if (
+                    self.is_splitting_ia(interaction_call, keyword_lists, tc_index)
+                    and not is_first_atomic
+                ):
+                    tc_index += 1
+                    keyword_lists.append([])
                 is_first_atomic = False
                 keyword_lists[tc_index].append(self._create_rf_keyword(interaction_call))
             elif (
@@ -225,7 +226,7 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
+    def _create_rf_setup_call(self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall]) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -247,7 +248,7 @@ class RfTestCase:
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Setup | None:
+    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Union[Setup, None]:
         rf_setup = None
         if len(setup_interactions) == 1:
             rf_setup = self._create_rf_setup_call(setup_interactions[0])
@@ -268,7 +269,7 @@ class RfTestCase:
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(self, teardown_interactions: list[InteractionCall]) -> Setup | None:
+    def _create_rf_teardown(self, teardown_interactions: list[InteractionCall]) -> Union[Setup, None]:
         rf_teardown = None
         if teardown_interactions:
             teardown_params = self._get_teardown_params(teardown_interactions)
@@ -347,10 +348,9 @@ class RfTestCase:
                 escaped_value = RfTestCase.escape_argument_value(value, False)
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
-            elif re.match(r'^-\ ?', name) or re.search(r'=$', name) or previous_arg_forces_named:
-                name = re.sub(r'^-\ ?', "", name)
-                name = re.sub("=$", "", name)
-                parameters.append(f"{name}={escaped_value}")
+            elif re.search(r'(^-\ ?|=$)', name) or previous_arg_forces_named:
+                pure_name = re.sub(r'(^-\ ?|=$)', "", name)
+                parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
             else:
                 parameters.append(escaped_value)
@@ -376,7 +376,7 @@ class RfTestCase:
         return (self.config.fullyQualified or False) * f"{interaction.import_prefix}."
 
     def _get_interaction_indent(
-        self, interaction: AtomicInteractionCall | CompoundInteractionCall
+        self, interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
     ) -> str:
         return SEPARATOR * interaction.indent if self.config.logCompoundInteractions else SEPARATOR
 
@@ -456,12 +456,12 @@ class RobotInitFileBuilder:
         self, test_theme: TestStructureTreeNode, tt_path: PurePath, config: Configuration
     ) -> None:
         self.test_theme = test_theme
-        self.tt_path = tt_path
+        self.tt_path = PurePath(tt_path)
         self.config = config
 
     def create_init_file(self) -> File:
         sections = [self._create_setting_section()]
-        return File(sections, source=os.path.join(str(self.tt_path), "__init__"))
+        return File(sections, source=str(self.tt_path / "__init__"))
 
     def _create_setting_section(self) -> SettingSection:
         setting_section = SettingSection(header=SectionHeader.from_params(Token.SETTING_HEADER))
@@ -532,7 +532,7 @@ class RobotSuiteFileBuilder:
         test_case_section.body.extend(robot_ast_test_cases)
         return test_case_section
 
-    def _create_keywords_section(self) -> KeywordSection | None:
+    def _create_keywords_section(self) -> Union[KeywordSection, None]:
         if not self.setup_keywords and not self.teardown_keywords:
             return None
         keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
@@ -576,42 +576,45 @@ class RobotSuiteFileBuilder:
             if not self.config.resourceDirectory:
                 return f"{resource}.resource"
             if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resourceDirectory):
-                return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
-            else:
-                generation_directory = self._replace_relative_resource_indicator(self.config.generationDirectory)
-                robot_file_path = Path(generation_directory) / self.tcs_path.parent
-                resource_directory = self._replace_relative_resource_indicator(self.config.resourceDirectory)
-                resource_import = f"{os.path.relpath(Path(resource_directory), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
-                return re.sub(r'\\', '/', resource_import)
-        else:
-            root_path = Path(os.curdir).absolute()
-            resource_dir_indicator = r"^{resourceDirectory}"
-            subdivision_mapping = re.sub(
-                resource_dir_indicator, self.config.resourceDirectory, subdivision_mapping
+                return Path(self.config.resourceDirectory, f"{resource}.resource").as_posix()
+            generation_directory = self._replace_relative_resource_indicator(
+                self.config.generationDirectory
             )
-            subdivision_mapping = re.sub(
-                RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+            robot_file_path = Path(generation_directory) / self.tcs_path.parent
+            resource_directory = self._replace_relative_resource_indicator(
+                self.config.resourceDirectory
             )
-            return str(subdivision_mapping)
+            resource_import = (
+                Path(os.path.relpath(Path(resource_directory), robot_file_path))
+                / f"{resource}.resource"
+            )
+            return resource_import.as_posix()
+        root_path = Path(os.curdir).absolute()
+        subdivision_mapping = re.sub(
+            r"^{resourceDirectory}", self.config.resourceDirectory, subdivision_mapping
+        )
+        subdivision_mapping = re.sub(
+            RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+        )
+        return str(subdivision_mapping)
 
-    def _replace_relative_resource_indicator(self, path: Path | str) -> str:
+    def _replace_relative_resource_indicator(self, path: Union[Path, str]) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
-                RELATIVE_RESOURCE_INDICATOR,
-                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
-                str(path),
-                flags=re.IGNORECASE,
-            ).replace('\\', ROBOT_PATH_SEPARATOR)
-
+            RELATIVE_RESOURCE_INDICATOR,
+            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            str(path),
+            flags=re.IGNORECASE,
+        ).replace('\\', ROBOT_PATH_SEPARATOR)
 
     def _get_relative_resource_directory(self) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
-                RELATIVE_RESOURCE_INDICATOR,
-                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
-                self.config.resourceDirectory,
-                flags=re.IGNORECASE,
-            ).replace('\\', ROBOT_PATH_SEPARATOR)
+            RELATIVE_RESOURCE_INDICATOR,
+            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            self.config.resourceDirectory,
+            flags=re.IGNORECASE,
+        ).replace('\\', ROBOT_PATH_SEPARATOR)
 
     @staticmethod
     def _is_library(root_subdivision: str) -> bool:
@@ -634,7 +637,7 @@ class RobotSuiteFileBuilder:
         }
         return [LibraryImport.from_params(lib) for lib in sorted(lib_imports)]
 
-    def _create_rf_force_tags(self) -> ForceTags | None:
+    def _create_rf_force_tags(self) -> Union[ForceTags, None]:
         tb_keyword_names = [keyword.name for keyword in self.test_case_set.details.spec.keywords]
         udfs = [udf.robot_tag for udf in self.test_case_set.details.spec.udfs if udf.robot_tag]
         force_tags = tb_keyword_names + udfs

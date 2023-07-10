@@ -2,7 +2,7 @@ import json
 import sys
 from dataclasses import dataclass
 from json import JSONDecodeError
-from os import path
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from .log import logger
@@ -43,9 +43,9 @@ class TestBenchJsonReader:
     @property
     def test_theme_tree(self) -> TestStructureTree:
         if not self._test_theme_tree:
-            test_theme_path = path.join(self.json_dir, TEST_STRUCTURE_TREE_FILE)
+            test_theme_path = Path(self.json_dir) / TEST_STRUCTURE_TREE_FILE
             logger.debug(f"Loading TestThemeTree from {test_theme_path}")
-            test_structure_tree = read_json(test_theme_path)
+            test_structure_tree = read_json(str(test_theme_path))
             self._test_theme_tree = TestStructureTree.from_dict(test_structure_tree)
             logger.info(f"{len(self._test_theme_tree.nodes)} nodes from TestThemeTree loaded.")
         return self._test_theme_tree
@@ -106,19 +106,19 @@ class TestBenchJsonReader:
         return [tc.uniqueID for tc in test_case_set.testCases]
 
     def read_test_case_set(self, uid) -> Optional[TestCaseSetDetails]:
-        tcs_dict = read_json(path.join(self.json_dir, f"{uid}.json"))
+        tcs_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tcs_dict is None:
             return None
         return TestCaseSetDetails.from_dict(tcs_dict)
 
     def read_test_case(self, uid) -> Optional[TestCaseDetails]:
-        tc_dict = read_json(path.join(self.json_dir, f"{uid}.json"))
+        tc_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tc_dict is None:
             return None
         return TestCaseDetails.from_dict(tc_dict)
 
     def read_test_theme_tree(self) -> Optional[TestStructureTree]:
-        test_structure_tree = read_json(path.join(self.json_dir, TEST_STRUCTURE_TREE_FILE))
+        test_structure_tree = read_json(str(Path(self.json_dir, TEST_STRUCTURE_TREE_FILE)))
         if test_structure_tree is None:
             return None
         return TestStructureTree.from_dict(test_structure_tree)
@@ -126,7 +126,7 @@ class TestBenchJsonReader:
 
 def read_json(filepath: str):  # ToDo Configure to run silent or raise
     try:
-        with open(filepath, encoding='utf-8') as json_file:
+        with Path(filepath).open(encoding='utf-8') as json_file:
             return json.load(json_file)
     except FileNotFoundError:
         logger.debug(f"Cannot find json file {filepath}:")

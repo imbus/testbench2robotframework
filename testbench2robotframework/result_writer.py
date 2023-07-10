@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 from urllib.parse import unquote
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
+from robot.result.model import Body
 
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
@@ -48,6 +49,8 @@ COLOR = {
     "INFO": "#000",
 }
 
+MEGABYTE = 1000 * 1000
+
 
 class ResultWriter(ResultVisitor):
     def __init__(
@@ -58,13 +61,14 @@ class ResultWriter(ResultVisitor):
         self.reference_behaviour = config.referenceBehaviour
         self.attachment_conflict_behaviour = config.attachmentConflictBehaviour
         self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
+        self._test_setup_passed: Optional[bool] = None
         if json_result is None:
-            self.create_zip = bool(os.path.splitext(json_report)[1].lower() == ".zip")
+            self.create_zip = bool(Path(json_report).suffix == ".zip")
             self.json_result = self.json_dir
             self.json_result_path = self.json_dir
         else:
-            self.json_result_path, result_extension = os.path.splitext(json_result)
-            self.create_zip = bool(result_extension.lower() == ".zip")
+            self.json_result_path = str(Path(json_result).parent / Path(json_report).stem)
+            self.create_zip = bool(Path(json_report).suffix == ".zip")
             self.json_result = self.tempdir.name
             if self.create_zip:
                 copytree(self.json_dir, self.json_result, dirs_exist_ok=True)
@@ -95,7 +99,7 @@ class ResultWriter(ResultVisitor):
                 )
 
     def end_test(self, test: TestCase):
-        self._test_setup_passed: Optional[bool] = None
+        self._test_setup_passed = None
         test_chain = get_test_chain(test.name, self.phase_pattern)
         if test_chain:
             if test_chain.index == 1:
@@ -171,11 +175,11 @@ class ResultWriter(ResultVisitor):
                         logger.warning(f"Referenced file '{file_path}' does not exist.")
                     continue
                 file_size = os.path.getsize(reference_path)
-                if file_size >= 10000000:
+                if file_size >= 10 * MEGABYTE:
                     logger.error(
                         f"Trying to attach file '{reference_path}'. "
                         "Attachment file size must not exceed 10 MB "
-                        f"but is {file_size / 1000000} MB."
+                        f"but is {file_size / MEGABYTE} MB."
                     )
                     reference = self._create_reference(reference_path.name)
                 else:
@@ -270,12 +274,12 @@ class ResultWriter(ResultVisitor):
         else:
             self._set_itb_test_case_status(itb_test_case, "undef")
 
-    def _get_test_phase_body(self, test_phase: TestCase):
+    def _get_test_phase_body(self, test_phase: TestCase) -> Body:
         return test_phase.body
 
-    def _get_test_phase_setup(self, test_phase: TestCase):
+    def _get_test_phase_setup(self, test_phase: TestCase) -> List[Keyword]:
         test_phase_setup = []
-        if test_phase.has_setup:
+        if test_phase.has_setup and test_phase.setup:
             self._test_setup_passed = test_phase.setup.passed
             if test_phase.setup.name == f"Setup-{test_phase.name}":
                 test_phase_setup = list(
@@ -289,9 +293,9 @@ class ResultWriter(ResultVisitor):
                 test_phase_setup = [test_phase.setup]
         return test_phase_setup
 
-    def _get_test_phase_teardown(self, test_phase: TestCase):
+    def _get_test_phase_teardown(self, test_phase: TestCase) -> List[Keyword]:
         test_phase_teardown = []
-        if test_phase.has_teardown:
+        if test_phase.has_teardown and test_phase.teardown:
             if test_phase.teardown.name == f"Teardown-{test_phase.name}":
                 test_phase_teardown = list(
                     filter(
@@ -323,61 +327,54 @@ class ResultWriter(ResultVisitor):
             for test_phase in test_chain
             for keyword in self._get_test_phase_teardown(test_phase)
         ]
-        setup_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.Setup,
-                atomic_interactions,
-            )
+        setup_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.Setup
         )
-        test_step_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.TestStep,
-                atomic_interactions,
-            )
+        test_step_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.TestStep
         )
-        teardown_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.Teardown,
-                atomic_interactions,
-            )
+        teardown_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.Teardown
         )
-        for index, interaction in enumerate(setup_interactions):
-            if interaction.exec is None:
-                interaction.exec = InteractionExecutionSummary.from_dict({})
-            if index < len(test_chain_setup):
-                keyword = test_chain_setup[index]
-                self._check_matching_interaction_and_keyword_name(keyword, interaction)
-                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                if self._test_setup_passed:
-                    interaction.exec.verdict = InteractionVerdict.Undefined
-                else:
-                    interaction.exec.verdict = InteractionVerdict.Skipped
+        self._set_interaction_verdicts(setup_interactions, test_chain_setup, SequencePhase.Setup)
+        self._set_interaction_verdicts(
+            test_step_interactions, test_chain_body, SequencePhase.TestStep
+        )
+        self._set_interaction_verdicts(
+            teardown_interactions, test_chain_teardown, SequencePhase.Teardown
+        )
 
-        for index, interaction in enumerate(test_step_interactions):
+    def _set_interaction_verdicts(
+        self,
+        interaction_list: List[InteractionDetails],
+        test_chain_body: List[Keyword],
+        sequence_phase: SequencePhase,
+    ):
+        for index, interaction in enumerate(interaction_list):
             if interaction.exec is None:
                 interaction.exec = InteractionExecutionSummary.from_dict({})
-            if not self._test_setup_passed:
+            if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
                 interaction.exec.verdict = InteractionVerdict.Skipped
-            elif index < len(test_chain_body):
+                continue
+            if index < len(test_chain_body):
                 keyword = test_chain_body[index]
                 self._check_matching_interaction_and_keyword_name(keyword, interaction)
                 interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                interaction.exec.verdict = InteractionVerdict.Undefined
+                continue
+            if sequence_phase == SequencePhase.Setup and not self._test_setup_passed:
+                interaction.exec.verdict = InteractionVerdict.Skipped
+                continue
+            interaction.exec.verdict = InteractionVerdict.Undefined
 
-        for index, interaction in enumerate(teardown_interactions):
-            if interaction.exec is None:
-                interaction.exec = InteractionExecutionSummary.from_dict({})
-            if index < len(test_chain_teardown):
-                keyword = test_chain_teardown[index]
-                self._check_matching_interaction_and_keyword_name(keyword, interaction)
-                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                interaction.exec.verdict = InteractionVerdict.Undefined
+    def _filter_atomic_interactions_by_sequence_phase(
+        self, atomic_interactions: List[InteractionDetails], sequence_phase: SequencePhase
+    ):
+        return list(
+            filter(
+                lambda atomic_interaction: atomic_interaction.spec.sequencePhase == sequence_phase,
+                atomic_interactions,
+            )
+        )
 
     def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
         return InteractionExecutionSummary.from_dict(
@@ -406,8 +403,8 @@ class ResultWriter(ResultVisitor):
             for message in keyword.messages:
                 yield self._create_itb_exec_comment(message)
         if hasattr(keyword, "body"):
-            for keyword in keyword.body:
-                yield from self._get_keyword_messages(keyword)
+            for kw in keyword.body:
+                yield from self._get_keyword_messages(kw)
 
     def get_html_keyword_comment(self, keyword: Keyword):
         messages = list(self._get_keyword_messages(keyword))
@@ -447,7 +444,11 @@ class ResultWriter(ResultVisitor):
 
     @staticmethod
     def get_isotime_from_robot_timestamp(timestamp, time_format="%Y-%m-%d %H:%M:%S.%f"):
-        return datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f").strftime(time_format)[:-3]
+        return (
+            datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+            .astimezone()
+            .strftime(time_format)[:-3]
+        )
 
     def _set_compound_interaction_execution_result(self, compound_interaction: InteractionDetails):
         atomic_interactions = list(

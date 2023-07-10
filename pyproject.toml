@@ -72,7 +72,9 @@ testpaths = [
 spec_header_format = "{test_case}"
 
 [tool.ruff]
-unfixable = []
+unfixable = [
+    "UP007"
+]
 exclude = [
   "__pycache__",
   "config.py",
@@ -89,6 +91,7 @@ ignore = [
   # "N999",  # Invalid module name: 'Browser'
   "PLR0913",  # too many arguments
   # "T201",  # Print statements
+  "UP007",
 ]
 target-version = "py37"
 select = [
