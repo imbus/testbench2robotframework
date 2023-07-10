@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import Dict
+from typing import Dict, Optional
 
 from robot.api import ExecutionResult
 
@@ -12,8 +12,8 @@ from .result_writer import ResultWriter
 def robot2testbench(
     json_input_report: str,
     robot_result_xml: str,
-    json_output_result: str = None,
-    config: Dict = None,
+    json_output_result: Optional[str] = None,
+    config: Optional[Dict] = None,
 ):
     if not os.path.exists(json_input_report):
         sys.exit("Could not find json directory or zip file at the given path.")

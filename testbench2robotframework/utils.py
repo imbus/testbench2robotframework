@@ -15,7 +15,7 @@ from testbench2robotframework.model import (
 
 CONVERTER_DESCRIPTION = """tB2Robot converts TestBench JSON report to Robot Framework Code
                         and Robot Result Model to JSON full report."""
-WRITE_SUBPARSER_HELP = """Command to convert TestBench´s JSON REPORT to Robot Framework Code."""
+WRITE_SUBPARSER_HELP = """Command to convert TestBench`s JSON REPORT to Robot Framework Code."""
 READ_SUBPARSER_HELP = """Command to read a robot output xml file and
 write the results to a TestBench JSON REPORT."""
 JSON_PATH_ARGUMENT_HELP = "Path to a ZIP file or directory containing TestBenchs JSON report files."
@@ -168,7 +168,7 @@ def get_tse_index(tse: TestStructureTreeNode) -> str:
     return tse.baseInformation.numbering.rsplit(".", 1)[-1]
 
 
-def directory_to_zip(directory: Path, new_path: str = None):
+def directory_to_zip(directory: Path, new_path: Optional[str] = None):
     if new_path:
         shutil.make_archive(str(new_path), 'zip', str(directory))
     else:
@@ -177,7 +177,6 @@ def directory_to_zip(directory: Path, new_path: str = None):
 
 def get_list_item(liste, index, default: Optional[str]):
     try:
-        item = liste[index]
-        return item
+        return liste[index]
     except IndexError:
         return default

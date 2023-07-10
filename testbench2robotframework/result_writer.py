@@ -217,6 +217,7 @@ class ResultWriter(ResultVisitor):
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.ERROR:
             logger.error(f"Attachment '{filename}' does already exist.")
             return None
+        return None
 
     @staticmethod
     def _create_unique_path(attachement_path: Path) -> Path:
@@ -251,7 +252,7 @@ class ResultWriter(ResultVisitor):
                 "<pre>"
                 f"Start Time:   {self.get_isotime_from_robot_timestamp(test.starttime)}\n"
                 f"End Time:     {self.get_isotime_from_robot_timestamp(test.endtime)}\n"
-                f"Elapsed Time: {str(timedelta(milliseconds=test.elapsedtime))}\n"
+                f"Elapsed Time: {timedelta(milliseconds=test.elapsedtime)!s}\n"
                 "</pre>"
                 f"Message: <p><pre>{html_message}</pre></p>\n"
             )
@@ -420,7 +421,7 @@ class ResultWriter(ResultVisitor):
             "<pre>"
             f"Start Time:   {self.get_isotime_from_robot_timestamp(keyword.starttime)}\n"
             f"End Time:     {self.get_isotime_from_robot_timestamp(keyword.endtime)}\n"
-            f"Elapsed Time: {str(timedelta(milliseconds=keyword.elapsedtime))}\n"
+            f"Elapsed Time: {timedelta(milliseconds=keyword.elapsedtime)!s}\n"
             "</pre>"
             "<table>"
             "<tr>"
