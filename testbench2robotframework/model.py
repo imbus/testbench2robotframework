@@ -217,7 +217,7 @@ class UserDefinedField:
 
     @property
     def robot_tag(self) -> Optional[str]:
-        if self.valueType == UdfType.Enumeration:
+        if self.valueType == UdfType.Enumeration and self.value:
             return f"{self.name}:{self.value}"
         elif self.valueType == UdfType.String and self.value:
             return f"{self.name}:{self.value}"

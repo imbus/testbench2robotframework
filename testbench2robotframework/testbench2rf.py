@@ -321,14 +321,14 @@ class RfTestCase:
             # tc_name = f"{self.uid}{suffix}"  # TODO later UID or Comments
             rf_test_case = TestCase(header=TestCaseName.from_params(tc_name))
             if self.rf_tags:
-                logger.info(self.rf_tags)
                 rf_test_case.body.append(Tags.from_params(self.rf_tags))
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
             if index == len(rf_keyword_call_lists) - 1 and rf_teardown:
                 rf_test_case.body.append(rf_teardown)
-            rf_test_case.body.extend(LINE_SEPARATOR)
+            if index < len(rf_keyword_call_lists) - 1:
+                rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
         return rf_test_cases
 
@@ -415,9 +415,13 @@ class RfTestCase:
                 for param_name, param_value in interaction.cbv_parameters.items()
             ]
         )
+        cmd = []
         if cbr_params:
-            return f"#{SEPARATOR.join([cbr_params, interaction.name, cbv_params])}"
-        return f"#{SEPARATOR.join([interaction.name, cbv_params])}"
+            cmd.append(cbr_params)
+        cmd.append(interaction.name)
+        if cbv_params:
+            cmd.append(cbv_params)
+        return f"# {SEPARATOR.join(cmd)}"
 
     @staticmethod
     def _get_params_by_use_type(
@@ -512,6 +516,7 @@ class RobotSuiteFileBuilder:
         sections = [self._create_setting_section(), self._create_test_case_section()]
         keyword_section = self._create_keywords_section()
         if keyword_section:
+            sections[-1].body.extend(SECTION_SEPARATOR)
             sections.append(keyword_section)
         return File(sections, source=str(self.tcs_path))
 
@@ -525,7 +530,6 @@ class RobotSuiteFileBuilder:
             if test_case.teardown_keyword:
                 self.teardown_keywords.append(test_case.teardown_keyword)
         test_case_section.body.extend(robot_ast_test_cases)
-        test_case_section.body.extend(SECTION_SEPARATOR)
         return test_case_section
 
     def _create_keywords_section(self) -> Optional[KeywordSection]:
@@ -534,7 +538,6 @@ class RobotSuiteFileBuilder:
         keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
         keywords_section.body.extend(self.setup_keywords)
         keywords_section.body.extend(self.teardown_keywords)
-        keywords_section.body.extend(SECTION_SEPARATOR)
         return keywords_section
 
     def _get_used_subdivisions(self) -> Dict[str, Set[str]]:
@@ -591,12 +594,12 @@ class RobotSuiteFileBuilder:
             )
             return str(subdivision_mapping)
 
-    def _replace_relative_resource_indicator(self, path: Path) -> str:
+    def _replace_relative_resource_indicator(self, path: Union[Path, str]) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
                 RELATIVE_RESOURCE_INDICATOR,
                 str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
-                path,
+                str(path),
                 flags=re.IGNORECASE,
             ).replace('\\', ROBOT_PATH_SEPARATOR)
 
