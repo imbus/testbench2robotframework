@@ -226,7 +226,9 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall]) -> Setup:
+    def _create_rf_setup_call(
+        self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
+    ) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -269,7 +271,9 @@ class RfTestCase:
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(self, teardown_interactions: list[InteractionCall]) -> Union[Setup, None]:
+    def _create_rf_teardown(
+        self, teardown_interactions: list[InteractionCall]
+    ) -> Union[Setup, None]:
         rf_teardown = None
         if teardown_interactions:
             teardown_params = self._get_teardown_params(teardown_interactions)

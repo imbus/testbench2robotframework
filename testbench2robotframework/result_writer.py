@@ -54,7 +54,7 @@ MEGABYTE = 1000 * 1000
 
 class ResultWriter(ResultVisitor):
     def __init__(
-        self, json_report: str, json_result: str, config: Configuration, output_xml
+        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml
     ) -> None:
         self.json_dir = get_directory(json_report)
         self.output_xml = output_xml
