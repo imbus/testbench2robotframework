@@ -344,7 +344,6 @@ class RfTestCase:
             if value == "undef.":
                 previous_arg_forces_named = True
                 continue
-            escaped_value = RfTestCase.escape_argument_value(value)
             if re.match(r'^\*\*\ ?', name):
                 escaped_value = RfTestCase.escape_argument_value(value, False, False)
                 parameters.append(escaped_value)
@@ -353,10 +352,15 @@ class RfTestCase:
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
             elif re.search(r'(^-\ ?|=$)', name) or previous_arg_forces_named:
+                escaped_value = RfTestCase.escape_argument_value(value, equal_sign_escaping=False)
                 pure_name = re.sub(r'(^-\ ?|=$)', "", name)
                 parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
+            elif value.find("=") != -1 and value[:value.find("=")] in interaction.cbv_parameters.keys():
+                escaped_value = RfTestCase.escape_argument_value(value)
+                parameters.append(escaped_value)
             else:
+                escaped_value = RfTestCase.escape_argument_value(value, True, False)
                 parameters.append(escaped_value)
         return parameters
 
