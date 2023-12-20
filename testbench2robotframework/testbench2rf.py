@@ -19,7 +19,6 @@ from robot.parsing.model.blocks import (
 from robot.parsing.model.statements import (
     Comment,
     EmptyLine,
-    ForceTags,
     KeywordCall,
     LibraryImport,
     Metadata,
@@ -32,6 +31,11 @@ from robot.parsing.model.statements import (
     TestCaseName,
     VariablesImport,
 )
+
+try:
+    from robot.parsing.model.statements import TestTags
+except ImportError:
+    from robot.parsing.model.statements import ForceTags as TestTags
 
 from .config import Configuration
 from .json_reader import TestCaseSet
@@ -356,7 +360,7 @@ class RfTestCase:
                 pure_name = re.sub(r'(^-\ ?|=$)', "", name)
                 parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
-            elif value.find("=") != -1 and value[:value.find("=")] in interaction.cbv_parameters.keys():
+            elif value.find("=") != -1 and value[: value.find("=")] in interaction.cbv_parameters:
                 escaped_value = RfTestCase.escape_argument_value(value)
                 parameters.append(escaped_value)
             else:
@@ -645,12 +649,12 @@ class RobotSuiteFileBuilder:
         }
         return [LibraryImport.from_params(lib) for lib in sorted(lib_imports)]
 
-    def _create_rf_force_tags(self) -> Union[ForceTags, None]:
+    def _create_rf_test_tags(self) -> Union[TestTags, None]:
         tb_keyword_names = [keyword.name for keyword in self.test_case_set.details.spec.keywords]
         udfs = [udf.robot_tag for udf in self.test_case_set.details.spec.udfs if udf.robot_tag]
-        force_tags = tb_keyword_names + udfs
-        if force_tags:
-            return ForceTags.from_params(force_tags)
+        test_tags = tb_keyword_names + udfs
+        if test_tags:
+            return TestTags.from_params(test_tags)
         return None
 
     def _create_rf_unknown_imports(self, import_dict: dict[str, set[str]]) -> list[Comment]:
@@ -691,6 +695,6 @@ class RobotSuiteFileBuilder:
                 for metadata_name, metadata_value in setting_section_meta_data.items()
             ]
         )
-        setting_section.body.append(self._create_rf_force_tags())
+        setting_section.body.append(self._create_rf_test_tags())
         setting_section.body.extend(SECTION_SEPARATOR)
         return setting_section
