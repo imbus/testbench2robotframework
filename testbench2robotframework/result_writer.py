@@ -444,11 +444,14 @@ class ResultWriter(ResultVisitor):
 
     @staticmethod
     def get_isotime_from_robot_timestamp(timestamp, time_format="%Y-%m-%d %H:%M:%S.%f"):
-        return (
-            datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
-            .astimezone()
-            .strftime(time_format)[:-3]
-        )
+        try:
+            return timestamp.astimezone().strftime(time_format)[:-3]
+        except AttributeError:
+            return (
+                datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+                .astimezone()
+                .strftime(time_format)[:-3]
+            )
 
     def _set_compound_interaction_execution_result(self, compound_interaction: InteractionDetails):
         atomic_interactions = list(
