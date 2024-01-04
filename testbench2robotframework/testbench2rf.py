@@ -378,7 +378,9 @@ class RfTestCase:
 
     @staticmethod
     def _create_cbr_parameters(interaction: AtomicInteractionCall) -> list[str]:
-        cbr_parameters = list(interaction.cbr_parameters.values())
+        cbr_parameters = list(
+            filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
+        )
         for index, parameter in enumerate(cbr_parameters):
             if not parameter.startswith('${'):
                 cbr_parameters[index] = f"${{{parameter}}}"
