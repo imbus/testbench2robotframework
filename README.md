@@ -6,14 +6,7 @@ Voraussetzung für die Installation der Software ist eine vorhandene Python Inst
 python --version
 ```
 
-Die Installation des Code Generators erfolgt mithilfe eines Python Wheels, welches in der Lieferung enthalten ist.
-Dieses kann durch Ausführung des folgenden Kommandozeilenbefehls installiert werden, wobei ``testbench2robotframework-0.4.1-py3-none-any.whl`` für den Pfad zu der heruntergeladenen whl-Datei steht:
-
-```powershell
-python -m pip install testbench2robotframework-0.4.1-py3-none-any.whl
-```
-
-Alternativ kann die Installation direkt online aus dem Python Package Index installiert werden.
+Die Installation des Code Generators erfolgt aus dem Python Package Index.
 ```powershell
 pip install testbench2robotframework
 ```
@@ -32,9 +25,9 @@ Der Befehl ``tb2robot --help
 
 Zum Generieren von Robot Framework Testsuites wird der Subcommand ``write`` mit  zwei Parametern aufgerufen:
 
-(@) Dem Pfad zu einer JSON Datei, die als Konfigurationsdatei für die Ausgabe des Generators dient. Wird diese beim Aufruf des Code Generators nicht übergeben, so wird automatisch eine Konfigurationsdatei mit dem Namen ``config.json`` generiert.
+- Dem Pfad zu einer JSON Datei, die als Konfigurationsdatei für die Ausgabe des Generators dient. Wird diese beim Aufruf des Code Generators nicht übergeben, so wird automatisch eine Konfigurationsdatei mit dem Namen ``config.json`` generiert.
 
-(@) Dem Pfad zu den TestBech JSON Report Dateien. Diese können in einem Verzeichnis oder in einer ZIP Datei liegen.
+- Dem Pfad zu den TestBech JSON Report Dateien. Diese können in einem Verzeichnis oder in einer ZIP Datei liegen.
 
 Der folgende Aufruf demonstriert die Verwendung anhand eines Beispiels:
 ```powershell
@@ -50,11 +43,11 @@ Beispiel für die Generierung von Robot Framework Testsuites aus dem Testthemenb
 Nach Ausführung der Robotframework Test Suites können die Ergebnisse zurück in den Json Report der Tesbench geschrieben werden.
 Zu diesem Zweck wird der Subcommand ``read`` verwendet, der eine XML-Ergebnisdatei liest und die Ergebnisse in die JSON-Dateien schreibt.
 
-(@) Den Pfad zu einer XML-Ergebnisdatei, aus der die Ergebnisse der Testdurchführung gelesen werden.
+- Den Pfad zu einer Robot Framework XML-Ergebnisdatei, aus der die Ergebnisse der Testdurchführung gelesen werden.
 
-(@) Den Pfad zu einem Verzeichnis oder einer ZIP Datei in der die Ergebnisse gespeichert werden sollen. Dies ist ein optionaler Parameter. Wird der Parameter nicht übergeben, so wird der übergebene JSON Report überschrieben.
+- Den Pfad zu einem Verzeichnis oder einer ZIP Datei in der die Ergebnisse gespeichert werden sollen. Dies ist ein optionaler Parameter. Wird der Parameter nicht übergeben, so wird der übergebene JSON Report überschrieben.
 
-(@) Den Pfad zu den TestBech JSON Report Dateien (ohne Ergebnisse). Diese können in einem Verzeichnis oder in einer ZIP Datei liegen.
+- Den Pfad zu den TestBech JSON Report Dateien (ohne Ergebnisse). Diese können in einem Verzeichnis oder in einer ZIP Datei liegen.
 
 Der folgende Aufruf demonstriert das Lesen der Ergebnisse anhand eines Beispiels:
 ```powershell
