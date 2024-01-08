@@ -5,6 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+ignore/
+.ruff_cache/
+tests/
 
 # Distribution / packaging
 .Python
