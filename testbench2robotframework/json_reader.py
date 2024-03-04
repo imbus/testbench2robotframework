@@ -10,10 +10,10 @@ from .model import (
     TestCaseDetails,
     TestCaseSetDetails,
     TestStructureTree,
-    TestStructureTreeNodeType,
+    TestStructureElementType,
 )
 
-TEST_STRUCTURE_TREE_FILE = "TestThemeTree.json"
+TEST_STRUCTURE_TREE_FILE = "cycle_structure.json"
 
 
 @dataclass
@@ -90,9 +90,9 @@ class TestBenchJsonReader:
     def get_test_case_set_uids(self) -> List[str]:
         nodes = self.test_theme_tree.nodes
         return [
-            tse.baseInformation.uniqueID
+            tse.base.uniqueID
             for tse in nodes
-            if tse.elementType == TestStructureTreeNodeType.TestCaseSet
+            if tse.elementType == TestStructureElementType.TestCaseSet
         ]
 
     def get_test_case_uids(self, test_case_set_uid: str) -> List[str]:

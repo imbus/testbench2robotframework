@@ -10,7 +10,7 @@ from zipfile import ZipFile
 from testbench2robotframework.model import (
     TestStructureTree,
     TestStructureTreeNode,
-    TestStructureTreeNodeType,
+    TestStructureElementType,
 )
 
 CONVERTER_DESCRIPTION = """tB2Robot converts TestBench JSON report to Robot Framework Code
@@ -18,7 +18,7 @@ CONVERTER_DESCRIPTION = """tB2Robot converts TestBench JSON report to Robot Fram
 WRITE_SUBPARSER_HELP = """Command to convert TestBench`s JSON REPORT to Robot Framework Code."""
 READ_SUBPARSER_HELP = """Command to read a robot output xml file and
 write the results to a TestBench JSON REPORT."""
-JSON_PATH_ARGUMENT_HELP = "Path to a ZIP file or directory containing TestBenchs JSON report files."
+JSON_PATH_ARGUMENT_HELP = "Path to a ZIP file or directory containing TestBench JSON report files."
 CONFIG_ARGUMENT_HELP = """Path to a config json file to generate robot files
                         based on the given configuration.
                         If no path is given testbench2robot will search for a file
@@ -91,44 +91,44 @@ class PathResolver:
         self.tt_paths = self._get_paths(self.tt_catalog)
 
     def _analyze_tree(self, test_theme_tree: TestStructureTree):
-        self.tree_dict[test_theme_tree.root.baseInformation.key] = test_theme_tree.root
+        self.tree_dict[test_theme_tree.root.base.key] = test_theme_tree.root
         for tse in test_theme_tree.nodes:
             self._add_existing_tcs_to_catalog(tse)
-            self.tree_dict[tse.baseInformation.key] = tse
+            self.tree_dict[tse.base.key] = tse
             self._store_highest_child_index(tse)
 
     def _store_highest_child_index(self, tse):
-        self._last_child_indices[tse.baseInformation.parentKey] = max(
+        self._last_child_indices[tse.base.parentKey] = max(
             int(get_tse_index(tse)),
-            self._last_child_indices.get(tse.baseInformation.parentKey, 0),
+            self._last_child_indices.get(tse.base.parentKey, 0),
         )
 
     def _add_existing_tcs_to_catalog(self, tse):
         if (
-            tse.elementType == TestStructureTreeNodeType.TestCaseSet
-            and tse.baseInformation.uniqueID in self._uids_of_existing_tcs
+            tse.elementType == TestStructureElementType.TestCaseSet
+            and tse.base.uniqueID in self._uids_of_existing_tcs
         ):
-            self.tcs_catalog[tse.baseInformation.uniqueID] = tse
+            self.tcs_catalog[tse.base.uniqueID] = tse
 
     def _get_paths(self, tse_catalog: Dict[str, TestStructureTreeNode]) -> Dict[str, PurePath]:
         return {uid: self._resolve_tse_path(tse) for uid, tse in tse_catalog.items()}
 
     def _resolve_tse_path(self, tse: TestStructureTreeNode) -> PurePath:
         self._add_tt_to_tt_catalog(tse)
-        if tse.elementType == TestStructureTreeNodeType.Root:
+        if tse.elementType == TestStructureElementType.Root:
             return PurePath()
-        tse_name = replace_invalid_characters(tse.baseInformation.name)
-        if tse.baseInformation.parentKey not in self.tree_dict:
+        tse_name = replace_invalid_characters(tse.base.name)
+        if tse.base.parentKey not in self.tree_dict:
             return PurePath(f"{self._file_prefix(tse)}{tse_name}")
-        parent_path = self._resolve_tse_path(self.tree_dict[tse.baseInformation.parentKey])
+        parent_path = self._resolve_tse_path(self.tree_dict[tse.base.parentKey])
         return parent_path / f"{self._file_prefix(tse)}{tse_name}"
 
     def _add_tt_to_tt_catalog(self, tse):
         if (
-            tse.elementType == TestStructureTreeNodeType.TestTheme
-            and tse.baseInformation.uniqueID not in self.tt_catalog
+            tse.elementType == TestStructureElementType.TestTheme
+            and tse.base.uniqueID not in self.tt_catalog
         ):
-            self.tt_catalog[tse.baseInformation.uniqueID] = tse
+            self.tt_catalog[tse.base.uniqueID] = tse
 
     def _file_prefix(self, tse) -> str:
         prefix_separator = '_' * self._log_suite_numbers
@@ -136,7 +136,7 @@ class PathResolver:
 
     def _get_padded_index(self, tse) -> str:
         index = get_tse_index(tse)
-        max_length = len(str(self._last_child_indices[tse.baseInformation.parentKey]))
+        max_length = len(str(self._last_child_indices.get(tse.base.parentKey, "")))
         return index.zfill(max_length)
 
 
@@ -166,7 +166,7 @@ def replace_invalid_characters(name: str) -> str:
 
 
 def get_tse_index(tse: TestStructureTreeNode) -> str:
-    return tse.baseInformation.numbering.rsplit(".", 1)[-1]
+    return tse.base.numbering.rsplit(".", 1)[-1]
 
 
 def directory_to_zip(directory: Path, new_path: Optional[str] = None):
@@ -176,8 +176,8 @@ def directory_to_zip(directory: Path, new_path: Optional[str] = None):
         shutil.make_archive(str(directory), 'zip', str(directory))
 
 
-def get_list_item(liste, index, default: Optional[str]):
+def get_list_item(lst, index, default: Optional[str]):
     try:
-        return liste[index]
+        return lst[index]
     except IndexError:
         return default

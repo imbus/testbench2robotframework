@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from optparse import Option
 from typing import List, Optional
 
 
@@ -21,22 +20,23 @@ class StrEnum(str, Enum):
         return name
 
 
-class FilterType(StrEnum):
-    TestThemeFilter = "TestThemeFilter"
-    TestCaseSetFilter = "TestCaseSetFilter"
-    TestCaseFilter = "TestCaseFilter"
+class TestFilterType(StrEnum):
+    TestTheme = "TestTheme"
+    TestCaseSet = "TestCaseSet"
+    TestCase = "TestCase"
 
 
-class TestStructureTreeNodeType(StrEnum):
+class TestStructureElementType(StrEnum):
     Root = "Root"
     TestTheme = "TestTheme"
     TestCaseSet = "TestCaseSet"
 
 
 class Priority(StrEnum):
-    High = "High"
-    Medium = "Medium"
+    Undefined = "Undefined"
     Low = "Low"
+    Middle = "Middle"
+    High = "High"
 
 
 class ReferenceType(StrEnum):
@@ -45,7 +45,7 @@ class ReferenceType(StrEnum):
     Attachment = "Attachment"
 
 
-class SpecificationStatus(StrEnum):
+class SpecStatus(StrEnum):
     NotPlanned = "NotPlanned"
     Planned = "Planned"
     InProgress = "InProgress"
@@ -63,11 +63,11 @@ class InteractionVerdict(StrEnum):
     Blocked = "Blocked"
 
 
-class ExecutionVerdict(StrEnum):
+class VerdictStatus(StrEnum):
     Undefined = "Undefined"
-    Pass = "Pass"
-    Fail = "Fail"
     ToVerify = "ToVerify"
+    Fail = "Fail"
+    Pass = "Pass"
 
 
 class ActivityStatus(StrEnum):
@@ -80,12 +80,12 @@ class ActivityStatus(StrEnum):
     Performed = "Performed"
 
 
-class ExecutionStatus(StrEnum):
+class ExecStatus(StrEnum):
     NotBlocked = "NotBlocked"
     Blocked = "Blocked"
 
 
-class UdfType(StrEnum):
+class UDFType(StrEnum):
     String = "String"
     Enumeration = "Enumeration"
     Boolean = "Boolean"
@@ -97,7 +97,7 @@ class SequencePhase(StrEnum):
     Teardown = "Teardown"
 
 
-class CallType(StrEnum):
+class InteractionCallType(StrEnum):
     Check = "Check"
     Flow = "Flow"
 
@@ -105,20 +105,34 @@ class CallType(StrEnum):
 class InteractionType(StrEnum):
     Compound = "Compound"
     Atomic = "Atomic"
-    Textuell = "Textuell"
+    Textual = "Textual"
 
 
-class ParameterType(StrEnum):
-    DetailedInstance = "DetailedInstance"
-    Unknown = "Unknown"
-    InstanceTable = "InstanceTable"
-    AtomicInstance = "AtomicInstance"
+class ParameterDefinitionType(StrEnum):
+    DETAILED = "DETAILED"
+    ARRAY = "ARRAY"
+    ATOMIC = "ATOMIC"
 
 
-class ParameterUseType(StrEnum):
+class ParameterEvaluationType(StrEnum):
     CallByReference = "CallByReference"
     CallByValue = "CallByValue"
     CallByReferenceMandatory = "CallByReferenceMandatory"
+
+
+class RepresentativeType(StrEnum):
+    Text = "Text"
+    Placeholder = "Placeholder"
+    Attachment = "Attachment"
+    Hyperlink = "Hyperlink"
+    Reference = "Reference" 
+
+
+class KindOfDataType(StrEnum):
+    Regular = "Regular"
+    Reference = "Reference"
+    Global = "Global"
+    AcceptingGlobal = "AcceptingGlobal"
 
 
 @dataclass
@@ -204,7 +218,7 @@ class UserDefinedField:
     key: str
     name: str
     value: str
-    valueType: UdfType
+    udfType: UDFType
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -212,16 +226,16 @@ class UserDefinedField:
             key=dictionary.get("key", ""),
             name=dictionary.get("name", ""),
             value=dictionary.get("value", ""),
-            valueType=UdfType(dictionary.get("valueType", UdfType.String)),
+            udfType=UDFType(dictionary.get("udfType", UDFType.String)),
         )
 
     @property
     def robot_tag(self) -> Optional[str]:
-        if self.valueType == UdfType.Enumeration and self.value:
+        if self.udfType == UDFType.Enumeration and self.value:
             return f"{self.name}:{self.value}"
-        elif self.valueType == UdfType.String and self.value:
+        elif self.udfType == UDFType.String and self.value:
             return f"{self.name}:{self.value}"
-        elif self.valueType == UdfType.Boolean and self.value == "true":
+        elif self.udfType == UDFType.Boolean and self.value == "true":
             return self.name
         return None
 
@@ -242,7 +256,7 @@ class Keyword:
 
 
 @dataclass
-class Reference:
+class Reference:  # TODO: May be changed. Differs to OpenApi.YML
     type: ReferenceType
     path: str
 
@@ -277,7 +291,7 @@ class RequirementReference:
 @dataclass
 class ConditionSummary:
     key: str
-    uniqueId: str
+    uniqueID: str
     name: str
     description: str
     version: Optional[str] = None
@@ -286,7 +300,7 @@ class ConditionSummary:
     def from_dict(cls, dictionary):
         return cls(
             key=dictionary.get("key", ""),
-            uniqueId=dictionary.get("uniqueId", ""),
+            uniqueID=dictionary.get("uniqueID", ""),
             name=dictionary.get("name", ""),
             description=dictionary.get("description", ""),
             version=dictionary.get("version", None),
@@ -298,14 +312,15 @@ class TestCaseSetSpecificationSummary:
     key: str
     description: str
     reviewComment: str
-    status: SpecificationStatus
-    priority: Optional[Priority]
+    status: SpecStatus
+    priority: Priority
     responsible: Optional[UserReference]
     dueDate: Optional[str]
     reviewer: Optional[UserReference]
     udfs: List[UserDefinedField]
     keywords: List[Keyword]
-    references: List[Reference]
+    # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
+    references: List[str]
     requirements: List[RequirementReference]
     preConditions: List[ConditionSummary]
     postConditions: List[ConditionSummary]
@@ -316,8 +331,8 @@ class TestCaseSetSpecificationSummary:
             key=dictionary.get("key", ""),
             description=dictionary.get("description", ""),
             reviewComment=dictionary.get("reviewComment", ""),
-            status=SpecificationStatus(dictionary.get("status", SpecificationStatus.Planned)),
-            priority=Priority(dictionary.get("priority")) if dictionary.get("priority") else None,
+            status=SpecStatus(dictionary.get("status", SpecStatus.Planned)),
+            priority=Priority(dictionary.get("priority", "Undefined")),
             responsible=UserReference.from_dict(dictionary.get("responsible", {}))
             if dictionary.get("responsible")
             else None,
@@ -403,11 +418,11 @@ class TestCaseSpecificationSummary:
 @dataclass
 class TestCaseExecutionSummary:
     key: str
-    comments: str = ""
-    status: ActivityStatus = ActivityStatus.Planned
-    execStatus: ExecutionStatus = ExecutionStatus.NotBlocked
-    verdict: ExecutionVerdict = ExecutionVerdict.Undefined
-    defects: Optional[List[int]] = None
+    status: ActivityStatus
+    execStatus: ExecStatus
+    verdict: VerdictStatus
+    comments: str
+    defects: List[str]
     tester: Optional[UserReference] = None
 
     @classmethod
@@ -415,8 +430,8 @@ class TestCaseExecutionSummary:
         return cls(
             key=dictionary.get("key", ""),
             status=ActivityStatus(dictionary.get("status", ActivityStatus.Planned)),
-            execStatus=ExecutionStatus(dictionary.get("execStatus", ExecutionStatus.NotBlocked)),
-            verdict=ExecutionVerdict(dictionary.get("verdict", ExecutionVerdict.Undefined)),
+            execStatus=ExecStatus(dictionary.get("execStatus", ExecStatus.NotBlocked)),
+            verdict=VerdictStatus(dictionary.get("verdict", VerdictStatus.Undefined)),
             comments=dictionary.get("comments", ""),
             defects=dictionary.get("defects", []),
             tester=UserReference.from_dict(dictionary.get("tester"))
@@ -448,26 +463,27 @@ class TestCaseSummary:
 class TestCaseExecutionDetails:
     key: str
     status: ActivityStatus
-    execStatus: ExecutionStatus
-    verdict: ExecutionVerdict
+    execStatus: ExecStatus
+    verdict: VerdictStatus
     plannedDuration: int
     actualDuration: int
     currentUser: UserReference
-    tester: Optional[UserReference]
     comments: str  # TODO: Insert htmlComment
     version: Optional[str]
-    defects: List[int]
+    defects: List[str]
     udfs: List[UserDefinedField]
     keywords: List[Keyword]
-    references: List[Reference]
+    # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
+    references: List[str]
+    tester: Optional[UserReference] = None
 
     @classmethod
     def from_dict(cls, dictionary):
         return cls(
             key=dictionary.get("key", ""),
             status=ActivityStatus(dictionary.get("status", ActivityStatus.Planned)),
-            execStatus=ExecutionStatus(dictionary.get("execStatus", ExecutionStatus.NotBlocked)),
-            verdict=ExecutionVerdict(dictionary.get("verdict", ExecutionVerdict.Undefined)),
+            execStatus=ExecStatus(dictionary.get("execStatus", ExecStatus.NotBlocked)),
+            verdict=VerdictStatus(dictionary.get("verdict", VerdictStatus.Undefined)),
             plannedDuration=dictionary.get("plannedDuration", 0),
             actualDuration=dictionary.get("actualDuration", 0),
             currentUser=UserReference.from_dict(dictionary.get("currentUser", {})),
@@ -490,8 +506,8 @@ class TestCaseSetDetails:
     uniqueID: str
     name: str
     spec: TestCaseSetSpecificationSummary
-    exec: Optional[TestCaseSetExecutionSummary]
     testCases: List[TestCaseSummary]
+    exec: Optional[TestCaseSetExecutionSummary] = None
 
     @classmethod
     def from_dict(cls, dictionary) -> TestCaseSetDetails:
@@ -517,9 +533,10 @@ class InteractionExecutionSummary:
     time: str
     duration: int
     currentUser: UserReference
-    tester: UserReference
+    tester: Optional[UserReference]
     comments: str
-    references: List[Reference]
+    # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
+    references: List[str]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -528,7 +545,7 @@ class InteractionExecutionSummary:
             time=dictionary.get("time", ""),
             duration=dictionary.get("duration", 0),
             currentUser=UserReference.from_dict(dictionary.get("currentUser", {})),
-            tester=UserReference.from_dict(dictionary.get("tester", {})),
+            tester=UserReference.from_dict(dictionary.get("tester")) if dictionary.get("tester") else None,
             comments=dictionary.get("comments", ""),
             references=dictionary.get("references", []),
         )
@@ -536,21 +553,22 @@ class InteractionExecutionSummary:
 
 @dataclass
 class InteractionSpecificationSummary:
-    callId: int
+    callKey: str
     sequencePhase: SequencePhase
-    callType: CallType
+    callType: InteractionCallType
     description: str
     comments: str
-    references: List[Reference]
+    # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
+    references: List[str]
     preConditions: List[ConditionSummary]
     postConditions: List[ConditionSummary]
 
     @classmethod
     def from_dict(cls, dictionary):
         return cls(
-            callId=dictionary.get("callId", ""),
+            callKey=dictionary.get("callId", ""),
             sequencePhase=SequencePhase(dictionary.get("sequencePhase", SequencePhase.TestStep)),
-            callType=CallType(dictionary.get("callType", CallType.Flow)),
+            callType=InteractionCallType(dictionary.get("callType", InteractionCallType.Flow)),
             description=dictionary.get("description", ""),
             comments=dictionary.get("comments", ""),
             references=dictionary.get("references", ""),
@@ -563,36 +581,51 @@ class InteractionSpecificationSummary:
                 for condition in dictionary.get("postConditions", [])
             ],
         )
-
+    
 
 @dataclass
-class ParameterSummary:
+class DataTypeSummary:
+    key: str
     name: str
-    value: str
+    kind: KindOfDataType
     version: Optional[str]
-    parameterType: ParameterType
-    parameterUseType: ParameterUseType
-    dataTypeName: str
-    dataTypePath: str
-    dataTypeUniqueID: str
+    path: str
+    uniqueID: str
 
     @classmethod
     def from_dict(cls, dictionary):
         return cls(
+            key=dictionary.get("key", ""),
             name=dictionary.get("name", ""),
-            value=dictionary.get("value", ""),
-            version=dictionary.get(
-                "version",
+            kind=KindOfDataType(dictionary.get("kind", KindOfDataType.Regular)),
+            version=dictionary.get("version", None),
+            path=dictionary.get("path", ""),
+            uniqueID=dictionary.get("uniqueID", ""),
+        )
+
+
+@dataclass
+class ParameterSummary:
+    key: str
+    name: str
+    value: Optional[str]
+    valueType: RepresentativeType
+    definitionType: ParameterDefinitionType
+    evaluationType: ParameterEvaluationType
+    dataType: Optional[DataTypeSummary]
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        return cls(
+            key=dictionary.get("key", "-1"),
+            name=dictionary.get("name", ""),
+            value=dictionary.get("value"),
+            valueType=RepresentativeType(dictionary.get("valueType", RepresentativeType.Text)),
+            definitionType=ParameterDefinitionType(
+                dictionary.get("definitionType", ParameterDefinitionType.ATOMIC)
             ),
-            parameterType=ParameterType(
-                dictionary.get("parameterType", ParameterType.AtomicInstance)
-            ),
-            parameterUseType=ParameterUseType(
-                dictionary.get("parameterUseType", ParameterUseType.CallByValue)
-            ),
-            dataTypeName=dictionary.get("dataTypeName", ""),
-            dataTypePath=dictionary.get("dataTypePath", ""),
-            dataTypeUniqueID=dictionary.get("dataTypeUniqueID", ""),
+            evaluationType=ParameterEvaluationType(dictionary.get("useType", ParameterEvaluationType.CallByValue)),
+            dataType=DataTypeSummary.from_dict(dictionary.get("dataType")),
         )
 
 
@@ -638,9 +671,9 @@ class InteractionDetails:
 class TestCaseDetails:
     uniqueID: str
     spec: TestCaseSpecificationDetails
-    exec: Optional[TestCaseExecutionDetails]
     interactions: List[InteractionDetails]
     parameters: List[ParameterSummary]
+    exec: Optional[TestCaseExecutionDetails] = None
 
     @classmethod
     def from_dict(cls, dictionary) -> TestCaseDetails:
@@ -665,7 +698,7 @@ class TestCaseDetails:
 class TestStructureSpecification:
     key: str
     locker: Optional[UserReference]
-    status: SpecificationStatus
+    status: SpecStatus
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -674,7 +707,7 @@ class TestStructureSpecification:
             locker=UserReference.from_dict(dictionary.get("locker", {}))
             if dictionary.get("locker")
             else None,
-            status=SpecificationStatus(dictionary.get("status", SpecificationStatus.Planned)),
+            status=SpecStatus(dictionary.get("status", SpecStatus.Planned)),
         )
 
 
@@ -682,7 +715,7 @@ class TestStructureSpecification:
 class TestStructureAutomation:
     key: str
     locker: Optional[UserReference]
-    status: SpecificationStatus
+    status: SpecStatus
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -691,7 +724,7 @@ class TestStructureAutomation:
             locker=UserReference.from_dict(dictionary.get("locker", {}))
             if dictionary.get("locker")
             else None,
-            status=SpecificationStatus(dictionary.get("status", SpecificationStatus.Planned)),
+            status=SpecStatus(dictionary.get("status", SpecStatus.Planned)),
         )
 
 
@@ -700,8 +733,8 @@ class TestStructureExecution:
     key: str
     locker: Optional[UserReference]
     status: ActivityStatus
-    execStatus: ExecutionStatus
-    verdict: ExecutionVerdict
+    execStatus: ExecStatus
+    verdict: VerdictStatus
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -711,8 +744,8 @@ class TestStructureExecution:
             if dictionary.get("locker")
             else None,
             status=ActivityStatus(dictionary.get("status", ActivityStatus.Planned)),
-            execStatus=ExecutionStatus(dictionary.get("execStatus", ExecutionStatus.NotBlocked)),
-            verdict=ExecutionVerdict(dictionary.get("verdict", ExecutionVerdict.Undefined)),
+            execStatus=ExecStatus(dictionary.get("execStatus", ExecStatus.NotBlocked)),
+            verdict=VerdictStatus(dictionary.get("verdict", VerdictStatus.Undefined)),
         )
 
 
@@ -720,7 +753,7 @@ class TestStructureExecution:
 class AttachedFilter:
     key: str
     name: str
-    filterType: FilterType
+    filterType: TestFilterType
     content: str
 
     @classmethod
@@ -728,7 +761,7 @@ class AttachedFilter:
         return cls(
             key=dictionary.get("key", "-1"),
             name=dictionary.get("name", ""),
-            filterType=FilterType(dictionary.get("filterType", FilterType.TestCaseSetFilter)),
+            filterType=TestFilterType(dictionary.get("filterType", TestFilterType.TestCaseSet)),
             content=dictionary.get("content", ""),
         )
 
@@ -758,30 +791,30 @@ class TestStructureTreeNodeInformation:
 
 @dataclass
 class TestStructureTreeNode:
-    elementType: TestStructureTreeNodeType
-    baseInformation: TestStructureTreeNodeInformation
-    specification: Optional[TestStructureSpecification]
-    automation: Optional[TestStructureAutomation]
-    execution: Optional[TestStructureExecution]
+    elementType: TestStructureElementType
+    base: TestStructureTreeNodeInformation
+    spec: Optional[TestStructureSpecification]
+    aut: Optional[TestStructureAutomation]
+    exec: Optional[TestStructureExecution]
     filters: List[AttachedFilter]
 
     @classmethod
     def from_dict(cls, dictionary):
         return cls(
-            elementType=TestStructureTreeNodeType(
-                dictionary.get("elementType", TestStructureTreeNodeType.TestTheme)
+            elementType=TestStructureElementType(
+                dictionary.get("elementType", TestStructureElementType.TestTheme)
             ),
-            baseInformation=TestStructureTreeNodeInformation.from_dict(
-                dictionary.get("baseInformation", {})
+            base=TestStructureTreeNodeInformation.from_dict(
+                dictionary.get("base", {})
             ),
-            specification=TestStructureSpecification.from_dict(dictionary.get("specification"))
-            if dictionary.get("specification")
+            spec=TestStructureSpecification.from_dict(dictionary.get("spec"))
+            if dictionary.get("spec")
             else None,
-            automation=TestStructureAutomation.from_dict(dictionary.get("automation"))
-            if dictionary.get("automation")
+            aut=TestStructureAutomation.from_dict(dictionary.get("aut"))
+            if dictionary.get("aut")
             else None,
-            execution=TestStructureExecution.from_dict(dictionary.get("execution"))
-            if dictionary.get("execution")
+            exec=TestStructureExecution.from_dict(dictionary.get("exec"))
+            if dictionary.get("exec")
             else None,
             filters=[AttachedFilter.from_dict(filter) for filter in dictionary.get("filters", [])],
         )
@@ -789,7 +822,7 @@ class TestStructureTreeNode:
 
 @dataclass
 class TestStructureTree:
-    root: TestStructureTreeNode
+    root: Optional[TestStructureTreeNode]
     nodes: List[TestStructureTreeNode]
 
     @classmethod
@@ -800,3 +833,40 @@ class TestStructureTree:
             else None,
             nodes=[TestStructureTreeNode.from_dict(node) for node in dictionary.get("nodes", [])],
         )
+
+@dataclass
+class AllModels:
+    ProjectMember: ProjectMember
+    ProjectDetails: ProjectDetails
+    TOVDetails: TOVDetails
+    CycleDetails: CycleDetails
+    UserDetails: UserDetails
+    TestStructureTree: TestStructureTree
+    TestCaseDetails: TestCaseDetails
+    InteractionDetails: InteractionDetails
+    InteractionSpecificationSummary: InteractionSpecificationSummary
+    InteractionExecutionSummary: InteractionExecutionSummary
+    ParameterSummary: ParameterSummary
+    TestCaseSpecificationDetails: TestCaseSpecificationDetails
+    TestCaseExecutionDetails: TestCaseExecutionDetails
+    TestStructureSpecification: TestStructureSpecification
+    TestStructureAutomation: TestStructureAutomation
+    TestStructureExecution: TestStructureExecution
+    AttachedFilter: AttachedFilter
+    TestStructureTreeNodeInformation: TestStructureTreeNodeInformation
+    TestStructureTreeNode: TestStructureTreeNode
+    TestCaseExecutionSummary: TestCaseExecutionSummary
+    TestCaseSetExecutionSummary: TestCaseSetExecutionSummary
+    ActivityStatus: ActivityStatus
+    ExecStatus: ExecStatus
+    VerdictStatus: VerdictStatus
+    SpecStatus: SpecStatus
+    DataTypeSummary: DataTypeSummary
+    TestCaseSetDetails: TestCaseSetDetails
+    TestCaseSetSpecificationSummary: TestCaseSetSpecificationSummary
+    TestCaseSpecificationSummary: TestCaseSpecificationSummary
+    TestCaseSummary: TestCaseSummary
+
+
+
+

@@ -4,7 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
-from typing import Union
+from typing import Union, Optional
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token
@@ -43,11 +43,11 @@ from .log import logger
 from .model import (
     InteractionDetails,
     InteractionType,
-    ParameterUseType,
+    ParameterEvaluationType,
     SequencePhase,
     TestCaseDetails,
     TestStructureTreeNode,
-    UdfType,
+    UDFType,
     UserDefinedField,
 )
 from .utils import PathResolver
@@ -95,8 +95,8 @@ class RfTestCase:
         for interaction in test_case_details.interactions:
             self._get_interaction_calls(interaction)
         self.rf_tags = self._get_tags(test_case_details)
-        self.setup_keyword: Keyword = None
-        self.teardown_keyword: Keyword = None
+        self.setup_keyword: Optional[Keyword] = None
+        self.teardown_keyword: Optional[Keyword] = None
         # TODO description
 
     @staticmethod
@@ -109,20 +109,20 @@ class RfTestCase:
     def _get_udf_tags(user_defined_fields: list[UserDefinedField]) -> list[str]:
         udfs = []
         for udf in user_defined_fields:
-            if udf.valueType in [UdfType.Enumeration, UdfType.String] and udf.value:
+            if udf.udfType in [UDFType.Enumeration, UDFType.String] and udf.value:
                 udfs.append(f"{udf.name}:{udf.value}")
-            elif udf.valueType == UdfType.Boolean and udf.value.lower() == "true":
+            elif udf.udfType == UDFType.Boolean and udf.value.lower() == "true":
                 udfs.append(udf.name)
         return udfs
 
     def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0) -> None:
         indent += 1
-        if interaction.interactionType != InteractionType.Textuell:
-            cbv_params = self._get_params_by_use_type(interaction, ParameterUseType.CallByValue)
+        if interaction.interactionType != InteractionType.Textual:
+            cbv_params = self._get_params_by_use_type(interaction, ParameterEvaluationType.CallByValue)
             cbr_params = self._get_params_by_use_type(
                 interaction,
-                ParameterUseType.CallByReference,
-                ParameterUseType.CallByReferenceMandatory,
+                ParameterEvaluationType.CallByReference,
+                ParameterEvaluationType.CallByReferenceMandatory,
             )
             if interaction.interactionType == InteractionType.Compound:
                 self._append_compound_ia_and_analyze_children(
@@ -231,7 +231,7 @@ class RfTestCase:
         )
 
     def _create_rf_setup_call(
-        self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
+        self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall]
     ) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
@@ -348,10 +348,10 @@ class RfTestCase:
             if value == "undef.":
                 previous_arg_forces_named = True
                 continue
-            if re.match(r'^\*\*\ ?', name):
+            if re.match(r'^\*\* ?', name):
                 escaped_value = RfTestCase.escape_argument_value(value, False, False)
                 parameters.append(escaped_value)
-            elif re.match(r'^\*\ ?', name):
+            elif re.match(r'^\* ?', name):
                 escaped_value = RfTestCase.escape_argument_value(value, False)
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
@@ -437,12 +437,12 @@ class RfTestCase:
 
     @staticmethod
     def _get_params_by_use_type(
-        interaction: InteractionDetails, *param_use_types: ParameterUseType
+        interaction: InteractionDetails, *param_use_types: ParameterEvaluationType
     ) -> dict[str, str]:
         return {
             parameter.name: parameter.value
             for parameter in interaction.parameters
-            if parameter.parameterUseType in param_use_types
+            if parameter.evaluationType in param_use_types
         }
 
 
@@ -490,11 +490,11 @@ class RobotInitFileBuilder:
 
     def _get_setting_section_metadata(self) -> dict[str, str]:
         meta_data = {
-            "UniqueID": self.test_theme.baseInformation.uniqueID,
-            "Numbering": self.test_theme.baseInformation.numbering,
+            "UniqueID": self.test_theme.base.uniqueID,
+            "Numbering": self.test_theme.base.numbering,
         }
-        if self.test_theme.specification:
-            meta_data["Specification Status"] = self.test_theme.specification.status
+        if self.test_theme.spec:
+            meta_data["Specification Status"] = self.test_theme.spec.status
         return meta_data
 
 

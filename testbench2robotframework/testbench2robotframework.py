@@ -27,6 +27,6 @@ def testbench2robotframework(json_report: str, config: Dict):
     # suite_runner = RobotSuiteRunner(test_suites, path_resolver)
     # suite_runner.run_suites()
     if not test_suites:
-        logger.warning("There are no test suites in the exported TestBench Projekt.")
+        logger.warning("There are no test suites in the exported TestBench Project.")
         return
     write_test_suites(test_suites, configuration)
