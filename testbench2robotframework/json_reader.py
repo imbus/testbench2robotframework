@@ -92,7 +92,7 @@ class TestBenchJsonReader:
         return [
             tse.base.uniqueID
             for tse in nodes
-            if tse.elementType == TestStructureElementType.TestCaseSet
+            if tse.elementType == TestStructureElementType.TestCaseSetNode
         ]
 
     def get_test_case_uids(self, test_case_set_uid: str) -> List[str]:

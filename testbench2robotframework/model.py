@@ -27,9 +27,10 @@ class TestFilterType(StrEnum):
 
 
 class TestStructureElementType(StrEnum):
-    Root = "Root"
-    TestTheme = "TestTheme"
-    TestCaseSet = "TestCaseSet"
+    RootNode = "RootNode"
+    TestThemeNode = "TestThemeNode"
+    TestCaseSetNode = "TestCaseSetNode"
+    TestCaseNode = "TestCaseNode"
 
 
 class Priority(StrEnum):
@@ -125,7 +126,7 @@ class RepresentativeType(StrEnum):
     Placeholder = "Placeholder"
     Attachment = "Attachment"
     Hyperlink = "Hyperlink"
-    Reference = "Reference" 
+    Reference = "Reference"
 
 
 class KindOfDataType(StrEnum):
@@ -581,7 +582,7 @@ class InteractionSpecificationSummary:
                 for condition in dictionary.get("postConditions", [])
             ],
         )
-    
+
 
 @dataclass
 class DataTypeSummary:
@@ -802,7 +803,7 @@ class TestStructureTreeNode:
     def from_dict(cls, dictionary):
         return cls(
             elementType=TestStructureElementType(
-                dictionary.get("elementType", TestStructureElementType.TestTheme)
+                dictionary.get("elementType", TestStructureElementType.TestThemeNode)
             ),
             base=TestStructureTreeNodeInformation.from_dict(
                 dictionary.get("base", {})

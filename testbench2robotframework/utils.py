@@ -105,7 +105,7 @@ class PathResolver:
 
     def _add_existing_tcs_to_catalog(self, tse):
         if (
-            tse.elementType == TestStructureElementType.TestCaseSet
+            tse.elementType == TestStructureElementType.TestCaseSetNode
             and tse.base.uniqueID in self._uids_of_existing_tcs
         ):
             self.tcs_catalog[tse.base.uniqueID] = tse
@@ -115,7 +115,7 @@ class PathResolver:
 
     def _resolve_tse_path(self, tse: TestStructureTreeNode) -> PurePath:
         self._add_tt_to_tt_catalog(tse)
-        if tse.elementType == TestStructureElementType.Root:
+        if tse.elementType == TestStructureElementType.RootNode:
             return PurePath()
         tse_name = replace_invalid_characters(tse.base.name)
         if tse.base.parentKey not in self.tree_dict:
@@ -125,7 +125,7 @@ class PathResolver:
 
     def _add_tt_to_tt_catalog(self, tse):
         if (
-            tse.elementType == TestStructureElementType.TestTheme
+            tse.elementType == TestStructureElementType.TestThemeNode
             and tse.base.uniqueID not in self.tt_catalog
         ):
             self.tt_catalog[tse.base.uniqueID] = tse
