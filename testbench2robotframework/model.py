@@ -617,6 +617,7 @@ class ParameterSummary:
 
     @classmethod
     def from_dict(cls, dictionary):
+        data_type = dictionary.get("dataType")
         return cls(
             key=dictionary.get("key", "-1"),
             name=dictionary.get("name", ""),
@@ -626,7 +627,7 @@ class ParameterSummary:
                 dictionary.get("definitionType", ParameterDefinitionType.AtomicInstance)
             ),
             evaluationType=ParameterEvaluationType(dictionary.get("useType", ParameterEvaluationType.CallByValue)),
-            dataType=DataTypeSummary.from_dict(dictionary.get("dataType")),
+            dataType=DataTypeSummary.from_dict(data_type) if data_type else None,
         )
 
 
