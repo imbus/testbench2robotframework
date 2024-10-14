@@ -110,9 +110,9 @@ class InteractionType(StrEnum):
 
 
 class ParameterDefinitionType(StrEnum):
-    DETAILED = "DETAILED"
-    ARRAY = "ARRAY"
-    ATOMIC = "ATOMIC"
+    DetailedInstance = "DetailedInstance"
+    InstanceTable = "InstanceTable"
+    AtomicInstance = "AtomicInstance"
 
 
 class ParameterEvaluationType(StrEnum):
@@ -623,7 +623,7 @@ class ParameterSummary:
             value=dictionary.get("value"),
             valueType=RepresentativeType(dictionary.get("valueType", RepresentativeType.Text)),
             definitionType=ParameterDefinitionType(
-                dictionary.get("definitionType", ParameterDefinitionType.ATOMIC)
+                dictionary.get("definitionType", ParameterDefinitionType.AtomicInstance)
             ),
             evaluationType=ParameterEvaluationType(dictionary.get("useType", ParameterEvaluationType.CallByValue)),
             dataType=DataTypeSummary.from_dict(dictionary.get("dataType")),
