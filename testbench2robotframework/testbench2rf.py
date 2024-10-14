@@ -245,6 +245,21 @@ class RfTestCase:
             indent=interaction_indent,
         )
 
+    def _create_rf_teardown_call(
+        self, teardown_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall]
+    ) -> Teardown:
+        cbr_parameters = self._create_cbr_parameters(teardown_interaction)
+        if cbr_parameters:
+            logger.error("No variable assignment in [teardown] possible.")
+        import_prefix = self._get_interaction_import_prefix(teardown_interaction)
+        interaction_indent = self._get_interaction_indent(teardown_interaction)
+        cbv_parameters = self._create_cbv_parameters(teardown_interaction)
+        return Teardown.from_params(
+            name=f"{import_prefix}{teardown_interaction.name}",
+            args=tuple(cbv_parameters),
+            indent=interaction_indent,
+        )
+
     def _create_rf_keyword_from_interaction_list(
         self, keyword_name: str, interactions: list[InteractionCall]
     ):
@@ -277,15 +292,15 @@ class RfTestCase:
 
     def _create_rf_teardown(
         self, teardown_interactions: list[InteractionCall]
-    ) -> Union[Setup, None]:
+    ) -> Union[Teardown, None]:
         rf_teardown = None
-        if teardown_interactions:
-            teardown_params = self._get_teardown_params(teardown_interactions)
-            rf_teardown = Teardown.from_params(**teardown_params)
-            if len(teardown_interactions) > 1:
-                self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
-                    f"Teardown-{self.uid}", teardown_interactions
-                )
+        if len(teardown_interactions) == 1:
+            rf_teardown = self._create_rf_teardown_call(teardown_interactions[0])
+        elif len(teardown_interactions) > 1:
+            self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
+                f"Teardown-{self.uid}", teardown_interactions
+            )
+            rf_teardown = Teardown.from_params(name=self.teardown_keyword.name)
         return rf_teardown
 
     def to_robot_ast_test_cases(
