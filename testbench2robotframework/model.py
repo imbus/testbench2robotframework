@@ -20,134 +20,120 @@ class StrEnum(str, Enum):
         return name
 
 
-class ProjectStatus(Enum):
-    Planned = 'Planned'
-    Active = 'Active'
-    Finished = 'Finished'
-    Closed = 'Closed'
+class TestFilterType(StrEnum):
+    TestTheme = "TestTheme"
+    TestCaseSet = "TestCaseSet"
+    TestCase = "TestCase"
 
 
-class DefectMetricType(Enum):
-    Status = 'Status'
-    Priority = 'Priority'
-    Classification = 'Classification'
+class TestStructureElementType(StrEnum):
+    RootNode = "RootNode"
+    TestThemeNode = "TestThemeNode"
+    TestCaseSetNode = "TestCaseSetNode"
+    TestCaseNode = "TestCaseNode"
 
 
-class ProjectTreeNodeType(Enum):
-    Project = 'Project'
-    Version = 'Version'
-    Cycle = 'Cycle'
+class Priority(StrEnum):
+    Undefined = "Undefined"
+    Low = "Low"
+    Middle = "Middle"
+    High = "High"
 
 
-class Severity(Enum):
-    Information = 'Information'
-    Warning = 'Warning'
-    Error = 'Error'
+class ReferenceType(StrEnum):
+    Reference = "Reference"
+    Hyperlink = "Hyperlink"
+    Attachment = "Attachment"
 
 
-class UDFType(Enum):
-    String = 'String'
-    Enumeration = 'Enumeration'
-    Boolean = 'Boolean'
+class SpecStatus(StrEnum):
+    NotPlanned = "NotPlanned"
+    Planned = "Planned"
+    InProgress = "InProgress"
+    InReview = "InReview"
+    Released = "Released"
 
 
-class TestLabelVisibilityType(Enum):
-    OnlyPrivate = 'OnlyPrivate'
-    OnlyPublic = 'OnlyPublic'
-    All = 'All'
+class InteractionVerdict(StrEnum):
+    Pass = "Pass"
+    Fail = "Fail"
+    Skipped = "Skipped"
+    ToVerify = "ToVerify"
+    Warn = "Warn"
+    Undefined = "Undefined"
+    Blocked = "Blocked"
 
 
-class AutStatus(Enum):
-    NotPlanned = 'NotPlanned'
-    Planned = 'Planned'
-    InProgress = 'InProgress'
-    InReview = 'InReview'
-    Released = 'Released'
+class VerdictStatus(StrEnum):
+    Undefined = "Undefined"
+    ToVerify = "ToVerify"
+    Fail = "Fail"
+    Pass = "Pass"
 
 
-class SpecStatus(Enum):
-    NotPlanned = 'NotPlanned'
-    Planned = 'Planned'
-    InProgress = 'InProgress'
-    InReview = 'InReview'
-    Released = 'Released'
+class ActivityStatus(StrEnum):
+    NotPlanned = "NotPlanned"
+    Planned = "Planned"
+    Assigned = "Assigned"
+    Running = "Running"
+    Canceled = "Canceled"
+    Skipped = "Skipped"
+    Performed = "Performed"
 
 
-class Priority(Enum):
-    Undefined = 'Undefined'
-    Low = 'Low'
-    Middle = 'Middle'
-    High = 'High'
+class ExecStatus(StrEnum):
+    NotBlocked = "NotBlocked"
+    Blocked = "Blocked"
 
 
-class ActivityStatus(Enum):
-    NotPlanned = 'NotPlanned'
-    Planned = 'Planned'
-    Assigned = 'Assigned'
-    Running = 'Running'
-    Skipped = 'Skipped'
-    Canceled = 'Canceled'
-    Performed = 'Performed'
+class UDFType(StrEnum):
+    String = "String"
+    Enumeration = "Enumeration"
+    Boolean = "Boolean"
 
 
-class ExecStatus(Enum):
-    NotBlocked = 'NotBlocked'
-    Blocked = 'Blocked'
+class SequencePhase(StrEnum):
+    Setup = "Setup"
+    TestStep = "TestStep"
+    Teardown = "Teardown"
 
 
-class VerdictStatus(Enum):
-    Undefined = 'Undefined'
-    ToVerify = 'ToVerify'
-    Fail = 'Fail'
-    Pass = 'Pass'
+class InteractionCallType(StrEnum):
+    Check = "Check"
+    Flow = "Flow"
 
 
-class InteractionVerdict(Enum):
-    Pass = 'Pass'
-    Fail = 'Fail'
-    Skipped = 'Skipped'
-    ToVerify = 'ToVerify'
-    Warn = 'Warn'
-    Undefined = 'Undefined'
-    Blocked = 'Blocked'
+class InteractionType(StrEnum):
+    Compound = "Compound"
+    Atomic = "Atomic"
+    Textual = "Textual"
 
 
-class SequencePhase(Enum):
-    Setup = 'Setup'
-    TestStep = 'TestStep'
-    Teardown = 'Teardown'
+class ParameterDefinitionType(StrEnum):
+    DetailedInstance = "DetailedInstance"
+    InstanceTable = "InstanceTable"
+    AtomicInstance = "AtomicInstance"
 
 
-class InteractionCallType(Enum):
-    Check = 'Check'
-    Flow = 'Flow'
+class ParameterEvaluationType(StrEnum):
+    CallByReference = "CallByReference"
+    CallByValue = "CallByValue"
+    CallByReferenceMandatory = "CallByReferenceMandatory"
 
 
-class InteractionType(Enum):
-    Atomic = 'Atomic'
-    Compound = 'Compound'
-    Textual = 'Textual'
+class RepresentativeType(StrEnum):
+    Text = "Text"
+    Placeholder = "Placeholder"
+    Attachment = "Attachment"
+    Hyperlink = "Hyperlink"
+    Reference = "Reference"
 
 
-class OperationalState(Enum):
-    Enabled = 'Enabled'
-    Disabled = 'Disabled'
-
-
-class GlobalHumanRole(Enum):
-    Administrator = 'Administrator'
-    ProjectAdministrator = 'ProjectAdministrator'
-    ProjectUser = 'ProjectUser'
-
-
-class ProjectRole(Enum):
-    TestManager = 'TestManager'
-    TestDesigner = 'TestDesigner'
-    TestProgrammer = 'TestProgrammer'
-    Tester = 'Tester'
-    ReadOnlyDesigner = 'ReadOnlyDesigner'
-    ReadOnlyImplementer = 'ReadOnlyImplementer'
-    ReadOnlyTester = 'ReadOnlyTester'
+class KindOfDataType(StrEnum):
+    Regular = "Regular"
+    Reference = "Reference"
+    Global = "Global"
+    AcceptingGlobal = "AcceptingGlobal"
 
 
 @dataclass
