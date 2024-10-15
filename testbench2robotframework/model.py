@@ -930,7 +930,7 @@ class ProtocolTestCaseExecutionSummary:
             testCaseExecutionKey=dictionary.get("testCaseExecutionKey"),
             durationMillis=dictionary.get("durationMillis"),
             executionKey=dictionary.get("executionKey"),
-            result=ProtocolTestCaseResult.from_dict(dictionary.get("result")),
+            result=ProtocolTestCaseResult.from_dict(dictionary.get("result"), {}),
             comments=ProtocolComments.from_dict(dictionary.get("comments")),
             testerKey=dictionary.get("testerKey"),
             defects=dictionary.get("defects"),
@@ -945,12 +945,12 @@ class ProtocolTestCaseResult:
     verdict: VerdictStatus
     execStatus: ExecStatus
 
-    def from_dict(cls, dictionary) -> MainProtocol:
+    def from_dict(cls, dictionary) -> ProtocolTestCaseResult:
         return cls(
             timestamp=dictionary.get("timestamp"),
             status=dictionary.get("status"),
             verdict=dictionary.get("verdict"),
-            execStatus=dictionary.get("execStatus"),
+            execStatus=dictionary.get("execStatus")
         )
 
 
@@ -959,7 +959,7 @@ class ProtocolComments:
     plain: Optional[str]
     html: Optional[str]
 
-    def from_dict(cls, dictionary) -> MainProtocol:
+    def from_dict(cls, dictionary) -> ProtocolComments:
         return cls(plain=dictionary.get("plain"), html=dictionary.get("html"))
 
 
@@ -968,5 +968,5 @@ class ProtocolUdf:
     udfKey: str
     value: str
 
-    def from_dict(cls, dictionary) -> MainProtocol:
+    def from_dict(cls, dictionary) -> ProtocolUdf:
         return cls(udfKey=dictionary.get("udfKey"), value=dictionary.get("value"))
