@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import List, Optional
+from typing import Optional
 
 
 class StrEnum(str, Enum):
     def __new__(cls, *args):
         for arg in args:
             if not isinstance(arg, (str, auto)):
-                raise TypeError(f"Values of StrEnums must be strings: {repr(arg)} is a {type(arg)}")
+                raise TypeError(f"Values of StrEnums must be strings: {arg!r} is a {type(arg)}")
         return super().__new__(cls, *args)
 
     def __str__(self):
@@ -20,120 +20,134 @@ class StrEnum(str, Enum):
         return name
 
 
-class TestFilterType(StrEnum):
-    TestTheme = "TestTheme"
-    TestCaseSet = "TestCaseSet"
-    TestCase = "TestCase"
+class ProjectStatus(Enum):
+    Planned = 'Planned'
+    Active = 'Active'
+    Finished = 'Finished'
+    Closed = 'Closed'
 
 
-class TestStructureElementType(StrEnum):
-    RootNode = "RootNode"
-    TestThemeNode = "TestThemeNode"
-    TestCaseSetNode = "TestCaseSetNode"
-    TestCaseNode = "TestCaseNode"
+class DefectMetricType(Enum):
+    Status = 'Status'
+    Priority = 'Priority'
+    Classification = 'Classification'
 
 
-class Priority(StrEnum):
-    Undefined = "Undefined"
-    Low = "Low"
-    Middle = "Middle"
-    High = "High"
+class ProjectTreeNodeType(Enum):
+    Project = 'Project'
+    Version = 'Version'
+    Cycle = 'Cycle'
 
 
-class ReferenceType(StrEnum):
-    Reference = "Reference"
-    Hyperlink = "Hyperlink"
-    Attachment = "Attachment"
+class Severity(Enum):
+    Information = 'Information'
+    Warning = 'Warning'
+    Error = 'Error'
 
 
-class SpecStatus(StrEnum):
-    NotPlanned = "NotPlanned"
-    Planned = "Planned"
-    InProgress = "InProgress"
-    InReview = "InReview"
-    Released = "Released"
+class UDFType(Enum):
+    String = 'String'
+    Enumeration = 'Enumeration'
+    Boolean = 'Boolean'
 
 
-class InteractionVerdict(StrEnum):
-    Pass = "Pass"
-    Fail = "Fail"
-    Skipped = "Skipped"
-    ToVerify = "ToVerify"
-    Warn = "Warn"
-    Undefined = "Undefined"
-    Blocked = "Blocked"
+class TestLabelVisibilityType(Enum):
+    OnlyPrivate = 'OnlyPrivate'
+    OnlyPublic = 'OnlyPublic'
+    All = 'All'
 
 
-class VerdictStatus(StrEnum):
-    Undefined = "Undefined"
-    ToVerify = "ToVerify"
-    Fail = "Fail"
-    Pass = "Pass"
+class AutStatus(Enum):
+    NotPlanned = 'NotPlanned'
+    Planned = 'Planned'
+    InProgress = 'InProgress'
+    InReview = 'InReview'
+    Released = 'Released'
 
 
-class ActivityStatus(StrEnum):
-    NotPlanned = "NotPlanned"
-    Planned = "Planned"
-    Assigned = "Assigned"
-    Running = "Running"
-    Canceled = "Canceled"
-    Skipped = "Skipped"
-    Performed = "Performed"
+class SpecStatus(Enum):
+    NotPlanned = 'NotPlanned'
+    Planned = 'Planned'
+    InProgress = 'InProgress'
+    InReview = 'InReview'
+    Released = 'Released'
 
 
-class ExecStatus(StrEnum):
-    NotBlocked = "NotBlocked"
-    Blocked = "Blocked"
+class Priority(Enum):
+    Undefined = 'Undefined'
+    Low = 'Low'
+    Middle = 'Middle'
+    High = 'High'
 
 
-class UDFType(StrEnum):
-    String = "String"
-    Enumeration = "Enumeration"
-    Boolean = "Boolean"
+class ActivityStatus(Enum):
+    NotPlanned = 'NotPlanned'
+    Planned = 'Planned'
+    Assigned = 'Assigned'
+    Running = 'Running'
+    Skipped = 'Skipped'
+    Canceled = 'Canceled'
+    Performed = 'Performed'
 
 
-class SequencePhase(StrEnum):
-    Setup = "Setup"
-    TestStep = "TestStep"
-    Teardown = "Teardown"
+class ExecStatus(Enum):
+    NotBlocked = 'NotBlocked'
+    Blocked = 'Blocked'
 
 
-class InteractionCallType(StrEnum):
-    Check = "Check"
-    Flow = "Flow"
+class VerdictStatus(Enum):
+    Undefined = 'Undefined'
+    ToVerify = 'ToVerify'
+    Fail = 'Fail'
+    Pass = 'Pass'
 
 
-class InteractionType(StrEnum):
-    Compound = "Compound"
-    Atomic = "Atomic"
-    Textual = "Textual"
+class InteractionVerdict(Enum):
+    Pass = 'Pass'
+    Fail = 'Fail'
+    Skipped = 'Skipped'
+    ToVerify = 'ToVerify'
+    Warn = 'Warn'
+    Undefined = 'Undefined'
+    Blocked = 'Blocked'
 
 
-class ParameterDefinitionType(StrEnum):
-    DetailedInstance = "DetailedInstance"
-    InstanceTable = "InstanceTable"
-    AtomicInstance = "AtomicInstance"
+class SequencePhase(Enum):
+    Setup = 'Setup'
+    TestStep = 'TestStep'
+    Teardown = 'Teardown'
 
 
-class ParameterEvaluationType(StrEnum):
-    CallByReference = "CallByReference"
-    CallByValue = "CallByValue"
-    CallByReferenceMandatory = "CallByReferenceMandatory"
+class InteractionCallType(Enum):
+    Check = 'Check'
+    Flow = 'Flow'
 
 
-class RepresentativeType(StrEnum):
-    Text = "Text"
-    Placeholder = "Placeholder"
-    Attachment = "Attachment"
-    Hyperlink = "Hyperlink"
-    Reference = "Reference"
+class InteractionType(Enum):
+    Atomic = 'Atomic'
+    Compound = 'Compound'
+    Textual = 'Textual'
 
 
-class KindOfDataType(StrEnum):
-    Regular = "Regular"
-    Reference = "Reference"
-    Global = "Global"
-    AcceptingGlobal = "AcceptingGlobal"
+class OperationalState(Enum):
+    Enabled = 'Enabled'
+    Disabled = 'Disabled'
+
+
+class GlobalHumanRole(Enum):
+    Administrator = 'Administrator'
+    ProjectAdministrator = 'ProjectAdministrator'
+    ProjectUser = 'ProjectUser'
+
+
+class ProjectRole(Enum):
+    TestManager = 'TestManager'
+    TestDesigner = 'TestDesigner'
+    TestProgrammer = 'TestProgrammer'
+    Tester = 'Tester'
+    ReadOnlyDesigner = 'ReadOnlyDesigner'
+    ReadOnlyImplementer = 'ReadOnlyImplementer'
+    ReadOnlyTester = 'ReadOnlyTester'
 
 
 @dataclass
@@ -143,7 +157,7 @@ class ProjectMember:
     userName: str
     projectkey: str
     projectName: str
-    roles: List[str]
+    roles: list[str]
 
 
 @dataclass
@@ -318,13 +332,13 @@ class TestCaseSetSpecificationSummary:
     responsible: Optional[UserReference]
     dueDate: Optional[str]
     reviewer: Optional[UserReference]
-    udfs: List[UserDefinedField]
-    keywords: List[Keyword]
+    udfs: list[UserDefinedField]
+    keywords: list[Keyword]
     # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
-    references: List[str]
-    requirements: List[RequirementReference]
-    preConditions: List[ConditionSummary]
-    postConditions: List[ConditionSummary]
+    references: list[str]
+    requirements: list[RequirementReference]
+    preConditions: list[ConditionSummary]
+    postConditions: list[ConditionSummary]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -363,9 +377,9 @@ class TestCaseSetSpecificationSummary:
 class TestCaseSpecificationDetails:
     key: str
     comments: str
-    udfs: List[UserDefinedField]
-    keywords: List[Keyword]
-    requirements: List[RequirementReference]
+    udfs: list[UserDefinedField]
+    keywords: list[Keyword]
+    requirements: list[RequirementReference]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -385,8 +399,8 @@ class TestCaseSpecificationDetails:
 class TestCaseSetExecutionSummary:
     key: str
     comments: str
-    udfs: List[UserDefinedField]
-    keywords: List[Keyword]
+    udfs: list[UserDefinedField]
+    keywords: list[Keyword]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -402,7 +416,7 @@ class TestCaseSetExecutionSummary:
 class TestCaseSpecificationSummary:
     key: str
     comments: str
-    requirements: List[RequirementReference]
+    requirements: list[RequirementReference]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -423,7 +437,7 @@ class TestCaseExecutionSummary:
     execStatus: ExecStatus
     verdict: VerdictStatus
     comments: str
-    defects: List[str]
+    defects: list[str]
     tester: Optional[UserReference] = None
 
     @classmethod
@@ -471,11 +485,11 @@ class TestCaseExecutionDetails:
     currentUser: UserReference
     comments: str  # TODO: Insert htmlComment
     version: Optional[str]
-    defects: List[str]
-    udfs: List[UserDefinedField]
-    keywords: List[Keyword]
+    defects: list[str]
+    udfs: list[UserDefinedField]
+    keywords: list[Keyword]
     # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
-    references: List[str]
+    references: list[str]
     tester: Optional[UserReference] = None
 
     @classmethod
@@ -507,7 +521,7 @@ class TestCaseSetDetails:
     uniqueID: str
     name: str
     spec: TestCaseSetSpecificationSummary
-    testCases: List[TestCaseSummary]
+    testCases: list[TestCaseSummary]
     exec: Optional[TestCaseSetExecutionSummary] = None
 
     @classmethod
@@ -537,7 +551,7 @@ class InteractionExecutionSummary:
     tester: Optional[UserReference]
     comments: str
     # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
-    references: List[str]
+    references: list[str]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -546,7 +560,9 @@ class InteractionExecutionSummary:
             time=dictionary.get("time", ""),
             duration=dictionary.get("duration", 0),
             currentUser=UserReference.from_dict(dictionary.get("currentUser", {})),
-            tester=UserReference.from_dict(dictionary.get("tester")) if dictionary.get("tester") else None,
+            tester=UserReference.from_dict(dictionary.get("tester"))
+            if dictionary.get("tester")
+            else None,
             comments=dictionary.get("comments", ""),
             references=dictionary.get("references", []),
         )
@@ -560,9 +576,9 @@ class InteractionSpecificationSummary:
     description: str
     comments: str
     # references: List[Reference]  #TODO: MUST BE CHANGED IN THE FUTURE AGAIN!!!
-    references: List[str]
-    preConditions: List[ConditionSummary]
-    postConditions: List[ConditionSummary]
+    references: list[str]
+    preConditions: list[ConditionSummary]
+    postConditions: list[ConditionSummary]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -626,7 +642,9 @@ class ParameterSummary:
             definitionType=ParameterDefinitionType(
                 dictionary.get("definitionType", ParameterDefinitionType.AtomicInstance)
             ),
-            evaluationType=ParameterEvaluationType(dictionary.get("useType", ParameterEvaluationType.CallByValue)),
+            evaluationType=ParameterEvaluationType(
+                dictionary.get("useType", ParameterEvaluationType.CallByValue)
+            ),
             dataType=DataTypeSummary.from_dict(data_type) if data_type else None,
         )
 
@@ -641,8 +659,8 @@ class InteractionDetails:
     path: str
     spec: InteractionSpecificationSummary
     exec: Optional[InteractionExecutionSummary]
-    parameters: List[ParameterSummary]
-    interactions: List[InteractionDetails]
+    parameters: list[ParameterSummary]
+    interactions: list[InteractionDetails]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -673,8 +691,8 @@ class InteractionDetails:
 class TestCaseDetails:
     uniqueID: str
     spec: TestCaseSpecificationDetails
-    interactions: List[InteractionDetails]
-    parameters: List[ParameterSummary]
+    interactions: list[InteractionDetails]
+    parameters: list[ParameterSummary]
     exec: Optional[TestCaseExecutionDetails] = None
 
     @classmethod
@@ -798,7 +816,7 @@ class TestStructureTreeNode:
     spec: Optional[TestStructureSpecification]
     aut: Optional[TestStructureAutomation]
     exec: Optional[TestStructureExecution]
-    filters: List[AttachedFilter]
+    filters: list[AttachedFilter]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -806,9 +824,7 @@ class TestStructureTreeNode:
             elementType=TestStructureElementType(
                 dictionary.get("elementType", TestStructureElementType.TestThemeNode)
             ),
-            base=TestStructureTreeNodeInformation.from_dict(
-                dictionary.get("base", {})
-            ),
+            base=TestStructureTreeNodeInformation.from_dict(dictionary.get("base", {})),
             spec=TestStructureSpecification.from_dict(dictionary.get("spec"))
             if dictionary.get("spec")
             else None,
@@ -825,7 +841,7 @@ class TestStructureTreeNode:
 @dataclass
 class TestStructureTree:
     root: Optional[TestStructureTreeNode]
-    nodes: List[TestStructureTreeNode]
+    nodes: list[TestStructureTreeNode]
 
     @classmethod
     def from_dict(cls, dictionary) -> TestStructureTree:
@@ -835,6 +851,7 @@ class TestStructureTree:
             else None,
             nodes=[TestStructureTreeNode.from_dict(node) for node in dictionary.get("nodes", [])],
         )
+
 
 @dataclass
 class AllModels:
@@ -870,5 +887,100 @@ class AllModels:
     TestCaseSummary: TestCaseSummary
 
 
+@dataclass
+class MainProtocol:
+    protocolTestCaseSetExecutionSummary: list[ProtocolTestCaseSetExecutionSummary]
+
+    @classmethod
+    def from_list(cls, lst) -> MainProtocol:
+        return cls(
+            protocolTestCaseSetExecutionSummary=[
+                ProtocolTestCaseSetExecutionSummary.from_dict(tcs) for tcs in lst
+            ],
+        )
 
 
+@dataclass
+class ProtocolTestCaseSetExecutionSummary:
+    testCaseSetKey: str
+    durationMillis: int
+    executionKey: str
+    testCases: list[ProtocolTestCaseExecutionSummary]
+    testerKey: Optional[str]
+    comments: Optional[ProtocolComments]
+    udfs: Optional[list[ProtocolUdf]]
+
+    @classmethod
+    def from_dict(cls, dictionary) -> MainProtocol:
+        return cls(
+            testCaseSetKey=dictionary.get("testCaseSetKey"),
+            durationMillis=dictionary.get("durationMillis"),
+            executionKey=dictionary.get("executionKey"),
+            testCases=[
+                ProtocolTestCaseExecutionSummary.from_dict(tc) for tc in dictionary.get("testCases")
+            ],
+            testerKey=dictionary.get("testerKey"),
+            comments=ProtocolComments.from_dict(dictionary.get("comments")),
+            udfs=[ProtocolUdf.from_dict(udf) for udf in dictionary.get("udfs")],
+        )
+
+
+@dataclass
+class ProtocolTestCaseExecutionSummary:
+    uniqueID: str
+    testCaseExecutionKey: str
+    durationMillis: int
+    executionKey: str
+    result: ProtocolTestCaseResult
+    comments: Optional[ProtocolComments]
+    testerKey: Optional[str]
+    defects: Optional[list[str]]
+    udfs: Optional[list[ProtocolUdf]]
+
+    @classmethod
+    def from_dict(cls, dictionary) -> MainProtocol:
+        return cls(
+            uniqueID=dictionary.get("uniqueID"),
+            testCaseExecutionKey=dictionary.get("testCaseExecutionKey"),
+            durationMillis=dictionary.get("durationMillis"),
+            executionKey=dictionary.get("executionKey"),
+            result=ProtocolTestCaseResult.from_dict(dictionary.get("result")),
+            comments=ProtocolComments.from_dict(dictionary.get("comments")),
+            testerKey=dictionary.get("testerKey"),
+            defects=dictionary.get("defects"),
+            udfs=[ProtocolUdf.from_dict(udf) for udf in dictionary.get("udfs")],
+        )
+
+
+@dataclass
+class ProtocolTestCaseResult:
+    timestamp: Optional[str]
+    status: ActivityStatus
+    verdict: VerdictStatus
+    execStatus: ExecStatus
+
+    def from_dict(cls, dictionary) -> MainProtocol:
+        return cls(
+            timestamp=dictionary.get("timestamp"),
+            status=dictionary.get("status"),
+            verdict=dictionary.get("verdict"),
+            execStatus=dictionary.get("execStatus"),
+        )
+
+
+@dataclass
+class ProtocolComments:
+    plain: Optional[str]
+    html: Optional[str]
+
+    def from_dict(cls, dictionary) -> MainProtocol:
+        return cls(plain=dictionary.get("plain"), html=dictionary.get("html"))
+
+
+@dataclass
+class ProtocolUdf:
+    udfKey: str
+    value: str
+
+    def from_dict(cls, dictionary) -> MainProtocol:
+        return cls(udfKey=dictionary.get("udfKey"), value=dictionary.get("value"))

@@ -118,7 +118,9 @@ class RfTestCase:
     def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0) -> None:
         indent += 1
         if interaction.interactionType != InteractionType.Textual:
-            cbv_params = self._get_params_by_use_type(interaction, ParameterEvaluationType.CallByValue)
+            cbv_params = self._get_params_by_use_type(
+                interaction, ParameterEvaluationType.CallByValue
+            )
             cbr_params = self._get_params_by_use_type(
                 interaction,
                 ParameterEvaluationType.CallByReference,
@@ -231,7 +233,8 @@ class RfTestCase:
         )
 
     def _create_rf_setup_call(
-        self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall]
+        self,
+        setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall],
     ) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
@@ -246,7 +249,10 @@ class RfTestCase:
         )
 
     def _create_rf_teardown_call(
-        self, teardown_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall]
+        self,
+        teardown_interaction: Union[
+            AtomicInteractionCall, CompoundInteractionCall, InteractionCall
+        ],
     ) -> Teardown:
         cbr_parameters = self._create_cbr_parameters(teardown_interaction)
         if cbr_parameters:
