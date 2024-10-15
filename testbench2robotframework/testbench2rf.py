@@ -4,7 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Union, Optional
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token
@@ -19,7 +19,6 @@ from robot.parsing.model.blocks import (
 from robot.parsing.model.statements import (
     Comment,
     EmptyLine,
-    ForceTags,
     KeywordCall,
     LibraryImport,
     Metadata,
@@ -33,17 +32,22 @@ from robot.parsing.model.statements import (
     VariablesImport,
 )
 
+try:
+    from robot.parsing.model.statements import TestTags
+except ImportError:
+    from robot.parsing.model.statements import ForceTags as TestTags
+
 from .config import Configuration
 from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
     InteractionDetails,
     InteractionType,
-    ParameterUseType,
+    ParameterEvaluationType,
     SequencePhase,
     TestCaseDetails,
     TestStructureTreeNode,
-    UdfType,
+    UDFType,
     UserDefinedField,
 )
 from .utils import PathResolver
@@ -65,8 +69,8 @@ class InteractionCall:
 
 @dataclass
 class AtomicInteractionCall(InteractionCall):
-    cbv_parameters: Dict[str, str]
-    cbr_parameters: Dict[str, str]
+    cbv_parameters: dict[str, str]
+    cbr_parameters: dict[str, str]
     indent: int
     import_prefix: str
     sequence_phase: str
@@ -74,8 +78,8 @@ class AtomicInteractionCall(InteractionCall):
 
 @dataclass
 class CompoundInteractionCall(InteractionCall):
-    cbv_parameters: Dict[str, str]
-    cbr_parameters: Dict[str, str]
+    cbv_parameters: dict[str, str]
+    cbr_parameters: dict[str, str]
     indent: int
     sequence_phase: str
 
@@ -83,44 +87,44 @@ class CompoundInteractionCall(InteractionCall):
 class RfTestCase:
     def __init__(self, test_case_details: TestCaseDetails, config: Configuration) -> None:
         self.uid: str = test_case_details.uniqueID
-        self.interaction_calls: List[InteractionCall] = []
-        self.used_imports: Dict[str, Set[str]] = {}
+        self.interaction_calls: list[InteractionCall] = []
+        self.used_imports: dict[str, set[str]] = {}
         self.config = config
         self.lib_pattern_list = [re.compile(pattern) for pattern in config.rfLibraryRegex]
         self.res_pattern_list = [re.compile(pattern) for pattern in config.rfResourceRegex]
         for interaction in test_case_details.interactions:
             self._get_interaction_calls(interaction)
         self.rf_tags = self._get_tags(test_case_details)
-        self.setup_keyword: Keyword = None
-        self.teardown_keyword: Keyword = None
+        self.setup_keyword: Optional[Keyword] = None
+        self.teardown_keyword: Optional[Keyword] = None
         # TODO description
 
     @staticmethod
-    def _get_tags(test_case_details: TestCaseDetails) -> List[str]:
+    def _get_tags(test_case_details: TestCaseDetails) -> list[str]:
         tags = [keyword.name for keyword in test_case_details.spec.keywords]
         tags.extend([udf.robot_tag for udf in test_case_details.spec.udfs if udf.robot_tag])
         return tags
 
     @staticmethod
-    def _get_udf_tags(user_defined_fields: List[UserDefinedField]) -> List[str]:
+    def _get_udf_tags(user_defined_fields: list[UserDefinedField]) -> list[str]:
         udfs = []
         for udf in user_defined_fields:
-            if udf.valueType == UdfType.Enumeration:
+            if udf.udfType in [UDFType.Enumeration, UDFType.String] and udf.value:
                 udfs.append(f"{udf.name}:{udf.value}")
-            elif udf.valueType == UdfType.String and udf.value:
-                udfs.append(f"{udf.name}:{udf.value}")
-            elif udf.valueType == UdfType.Boolean and udf.value == "true":
+            elif udf.udfType == UDFType.Boolean and udf.value.lower() == "true":
                 udfs.append(udf.name)
         return udfs
 
     def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0) -> None:
         indent += 1
-        if interaction.interactionType != InteractionType.Textuell:
-            cbv_params = self._get_params_by_use_type(interaction, ParameterUseType.CallByValue)
+        if interaction.interactionType != InteractionType.Textual:
+            cbv_params = self._get_params_by_use_type(
+                interaction, ParameterEvaluationType.CallByValue
+            )
             cbr_params = self._get_params_by_use_type(
                 interaction,
-                ParameterUseType.CallByReference,
-                ParameterUseType.CallByReferenceMandatory,
+                ParameterEvaluationType.CallByReference,
+                ParameterEvaluationType.CallByReferenceMandatory,
             )
             if interaction.interactionType == InteractionType.Compound:
                 self._append_compound_ia_and_analyze_children(
@@ -133,8 +137,8 @@ class RfTestCase:
 
     def _append_atomic_ia(
         self,
-        cbr_params: Dict[str, str],
-        cbv_params: Dict[str, str],
+        cbr_params: dict[str, str],
+        cbv_params: dict[str, str],
         indent: int,
         interaction: InteractionDetails,
     ):
@@ -155,7 +159,7 @@ class RfTestCase:
             )
         )
 
-    def _get_keyword_import(self, interaction) -> Tuple[str, str]:
+    def _get_keyword_import(self, interaction) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
             match = pattern.search(interaction.path)
             if match:
@@ -178,8 +182,8 @@ class RfTestCase:
 
     def _append_compound_ia_and_analyze_children(
         self,
-        cbr_params: Dict[str, str],
-        cbv_params: Dict[str, str],
+        cbr_params: dict[str, str],
+        cbv_params: dict[str, str],
         indent: int,
         interaction_detail: InteractionDetails,
     ):
@@ -196,17 +200,19 @@ class RfTestCase:
             self._get_interaction_calls(interaction, indent)
 
     def _create_rf_keyword_calls(
-        self, interaction_calls: List[InteractionCall]
-    ) -> List[List[Statement]]:
-        keyword_lists: List[List[Statement]] = [[]]
+        self, interaction_calls: list[InteractionCall]
+    ) -> list[list[Statement]]:
+        keyword_lists: list[list[Statement]] = [[]]
         tc_index = 0
         is_first_atomic = True
         for interaction_call in interaction_calls:
             if isinstance(interaction_call, AtomicInteractionCall):
-                if self.is_splitting_ia(interaction_call, keyword_lists, tc_index):
-                    if not is_first_atomic:
-                        tc_index += 1
-                        keyword_lists.append([])
+                if (
+                    self.is_splitting_ia(interaction_call, keyword_lists, tc_index)
+                    and not is_first_atomic
+                ):
+                    tc_index += 1
+                    keyword_lists.append([])
                 is_first_atomic = False
                 keyword_lists[tc_index].append(self._create_rf_keyword(interaction_call))
             elif (
@@ -226,7 +232,10 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
+    def _create_rf_setup_call(
+        self,
+        setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall, InteractionCall],
+    ) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -239,8 +248,26 @@ class RfTestCase:
             indent=interaction_indent,
         )
 
+    def _create_rf_teardown_call(
+        self,
+        teardown_interaction: Union[
+            AtomicInteractionCall, CompoundInteractionCall, InteractionCall
+        ],
+    ) -> Teardown:
+        cbr_parameters = self._create_cbr_parameters(teardown_interaction)
+        if cbr_parameters:
+            logger.error("No variable assignment in [teardown] possible.")
+        import_prefix = self._get_interaction_import_prefix(teardown_interaction)
+        interaction_indent = self._get_interaction_indent(teardown_interaction)
+        cbv_parameters = self._create_cbv_parameters(teardown_interaction)
+        return Teardown.from_params(
+            name=f"{import_prefix}{teardown_interaction.name}",
+            args=tuple(cbv_parameters),
+            indent=interaction_indent,
+        )
+
     def _create_rf_keyword_from_interaction_list(
-        self, keyword_name: str, interactions: List[InteractionCall]
+        self, keyword_name: str, interactions: list[InteractionCall]
     ):
         keyword_calls_lists = self._create_rf_keyword_calls(interactions)
         keyword = Keyword(header=TestCaseName.from_params(keyword_name))
@@ -248,7 +275,7 @@ class RfTestCase:
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_interactions: List[InteractionCall]) -> Optional[Setup]:
+    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Union[Setup, None]:
         rf_setup = None
         if len(setup_interactions) == 1:
             rf_setup = self._create_rf_setup_call(setup_interactions[0])
@@ -259,7 +286,7 @@ class RfTestCase:
             rf_setup = Setup.from_params(name=self.setup_keyword.name)
         return rf_setup
 
-    def _get_teardown_params(self, interaction_calls: List[InteractionCall]):
+    def _get_teardown_params(self, interaction_calls: list[InteractionCall]):
         if len(interaction_calls) == 1:
             interaction = interaction_calls[0]
             return {
@@ -269,20 +296,22 @@ class RfTestCase:
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(self, teardown_interactions: List[InteractionCall]) -> Optional[Setup]:
+    def _create_rf_teardown(
+        self, teardown_interactions: list[InteractionCall]
+    ) -> Union[Teardown, None]:
         rf_teardown = None
-        if teardown_interactions:
-            teardown_params = self._get_teardown_params(teardown_interactions)
-            rf_teardown = Teardown.from_params(**teardown_params)
-            if len(teardown_interactions) > 1:
-                self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
-                    f"Teardown-{self.uid}", teardown_interactions
-                )
+        if len(teardown_interactions) == 1:
+            rf_teardown = self._create_rf_teardown_call(teardown_interactions[0])
+        elif len(teardown_interactions) > 1:
+            self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
+                f"Teardown-{self.uid}", teardown_interactions
+            )
+            rf_teardown = Teardown.from_params(name=self.teardown_keyword.name)
         return rf_teardown
 
     def to_robot_ast_test_cases(
         self,
-    ) -> List[
+    ) -> list[
         TestCase
     ]:  # TODO: Separate testcase splitting from this method --> new method: to_robot_ast_test_case
         setup_interactions = list(
@@ -306,7 +335,7 @@ class RfTestCase:
             )
         )
         rf_teardown = self._create_rf_teardown(teardown_interactions)
-        rf_test_cases: List[TestCase] = []
+        rf_test_cases: list[TestCase] = []
         multiple_tests = len(rf_keyword_call_lists) > 1
         for index, rf_keywords in enumerate(rf_keyword_call_lists):
             phase_pattern = self.config.phasePattern
@@ -321,39 +350,42 @@ class RfTestCase:
             # tc_name = f"{self.uid}{suffix}"  # TODO later UID or Comments
             rf_test_case = TestCase(header=TestCaseName.from_params(tc_name))
             if self.rf_tags:
-                logger.info(self.rf_tags)
                 rf_test_case.body.append(Tags.from_params(self.rf_tags))
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
             if index == len(rf_keyword_call_lists) - 1 and rf_teardown:
                 rf_test_case.body.append(rf_teardown)
-            rf_test_case.body.extend(LINE_SEPARATOR)
+            if index != len(rf_keyword_call_lists) - 1:
+                rf_test_case.body.extend(LINE_SEPARATOR)
             rf_test_cases.append(rf_test_case)
         return rf_test_cases
 
     @staticmethod
-    def _create_cbv_parameters(interaction: AtomicInteractionCall) -> List[str]:
+    def _create_cbv_parameters(interaction: AtomicInteractionCall) -> list[str]:
         parameters = []
         previous_arg_forces_named = False
         for name, value in interaction.cbv_parameters.items():
             if value == "undef.":
                 previous_arg_forces_named = True
                 continue
-            escaped_value = RfTestCase.escape_argument_value(value)
-            if re.match(r'^\*\*\ ?', name):
+            if re.match(r'^\*\* ?', name):
                 escaped_value = RfTestCase.escape_argument_value(value, False, False)
                 parameters.append(escaped_value)
-            elif re.match(r'^\*\ ?', name):
+            elif re.match(r'^\* ?', name):
                 escaped_value = RfTestCase.escape_argument_value(value, False)
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
-            elif re.match(r'^-\ ?', name) or re.search(r'=$', name) or previous_arg_forces_named:
-                name = re.sub(r'^-\ ?', "", name)
-                name = re.sub("=$", "", name)
-                parameters.append(f"{name}={escaped_value}")
+            elif re.search(r'(^-\ ?|=$)', name) or previous_arg_forces_named:
+                escaped_value = RfTestCase.escape_argument_value(value, equal_sign_escaping=False)
+                pure_name = re.sub(r'(^-\ ?|=$)', "", name)
+                parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
+            elif value.find("=") != -1 and value[: value.find("=")] in interaction.cbv_parameters:
+                escaped_value = RfTestCase.escape_argument_value(value)
+                parameters.append(escaped_value)
             else:
+                escaped_value = RfTestCase.escape_argument_value(value, True, False)
                 parameters.append(escaped_value)
         return parameters
 
@@ -363,12 +395,13 @@ class RfTestCase:
             value = re.sub(r'^(?= )|(?<= )$|(?<= )(?= )', r'\\', value)
         if equal_sign_escaping:
             value = re.sub(r'(?<!\\)=', r'\=', value)
-        value = re.sub(r'^#', r'\#', value)
-        return value
+        return re.sub(r'^#', r'\#', value)
 
     @staticmethod
-    def _create_cbr_parameters(interaction: AtomicInteractionCall) -> List[str]:
-        cbr_parameters = list(interaction.cbr_parameters.values())
+    def _create_cbr_parameters(interaction: AtomicInteractionCall) -> list[str]:
+        cbr_parameters = list(
+            filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
+        )
         for index, parameter in enumerate(cbr_parameters):
             if not parameter.startswith('${'):
                 cbr_parameters[index] = f"${{{parameter}}}"
@@ -415,26 +448,30 @@ class RfTestCase:
                 for param_name, param_value in interaction.cbv_parameters.items()
             ]
         )
+        cmd = []
         if cbr_params:
-            return f"#{SEPARATOR.join([cbr_params, interaction.name, cbv_params])}"
-        return f"#{SEPARATOR.join([interaction.name, cbv_params])}"
+            cmd.append(cbr_params)
+        cmd.append(interaction.name)
+        if cbv_params:
+            cmd.append(cbv_params)
+        return f"# {SEPARATOR.join(cmd)}"
 
     @staticmethod
     def _get_params_by_use_type(
-        interaction: InteractionDetails, *param_use_types: ParameterUseType
-    ) -> Dict[str, str]:
+        interaction: InteractionDetails, *param_use_types: ParameterEvaluationType
+    ) -> dict[str, str]:
         return {
             parameter.name: parameter.value
             for parameter in interaction.parameters
-            if parameter.parameterUseType in param_use_types
+            if parameter.evaluationType in param_use_types
         }
 
 
 def create_test_suites(
-    test_case_set_catalog: Dict[str, TestCaseSet],
+    test_case_set_catalog: dict[str, TestCaseSet],
     path_resolver: PathResolver,
     config: Configuration,
-) -> Dict[str, File]:
+) -> dict[str, File]:
     tcs_paths = path_resolver.tcs_paths
     test_suites = {}
     for uid, test_case_set in test_case_set_catalog.items():
@@ -454,12 +491,12 @@ class RobotInitFileBuilder:
         self, test_theme: TestStructureTreeNode, tt_path: PurePath, config: Configuration
     ) -> None:
         self.test_theme = test_theme
-        self.tt_path = tt_path
+        self.tt_path = PurePath(tt_path)
         self.config = config
 
     def create_init_file(self) -> File:
         sections = [self._create_setting_section()]
-        return File(sections, source=os.path.join(str(self.tt_path), "__init__"))
+        return File(sections, source=str(self.tt_path / "__init__"))
 
     def _create_setting_section(self) -> SettingSection:
         setting_section = SettingSection(header=SectionHeader.from_params(Token.SETTING_HEADER))
@@ -472,13 +509,13 @@ class RobotInitFileBuilder:
         )
         return setting_section
 
-    def _get_setting_section_metadata(self) -> Dict[str, str]:
+    def _get_setting_section_metadata(self) -> dict[str, str]:
         meta_data = {
-            "UniqueID": self.test_theme.baseInformation.uniqueID,
-            "Numbering": self.test_theme.baseInformation.numbering,
+            "UniqueID": self.test_theme.base.uniqueID,
+            "Numbering": self.test_theme.base.numbering,
         }
-        if self.test_theme.specification:
-            meta_data["Specification Status"] = self.test_theme.specification.status
+        if self.test_theme.spec:
+            meta_data["Specification Status"] = self.test_theme.spec.status
         return meta_data
 
 
@@ -501,44 +538,45 @@ class RobotSuiteFileBuilder:
         self.test_case_set = test_case_set
         self.tcs_path = tcs_path
         self.config = config
-        self._rf_test_cases: List[RfTestCase] = [
+        self._rf_test_cases: list[RfTestCase] = [
             RfTestCase(test_case_details=test_case, config=config)
             for test_case in self.test_case_set.test_cases.values()
         ]
-        self.setup_keywords: List[Keyword] = []
-        self.teardown_keywords: List[Keyword] = []
+        self.setup_keywords: list[Keyword] = []
+        self.teardown_keywords: list[Keyword] = []
 
     def create_test_suite_file(self) -> File:
         sections = [self._create_setting_section(), self._create_test_case_section()]
         keyword_section = self._create_keywords_section()
         if keyword_section:
+            sections[-1].body.extend(SECTION_SEPARATOR)
             sections.append(keyword_section)
         return File(sections, source=str(self.tcs_path))
 
     def _create_test_case_section(self) -> TestCaseSection:
         test_case_section = TestCaseSection(header=SectionHeader.from_params(Token.TESTCASE_HEADER))
         robot_ast_test_cases = []
-        for test_case in self._rf_test_cases:
+        for index, test_case in enumerate(self._rf_test_cases):
             robot_ast_test_cases.extend(test_case.to_robot_ast_test_cases())
+            if index != len(self._rf_test_cases) - 1:
+                robot_ast_test_cases[-1].body.extend(LINE_SEPARATOR)
             if test_case.setup_keyword:
                 self.setup_keywords.append(test_case.setup_keyword)
             if test_case.teardown_keyword:
                 self.teardown_keywords.append(test_case.teardown_keyword)
         test_case_section.body.extend(robot_ast_test_cases)
-        test_case_section.body.extend(SECTION_SEPARATOR)
         return test_case_section
 
-    def _create_keywords_section(self) -> Optional[KeywordSection]:
+    def _create_keywords_section(self) -> Union[KeywordSection, None]:
         if not self.setup_keywords and not self.teardown_keywords:
             return None
         keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
         keywords_section.body.extend(self.setup_keywords)
         keywords_section.body.extend(self.teardown_keywords)
-        keywords_section.body.extend(SECTION_SEPARATOR)
         return keywords_section
 
-    def _get_used_subdivisions(self) -> Dict[str, Set[str]]:
-        import_dict: Dict[str, Set[str]] = {}
+    def _get_used_subdivisions(self) -> dict[str, set[str]]:
+        import_dict: dict[str, set[str]] = {}
         for test_case in self._rf_test_cases:
             for root, import_names in test_case.used_imports.items():
                 if root not in import_dict:
@@ -547,13 +585,13 @@ class RobotSuiteFileBuilder:
                     import_dict[root].update(import_names)
         return import_dict
 
-    def _create_rf_variable_imports(self) -> List[VariablesImport]:
+    def _create_rf_variable_imports(self) -> list[VariablesImport]:
         return [
             VariablesImport.from_params(name=variable_file)
             for variable_file in self.config.forcedImport.variables
         ]
 
-    def _create_rf_resource_imports(self, import_dict: Dict[str, Set[str]]) -> List[ResourceImport]:
+    def _create_rf_resource_imports(self, import_dict: dict[str, set[str]]) -> list[ResourceImport]:
         resources = {
             str(resource)
             for resource_root, resources in import_dict.items()
@@ -573,42 +611,45 @@ class RobotSuiteFileBuilder:
             if not self.config.resourceDirectory:
                 return f"{resource}.resource"
             if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resourceDirectory):
-                return f"{self.config.resourceDirectory}{ROBOT_PATH_SEPARATOR}{resource}.resource"
-            else:
-                generation_directory = self._replace_relative_resource_indicator(self.config.generationDirectory)
-                robot_file_path = Path(generation_directory) / self.tcs_path.parent
-                resource_directory = self._replace_relative_resource_indicator(self.config.resourceDirectory)
-                resource_import = f"{os.path.relpath(Path(resource_directory), robot_file_path)}{ROBOT_PATH_SEPARATOR}{resource}.resource"
-                return re.sub(r'\\', '/', resource_import)
-        else:
-            root_path = Path(os.curdir).absolute()
-            resource_dir_indicator = r"^{resourceDirectory}"
-            subdivision_mapping = re.sub(
-                resource_dir_indicator, self.config.resourceDirectory, subdivision_mapping
+                return Path(self.config.resourceDirectory, f"{resource}.resource").as_posix()
+            generation_directory = self._replace_relative_resource_indicator(
+                self.config.generationDirectory
             )
-            subdivision_mapping = re.sub(
-                RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+            robot_file_path = Path(generation_directory) / self.tcs_path.parent
+            resource_directory = self._replace_relative_resource_indicator(
+                self.config.resourceDirectory
             )
-            return str(subdivision_mapping)
+            resource_import = (
+                Path(os.path.relpath(Path(resource_directory), robot_file_path))
+                / f"{resource}.resource"
+            )
+            return resource_import.as_posix()
+        root_path = Path(os.curdir).absolute()
+        subdivision_mapping = re.sub(
+            r"^{resourceDirectory}", self.config.resourceDirectory, subdivision_mapping
+        )
+        subdivision_mapping = re.sub(
+            RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+        )
+        return str(subdivision_mapping)
 
-    def _replace_relative_resource_indicator(self, path: Path) -> str:
+    def _replace_relative_resource_indicator(self, path: Union[Path, str]) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
-                RELATIVE_RESOURCE_INDICATOR,
-                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
-                path,
-                flags=re.IGNORECASE,
-            ).replace('\\', ROBOT_PATH_SEPARATOR)
-
+            RELATIVE_RESOURCE_INDICATOR,
+            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            str(path),
+            flags=re.IGNORECASE,
+        ).replace('\\', ROBOT_PATH_SEPARATOR)
 
     def _get_relative_resource_directory(self) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
-                RELATIVE_RESOURCE_INDICATOR,
-                str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
-                self.config.resourceDirectory,
-                flags=re.IGNORECASE,
-            ).replace('\\', ROBOT_PATH_SEPARATOR)
+            RELATIVE_RESOURCE_INDICATOR,
+            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            self.config.resourceDirectory,
+            flags=re.IGNORECASE,
+        ).replace('\\', ROBOT_PATH_SEPARATOR)
 
     @staticmethod
     def _is_library(root_subdivision: str) -> bool:
@@ -618,7 +659,7 @@ class RobotSuiteFileBuilder:
     def _is_resource(root_subdivision: str) -> bool:
         return root_subdivision == RESOURCE_IMPORT_TYPE
 
-    def _create_rf_library_imports(self, import_dict: Dict[str, Set[str]]) -> List[LibraryImport]:
+    def _create_rf_library_imports(self, import_dict: dict[str, set[str]]) -> list[LibraryImport]:
         libraries = {
             str(library)
             for library_root, libraries in import_dict.items()
@@ -631,15 +672,15 @@ class RobotSuiteFileBuilder:
         }
         return [LibraryImport.from_params(lib) for lib in sorted(lib_imports)]
 
-    def _create_rf_force_tags(self) -> Optional[ForceTags]:
+    def _create_rf_test_tags(self) -> Union[TestTags, None]:
         tb_keyword_names = [keyword.name for keyword in self.test_case_set.details.spec.keywords]
         udfs = [udf.robot_tag for udf in self.test_case_set.details.spec.udfs if udf.robot_tag]
-        force_tags = tb_keyword_names + udfs
-        if force_tags:
-            return ForceTags.from_params(force_tags)
+        test_tags = tb_keyword_names + udfs
+        if test_tags:
+            return TestTags.from_params(test_tags)
         return None
 
-    def _create_rf_unknown_imports(self, import_dict: Dict[str, Set[str]]) -> List[Comment]:
+    def _create_rf_unknown_imports(self, import_dict: dict[str, set[str]]) -> list[Comment]:
         unknown_imports = {
             str(unknown_import)
             for root_subdivision, unknown_imports in import_dict.items()
@@ -677,6 +718,6 @@ class RobotSuiteFileBuilder:
                 for metadata_name, metadata_value in setting_section_meta_data.items()
             ]
         )
-        setting_section.body.append(self._create_rf_force_tags())
+        setting_section.body.append(self._create_rf_test_tags())
         setting_section.body.extend(SECTION_SEPARATOR)
         return setting_section

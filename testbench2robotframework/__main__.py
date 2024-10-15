@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import sys
-from os import path
+from pathlib import Path
 
 import robot
 
@@ -33,7 +33,7 @@ def run():
     if args.version:
         print_version()
         sys.exit()
-    if not path.isfile(args.config):
+    if not Path(args.config).is_file():
         write_default_config(args.config)
     configuration = read_json(args.config)
     if args.subcommand == 'write':
@@ -43,7 +43,7 @@ def run():
 
 
 def print_version():
-    print(
+    print(  # noqa: T201
         f'TestBench2RobotFramework {__version__} with '
         f'[Robot Framework {robot.version.get_full_version()}]'
     )

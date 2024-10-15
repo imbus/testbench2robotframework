@@ -70,3 +70,54 @@ testpaths = [
     "tests",
 ]
 spec_header_format = "{test_case}"
+
+[tool.ruff]
+unfixable = [
+    "UP007"
+]
+exclude = [
+  "__pycache__",
+  "config.py",
+  "model.py",
+  "tests"
+]
+ignore = [
+  "B008",  # do not perform function calls in argument defaults
+  "E501",  # line too long
+  # "N815",  # mixedCase variable in class scope
+  # "N803",  # argument name should be lowercase
+  # "N806",  # variable in function should be lowercase
+  # "N812",  # lowercase imported as non lowercase
+  # "N999",  # Invalid module name: 'Browser'
+  "PLR0913",  # too many arguments
+  # "T201",  # Print statements
+  "UP007",
+]
+target-version = "py37"
+select = [
+  "E",
+  "F",
+  "W",
+  "C90",
+  "I",
+  "N",
+  "B",
+  "PYI",
+  "PL",
+  "PTH",
+  "UP",
+  "A",
+  "C4",
+  "DTZ",
+  "ISC",
+  "ICN",
+  "INP",
+  "PIE",
+  "T20",
+  "PYI",
+  "PT",
+  "RSE",
+  "RET",
+  "SIM",
+  "RUF"
+]

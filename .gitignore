@@ -5,6 +5,9 @@ __pycache__/
 
 # C extensions
 *.so
+ignore/
+.ruff_cache/
+tests/
 
 # Distribution / packaging
 .Python
@@ -135,7 +138,7 @@ json_report
 testbench2robotframework.log*
 result_example
 Generated/
-TestBench2RobotFrameworkExecutor
+TestBenchExport
 .idea
 *.zip
 json-report_out
@@ -147,4 +150,6 @@ MyResources/
 log.html
 output.xml
 playwright-log.txt
+results/
 report.html
+new_json/

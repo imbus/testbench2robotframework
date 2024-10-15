@@ -19,7 +19,7 @@ def write_test_suites(test_suites: Dict[str, File], config: Configuration) -> No
     if config.createOutputZip:
         directory_to_zip(generation_directory)
     logger.info(f"Successfully wrote {len(test_suites)} robot files.")
-    logger.info(f"Path: {os.path.abspath(generation_directory)}")
+    logger.info(f"Path: {Path(generation_directory).resolve()!s}")
 
 
 def get_generation_directory(generation_directory: str) -> Path:
@@ -41,8 +41,7 @@ def clear_generation_directory(generation_dir: Path) -> None:
         shutil.rmtree(str(generation_dir))
         logger.info("Files in generation directory deleted.")
     zip_file = "".join([str(generation_dir), ".zip"])
-    if os.path.exists(zip_file):
-        os.remove(zip_file)
+    Path(zip_file).unlink(missing_ok=True)
 
 
 def write_test_suite_files(test_suites: Dict[str, File], generation_directory: Path) -> None:

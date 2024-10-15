@@ -1,6 +1,6 @@
-import os
 import sys
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 
 from robot.api import ExecutionResult
 
@@ -12,12 +12,12 @@ from .result_writer import ResultWriter
 def robot2testbench(
     json_input_report: str,
     robot_result_xml: str,
-    json_output_result: str = None,
-    config: Dict = None,
+    json_output_result: Optional[str] = None,
+    config: Optional[Dict] = None,
 ):
-    if not os.path.exists(json_input_report):
+    if not Path(json_input_report).exists():
         sys.exit("Could not find json directory or zip file at the given path.")
-    if not os.path.exists(robot_result_xml):
+    if not Path(robot_result_xml).exists():
         sys.exit("Robot result xml does not exist at the given path.")
     configuration = Configuration.from_dict(config)
     setup_logger(configuration)

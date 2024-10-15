@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 from urllib.parse import unquote
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
+from robot.result.model import Body
 
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
@@ -18,7 +19,7 @@ from .json_writer import write_test_structure_element
 from .log import logger
 from .model import (
     ActivityStatus,
-    ExecutionVerdict,
+    VerdictStatus,
     InteractionDetails,
     InteractionExecutionSummary,
     InteractionType,
@@ -48,23 +49,26 @@ COLOR = {
     "INFO": "#000",
 }
 
+MEGABYTE = 1000 * 1000
+
 
 class ResultWriter(ResultVisitor):
     def __init__(
-        self, json_report: str, json_result: str, config: Configuration, output_xml
+        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml
     ) -> None:
         self.json_dir = get_directory(json_report)
         self.output_xml = output_xml
         self.reference_behaviour = config.referenceBehaviour
         self.attachment_conflict_behaviour = config.attachmentConflictBehaviour
         self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
+        self._test_setup_passed: Optional[bool] = None
         if json_result is None:
-            self.create_zip = bool(os.path.splitext(json_report)[1].lower() == ".zip")
+            self.create_zip = bool(Path(json_report).suffix == ".zip")
             self.json_result = self.json_dir
             self.json_result_path = self.json_dir
         else:
-            self.json_result_path, result_extension = os.path.splitext(json_result)
-            self.create_zip = bool(result_extension.lower() == ".zip")
+            self.json_result_path = str(Path(json_result).parent / Path(json_report).stem)
+            self.create_zip = bool(Path(json_report).suffix == ".zip")
             self.json_result = self.tempdir.name
             if self.create_zip:
                 copytree(self.json_dir, self.json_result, dirs_exist_ok=True)
@@ -95,7 +99,7 @@ class ResultWriter(ResultVisitor):
                 )
 
     def end_test(self, test: TestCase):
-        self._test_setup_passed: Optional[bool] = None
+        self._test_setup_passed = None
         test_chain = get_test_chain(test.name, self.phase_pattern)
         if test_chain:
             if test_chain.index == 1:
@@ -155,7 +159,7 @@ class ResultWriter(ResultVisitor):
         references = []
         for path in re.findall(r"itb-reference:\s*(\S*)", test_message):
             if path.startswith("file:///"):
-                file_path = Path(unquote(path[len("file:///") :]))
+                file_path = Path(unquote(path[len("file:///"):]))
                 output_dir = Path(self.output_xml).parent
                 if file_path.exists():
                     reference_path = file_path
@@ -171,11 +175,11 @@ class ResultWriter(ResultVisitor):
                         logger.warning(f"Referenced file '{file_path}' does not exist.")
                     continue
                 file_size = os.path.getsize(reference_path)
-                if file_size >= 10000000:
+                if file_size >= 10 * MEGABYTE:
                     logger.error(
                         f"Trying to attach file '{reference_path}'. "
                         "Attachment file size must not exceed 10 MB "
-                        f"but is {file_size / 1000000} MB."
+                        f"but is {file_size / MEGABYTE} MB."
                     )
                     reference = self._create_reference(reference_path.name)
                 else:
@@ -217,6 +221,7 @@ class ResultWriter(ResultVisitor):
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.ERROR:
             logger.error(f"Attachment '{filename}' does already exist.")
             return None
+        return None
 
     @staticmethod
     def _create_unique_path(attachement_path: Path) -> Path:
@@ -235,7 +240,7 @@ class ResultWriter(ResultVisitor):
         for test in test_chain:
             message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
             html_message = (
-                message[len("*HTML*") :].replace("<hr>", "<br/>").replace("<br>", "<br/>").strip()
+                message[len("*HTML*"):].replace("<hr>", "<br/>").replace("<br>", "<br/>").strip()
                 if test.message.startswith("*HTML*")
                 else html.escape(message)
             )
@@ -251,7 +256,7 @@ class ResultWriter(ResultVisitor):
                 "<pre>"
                 f"Start Time:   {self.get_isotime_from_robot_timestamp(test.starttime)}\n"
                 f"End Time:     {self.get_isotime_from_robot_timestamp(test.endtime)}\n"
-                f"Elapsed Time: {str(timedelta(milliseconds=test.elapsedtime))}\n"
+                f"Elapsed Time: {timedelta(milliseconds=test.elapsedtime)!s}\n"
                 "</pre>"
                 f"Message: <p><pre>{html_message}</pre></p>\n"
             )
@@ -269,12 +274,12 @@ class ResultWriter(ResultVisitor):
         else:
             self._set_itb_test_case_status(itb_test_case, "undef")
 
-    def _get_test_phase_body(self, test_phase: TestCase):
+    def _get_test_phase_body(self, test_phase: TestCase) -> Body:
         return test_phase.body
 
-    def _get_test_phase_setup(self, test_phase: TestCase):
+    def _get_test_phase_setup(self, test_phase: TestCase) -> List[Keyword]:
         test_phase_setup = []
-        if test_phase.has_setup:
+        if test_phase.has_setup and test_phase.setup:
             self._test_setup_passed = test_phase.setup.passed
             if test_phase.setup.name == f"Setup-{test_phase.name}":
                 test_phase_setup = list(
@@ -288,9 +293,9 @@ class ResultWriter(ResultVisitor):
                 test_phase_setup = [test_phase.setup]
         return test_phase_setup
 
-    def _get_test_phase_teardown(self, test_phase: TestCase):
+    def _get_test_phase_teardown(self, test_phase: TestCase) -> List[Keyword]:
         test_phase_teardown = []
-        if test_phase.has_teardown:
+        if test_phase.has_teardown and test_phase.teardown:
             if test_phase.teardown.name == f"Teardown-{test_phase.name}":
                 test_phase_teardown = list(
                     filter(
@@ -322,61 +327,54 @@ class ResultWriter(ResultVisitor):
             for test_phase in test_chain
             for keyword in self._get_test_phase_teardown(test_phase)
         ]
-        setup_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.Setup,
-                atomic_interactions,
-            )
+        setup_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.Setup
         )
-        test_step_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.TestStep,
-                atomic_interactions,
-            )
+        test_step_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.TestStep
         )
-        teardown_interactions = list(
-            filter(
-                lambda atomic_interaction: atomic_interaction.spec.sequencePhase
-                == SequencePhase.Teardown,
-                atomic_interactions,
-            )
+        teardown_interactions = self._filter_atomic_interactions_by_sequence_phase(
+            atomic_interactions, SequencePhase.Teardown
         )
-        for index, interaction in enumerate(setup_interactions):
-            if interaction.exec is None:
-                interaction.exec = InteractionExecutionSummary.from_dict({})
-            if index < len(test_chain_setup):
-                keyword = test_chain_setup[index]
-                self._check_matching_interaction_and_keyword_name(keyword, interaction)
-                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                if self._test_setup_passed:
-                    interaction.exec.verdict = InteractionVerdict.Undefined
-                else:
-                    interaction.exec.verdict = InteractionVerdict.Skipped
+        self._set_interaction_verdicts(setup_interactions, test_chain_setup, SequencePhase.Setup)
+        self._set_interaction_verdicts(
+            test_step_interactions, test_chain_body, SequencePhase.TestStep
+        )
+        self._set_interaction_verdicts(
+            teardown_interactions, test_chain_teardown, SequencePhase.Teardown
+        )
 
-        for index, interaction in enumerate(test_step_interactions):
+    def _set_interaction_verdicts(
+        self,
+        interaction_list: List[InteractionDetails],
+        test_chain_body: List[Keyword],
+        sequence_phase: SequencePhase,
+    ):
+        for index, interaction in enumerate(interaction_list):
             if interaction.exec is None:
                 interaction.exec = InteractionExecutionSummary.from_dict({})
-            if not self._test_setup_passed:
+            if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
                 interaction.exec.verdict = InteractionVerdict.Skipped
-            elif index < len(test_chain_body):
+                continue
+            if index < len(test_chain_body):
                 keyword = test_chain_body[index]
                 self._check_matching_interaction_and_keyword_name(keyword, interaction)
                 interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                interaction.exec.verdict = InteractionVerdict.Undefined
+                continue
+            if sequence_phase == SequencePhase.Setup and not self._test_setup_passed:
+                interaction.exec.verdict = InteractionVerdict.Skipped
+                continue
+            interaction.exec.verdict = InteractionVerdict.Undefined
 
-        for index, interaction in enumerate(teardown_interactions):
-            if interaction.exec is None:
-                interaction.exec = InteractionExecutionSummary.from_dict({})
-            if index < len(test_chain_teardown):
-                keyword = test_chain_teardown[index]
-                self._check_matching_interaction_and_keyword_name(keyword, interaction)
-                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
-            else:
-                interaction.exec.verdict = InteractionVerdict.Undefined
+    def _filter_atomic_interactions_by_sequence_phase(
+        self, atomic_interactions: List[InteractionDetails], sequence_phase: SequencePhase
+    ):
+        return list(
+            filter(
+                lambda atomic_interaction: atomic_interaction.spec.sequencePhase == sequence_phase,
+                atomic_interactions,
+            )
+        )
 
     def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
         return InteractionExecutionSummary.from_dict(
@@ -405,8 +403,8 @@ class ResultWriter(ResultVisitor):
             for message in keyword.messages:
                 yield self._create_itb_exec_comment(message)
         if hasattr(keyword, "body"):
-            for keyword in keyword.body:
-                yield from self._get_keyword_messages(keyword)
+            for kw in keyword.body:
+                yield from self._get_keyword_messages(kw)
 
     def get_html_keyword_comment(self, keyword: Keyword):
         messages = list(self._get_keyword_messages(keyword))
@@ -420,7 +418,7 @@ class ResultWriter(ResultVisitor):
             "<pre>"
             f"Start Time:   {self.get_isotime_from_robot_timestamp(keyword.starttime)}\n"
             f"End Time:     {self.get_isotime_from_robot_timestamp(keyword.endtime)}\n"
-            f"Elapsed Time: {str(timedelta(milliseconds=keyword.elapsedtime))}\n"
+            f"Elapsed Time: {timedelta(milliseconds=keyword.elapsedtime)!s}\n"
             "</pre>"
             "<table>"
             "<tr>"
@@ -446,7 +444,14 @@ class ResultWriter(ResultVisitor):
 
     @staticmethod
     def get_isotime_from_robot_timestamp(timestamp, time_format="%Y-%m-%d %H:%M:%S.%f"):
-        return datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f").strftime(time_format)[:-3]
+        try:
+            return timestamp.astimezone().strftime(time_format)[:-3]
+        except AttributeError:
+            return (
+                datetime.strptime(timestamp, "%Y%m%d %H:%M:%S.%f")
+                .astimezone()
+                .strftime(time_format)[:-3]
+            )
 
     def _set_compound_interaction_execution_result(self, compound_interaction: InteractionDetails):
         atomic_interactions = list(
@@ -480,13 +485,13 @@ class ResultWriter(ResultVisitor):
         robot_status = robot_status.lower()
         if robot_status == "pass":
             itb_test_case.exec.status = ActivityStatus.Performed
-            itb_test_case.exec.verdict = ExecutionVerdict.Pass
+            itb_test_case.exec.verdict = VerdictStatus.Pass
         elif robot_status == "fail":
             itb_test_case.exec.status = ActivityStatus.Performed
-            itb_test_case.exec.verdict = ExecutionVerdict.Fail
+            itb_test_case.exec.verdict = VerdictStatus.Fail
         else:
             itb_test_case.exec.status = ActivityStatus.Running
-            itb_test_case.exec.verdict = ExecutionVerdict.Undefined
+            itb_test_case.exec.verdict = VerdictStatus.Undefined
 
     def end_suite(self, suite: TestSuite):
         if not suite.metadata.get("uniqueID") or len(suite.suites):
@@ -521,7 +526,7 @@ class ResultWriter(ResultVisitor):
             if test.status != "PASS":
                 message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
                 message = (
-                    message[len("*HTML*") :]
+                    message[len("*HTML*"):]
                     .replace('<hr>', '<br />')
                     .replace('<br>', '<br />')
                     .strip()
@@ -578,13 +583,13 @@ class ResultWriter(ResultVisitor):
         if tt_tree:
             test_suite_counter = 0
             for tse in tt_tree.nodes:
-                if self.test_suites.get(tse.baseInformation.uniqueID) is None:
+                if self.test_suites.get(tse.base.uniqueID) is None:
                     continue
                 execution_result = self._get_execution_result(
-                    self.test_suites[tse.baseInformation.uniqueID].status
+                    self.test_suites[tse.base.uniqueID].status
                 )
-                tse.execution.verdict = execution_result["execution_verdict"]
-                tse.execution.status = execution_result["activity_status"]
+                tse.exec.verdict = execution_result["execution_verdict"]
+                tse.exec.status = execution_result["activity_status"]
                 test_suite_counter += 1
             write_test_structure_element(self.json_result, tt_tree)
             if test_suite_counter and self.itb_test_case_catalog:
@@ -592,7 +597,7 @@ class ResultWriter(ResultVisitor):
             else:
                 logger.warning("No test suites with execution information found.")
             if self.create_zip:
-                directory_to_zip(self.json_result, self.json_result_path)
+                directory_to_zip(Path(self.json_result), self.json_result_path)
             elif self.json_result != self.json_result_path:
                 copytree(self.json_dir, self.json_result_path, dirs_exist_ok=True)
                 copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
@@ -604,16 +609,16 @@ class ResultWriter(ResultVisitor):
         robot_status = robot_status.lower()
         if robot_status == "pass":
             return {
-                "execution_verdict": ExecutionVerdict.Pass,
+                "execution_verdict": VerdictStatus.Pass,
                 "activity_status": ActivityStatus.Performed,
             }
         if robot_status == "fail":
             return {
-                "execution_verdict": ExecutionVerdict.Fail,
+                "execution_verdict": VerdictStatus.Fail,
                 "activity_status": ActivityStatus.Performed,
             }
         return {
-            "execution_verdict": ExecutionVerdict.Undefined,
+            "execution_verdict": VerdictStatus.Undefined,
             "activity_status": ActivityStatus.Skipped,
         }
 
