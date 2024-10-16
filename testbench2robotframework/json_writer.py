@@ -1,11 +1,16 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 
 from .config import Configuration
 from .log import logger
-from .model import TestCaseDetails, TestCaseSetDetails, TestStructureTree
+from .model import (
+    ProtocolTestCaseSetExecutionSummary,
+    TestCaseDetails,
+    TestCaseSetDetails,
+    TestStructureTree,
+)
 
 TEST_STRUCTURE_TREE_FILE = "cycle_structure"
 
@@ -20,6 +25,15 @@ def write_test_structure_element(
         filepath = Path(json_dir) / Path(f"{test_structure_element.uniqueID}.json")
     with Path(filepath).open('w+', encoding="utf8") as output_file:
         json.dump(asdict(test_structure_element), output_file, indent=2)
+
+
+def write_main_protocol(
+    json_dir: str, main_protocol: List[ProtocolTestCaseSetExecutionSummary]
+) -> None:
+    protocol = [asdict(tcs) for tcs in main_protocol]
+    filepath = Path(json_dir) / Path("protocol.json")
+    with Path(filepath).open('w+', encoding="utf8") as output_file:
+        json.dump(protocol, output_file, indent=2)
 
 
 def write_default_config(config_file):

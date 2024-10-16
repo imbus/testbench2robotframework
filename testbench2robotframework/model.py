@@ -881,11 +881,13 @@ class MainProtocol:
     protocolTestCaseSetExecutionSummary: list[ProtocolTestCaseSetExecutionSummary]
 
     @classmethod
-    def from_list(cls, lst) -> MainProtocol:
+    def from_list(cls, lst: list[dict]) -> MainProtocol:
         return cls(
             protocolTestCaseSetExecutionSummary=[
                 ProtocolTestCaseSetExecutionSummary.from_dict(tcs) for tcs in lst
-            ],
+            ]
+            if lst
+            else [],
         )
 
 
@@ -895,12 +897,10 @@ class ProtocolTestCaseSetExecutionSummary:
     durationMillis: int
     executionKey: str
     testCases: list[ProtocolTestCaseExecutionSummary]
-    testerKey: Optional[str]
     comments: Optional[ProtocolComments]
-    udfs: Optional[list[ProtocolUdf]]
 
     @classmethod
-    def from_dict(cls, dictionary) -> MainProtocol:
+    def from_dict(cls, dictionary) -> ProtocolTestCaseSetExecutionSummary:
         return cls(
             testCaseSetKey=dictionary.get("testCaseSetKey"),
             durationMillis=dictionary.get("durationMillis"),
@@ -908,9 +908,7 @@ class ProtocolTestCaseSetExecutionSummary:
             testCases=[
                 ProtocolTestCaseExecutionSummary.from_dict(tc) for tc in dictionary.get("testCases")
             ],
-            testerKey=dictionary.get("testerKey"),
-            comments=ProtocolComments.from_dict(dictionary.get("comments")),
-            udfs=[ProtocolUdf.from_dict(udf) for udf in dictionary.get("udfs")],
+            comments=ProtocolComments.from_dict(dictionary.get("comments", {})),
         )
 
 
@@ -919,25 +917,21 @@ class ProtocolTestCaseExecutionSummary:
     uniqueID: str
     testCaseExecutionKey: str
     durationMillis: int
-    executionKey: str
     result: ProtocolTestCaseResult
     comments: Optional[ProtocolComments]
-    testerKey: Optional[str]
-    defects: Optional[list[str]]
-    udfs: Optional[list[ProtocolUdf]]
 
     @classmethod
-    def from_dict(cls, dictionary) -> MainProtocol:
+    def from_dict(cls, dictionary) -> ProtocolTestCaseExecutionSummary:
+        dict_udfs = dictionary.get("udfs")
         return cls(
             uniqueID=dictionary.get("uniqueID"),
             testCaseExecutionKey=dictionary.get("testCaseExecutionKey"),
             durationMillis=dictionary.get("durationMillis"),
-            executionKey=dictionary.get("executionKey"),
-            result=ProtocolTestCaseResult.from_dict(dictionary.get("result"), {}),
-            comments=ProtocolComments.from_dict(dictionary.get("comments")),
+            result=ProtocolTestCaseResult.from_dict(dictionary.get("result", {})),
+            comments=ProtocolComments.from_dict(dictionary.get("comments", {})),
             testerKey=dictionary.get("testerKey"),
             defects=dictionary.get("defects"),
-            udfs=[ProtocolUdf.from_dict(udf) for udf in dictionary.get("udfs")],
+            udfs=[ProtocolUdf.from_dict(udf) for udf in dict_udfs] if dict_udfs else None,
         )
 
 
@@ -948,22 +942,23 @@ class ProtocolTestCaseResult:
     verdict: VerdictStatus
     execStatus: ExecStatus
 
+    @classmethod
     def from_dict(cls, dictionary) -> ProtocolTestCaseResult:
         return cls(
             timestamp=dictionary.get("timestamp"),
             status=dictionary.get("status"),
             verdict=dictionary.get("verdict"),
-            execStatus=dictionary.get("execStatus")
+            execStatus=dictionary.get("execStatus"),
         )
 
 
 @dataclass
 class ProtocolComments:
-    plain: Optional[str]
     html: Optional[str]
 
+    @classmethod
     def from_dict(cls, dictionary) -> ProtocolComments:
-        return cls(plain=dictionary.get("plain"), html=dictionary.get("html"))
+        return cls(html=dictionary.get("html"))
 
 
 @dataclass
@@ -971,5 +966,6 @@ class ProtocolUdf:
     udfKey: str
     value: str
 
+    @classmethod
     def from_dict(cls, dictionary) -> ProtocolUdf:
         return cls(udfKey=dictionary.get("udfKey"), value=dictionary.get("value"))

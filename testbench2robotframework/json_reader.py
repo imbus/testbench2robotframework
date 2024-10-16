@@ -9,8 +9,8 @@ from .log import logger
 from .model import (
     TestCaseDetails,
     TestCaseSetDetails,
-    TestStructureTree,
     TestStructureElementType,
+    TestStructureTree,
 )
 
 TEST_STRUCTURE_TREE_FILE = "cycle_structure.json"

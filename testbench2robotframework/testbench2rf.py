@@ -4,7 +4,7 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
-from typing import Union, Optional
+from typing import Optional, Union
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token

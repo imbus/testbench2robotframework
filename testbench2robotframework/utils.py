@@ -8,9 +8,9 @@ from typing import Dict, Optional, Tuple
 from zipfile import ZipFile
 
 from testbench2robotframework.model import (
+    TestStructureElementType,
     TestStructureTree,
     TestStructureTreeNode,
-    TestStructureElementType,
 )
 
 CONVERTER_DESCRIPTION = """tB2Robot converts TestBench JSON report to Robot Framework Code

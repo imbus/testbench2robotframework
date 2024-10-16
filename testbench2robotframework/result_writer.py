@@ -15,20 +15,26 @@ from robot.result.model import Body
 
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
-from .json_writer import write_test_structure_element
+from .json_writer import write_main_protocol, write_test_structure_element
 from .log import logger
 from .model import (
     ActivityStatus,
-    VerdictStatus,
+    ExecStatus,
     InteractionDetails,
     InteractionExecutionSummary,
     InteractionType,
     InteractionVerdict,
+    MainProtocol,
+    ProtocolComments,
+    ProtocolTestCaseExecutionSummary,
+    ProtocolTestCaseResult,
+    ProtocolTestCaseSetExecutionSummary,
     Reference,
     ReferenceType,
     SequencePhase,
     TestCaseDetails,
     TestCaseExecutionDetails,
+    VerdictStatus,
 )
 from .utils import directory_to_zip, ensure_dir_exists, get_directory
 
@@ -82,10 +88,33 @@ class ResultWriter(ResultVisitor):
         self.itb_test_case_catalog: Dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
         self.test_chain: List[TestCase] = []
+        # testdict = dict(
+        #     testCaseSetKey = "4611686020000000131",
+        #     durationMillis = 0,
+        #     executionKey = "4611686020000000435",
+        #     testCases = [
+        #     dict(
+        #         testCaseExecutionKey="2912",
+        #         durationMillis= 0,
+        #         uniqueID= "iTB-TC-681713-PC-11084683",
+        #         parameters= [],
+        #         result=dict(
+        #             execStatus= "Planned",
+        #             status= "NotBlocked",
+        #             verdict= "Pass",
+        #             timestamp= "2024-10-15T07:10:53.905Z"
+        #         ),
+        #         comments=dict(html="<p>tests</p>")
+        #     )
+        #     ]
+        # )
+        # self.main_protocol = MainProtocol.from_list([(dict(testdict))])
+        self.main_protocol = MainProtocol.from_list([])
 
     def start_suite(self, suite: TestSuite):
         if suite.metadata:
             self.test_suites[suite.metadata["uniqueID"]] = suite
+        self.protocol_test_cases: list[ProtocolTestCaseExecutionSummary] = []
 
     def _get_interactions_by_type(
         self, interactions: List[InteractionDetails], interaction_type: InteractionType
@@ -113,6 +142,9 @@ class ResultWriter(ResultVisitor):
 
         test_uid = test_chain.name if test_chain else test.name
         itb_test_case = self.json_reader.read_test_case(test_uid)  # TODO What if name != UID
+        self.protocol_test_case: ProtocolTestCaseExecutionSummary = (
+            ProtocolTestCaseExecutionSummary(test_uid, itb_test_case.exec.key, None, None, None)
+        )
         if itb_test_case.exec is None:
             itb_test_case.exec = TestCaseExecutionDetails.from_dict({})
         if itb_test_case.exec.key in ["", "-1"]:
@@ -140,6 +172,7 @@ class ResultWriter(ResultVisitor):
                 "to the given Robot Framework testcase."
             )
         self.itb_test_case_catalog[test_uid] = itb_test_case
+        self.protocol_test_cases.append(self.protocol_test_case)
         write_test_structure_element(self.json_result, itb_test_case)
         logger.debug(
             f"Successfully wrote the result from test "
@@ -159,7 +192,7 @@ class ResultWriter(ResultVisitor):
         references = []
         for path in re.findall(r"itb-reference:\s*(\S*)", test_message):
             if path.startswith("file:///"):
-                file_path = Path(unquote(path[len("file:///"):]))
+                file_path = Path(unquote(path[len("file:///") :]))
                 output_dir = Path(self.output_xml).parent
                 if file_path.exists():
                     reference_path = file_path
@@ -240,7 +273,7 @@ class ResultWriter(ResultVisitor):
         for test in test_chain:
             message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
             html_message = (
-                message[len("*HTML*"):].replace("<hr>", "<br/>").replace("<br>", "<br/>").strip()
+                message[len("*HTML*") :].replace("<hr>", "<br/>").replace("<br>", "<br/>").strip()
                 if test.message.startswith("*HTML*")
                 else html.escape(message)
             )
@@ -262,17 +295,29 @@ class ResultWriter(ResultVisitor):
             )
             exec_comments.append(exec_comment)
         itb_test_case.exec.comments = f"<html><body>{''.join(exec_comments)}</body></html>"
+        self.protocol_test_case.comments = ProtocolComments(
+            html=f"<html><body>{''.join(exec_comments)}</body></html>"
+        )
+        self.protocol_test_case.result.timestamp = self.get_isotime_from_robot_timestamp(
+            test.endtime
+        )
+        self.protocol_test_case.durationMillis = test.elapsedtime
 
     def _set_itb_testcase_execution_result(self, itb_test_case, test_chain):
         has_failed_chain = list(filter(lambda tc: tc.status.upper() == "FAIL", test_chain))
         passed_keywords = all(tc.status.upper() == "PASS" for tc in test_chain)
-        itb_test_case.exec.actualDuration = sum([tc.elapsedtime for tc in test_chain])
+        elapsed_time = sum([tc.elapsedtime for tc in test_chain])
+        itb_test_case.exec.actualDuration = elapsed_time
+        self.protocol_test_case.durationMillis = elapsed_time
         if has_failed_chain:
-            self._set_itb_test_case_status(itb_test_case, "fail")
+            protocol_result = self._set_itb_test_case_status(itb_test_case, "fail")
+            self.protocol_test_case.result = protocol_result
         elif passed_keywords:
-            self._set_itb_test_case_status(itb_test_case, "pass")
+            protocol_result = self._set_itb_test_case_status(itb_test_case, "pass")
+            self.protocol_test_case.result = protocol_result
         else:
-            self._set_itb_test_case_status(itb_test_case, "undef")
+            protocol_result = self._set_itb_test_case_status(itb_test_case, "undef")
+            self.protocol_test_case.result = protocol_result
 
     def _get_test_phase_body(self, test_phase: TestCase) -> Body:
         return test_phase.body
@@ -481,17 +526,27 @@ class ResultWriter(ResultVisitor):
         compound_interaction.exec.time = atomic_interactions[-1].exec.time
 
     @staticmethod
-    def _set_itb_test_case_status(itb_test_case: TestCaseDetails, robot_status: str):
+    def _set_itb_test_case_status(
+        itb_test_case: TestCaseDetails, robot_status: str
+    ) -> ProtocolTestCaseResult:
         robot_status = robot_status.lower()
         if robot_status == "pass":
             itb_test_case.exec.status = ActivityStatus.Performed
             itb_test_case.exec.verdict = VerdictStatus.Pass
-        elif robot_status == "fail":
+            return ProtocolTestCaseResult(
+                None, ActivityStatus.Performed, VerdictStatus.Pass, ExecStatus.NotBlocked
+            )
+        if robot_status == "fail":
             itb_test_case.exec.status = ActivityStatus.Performed
             itb_test_case.exec.verdict = VerdictStatus.Fail
-        else:
-            itb_test_case.exec.status = ActivityStatus.Running
-            itb_test_case.exec.verdict = VerdictStatus.Undefined
+            return ProtocolTestCaseResult(
+                None, ActivityStatus.Performed, VerdictStatus.Fail, ExecStatus.NotBlocked
+            )
+        itb_test_case.exec.status = ActivityStatus.Running
+        itb_test_case.exec.verdict = VerdictStatus.Undefined
+        return ProtocolTestCaseResult(
+            None, ActivityStatus.Running, VerdictStatus.Undefined, ExecStatus.NotBlocked
+        )
 
     def end_suite(self, suite: TestSuite):
         if not suite.metadata.get("uniqueID") or len(suite.suites):
@@ -526,7 +581,7 @@ class ResultWriter(ResultVisitor):
             if test.status != "PASS":
                 message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
                 message = (
-                    message[len("*HTML*"):]
+                    message[len("*HTML*") :]
                     .replace('<hr>', '<br />')
                     .replace('<br>', '<br />')
                     .strip()
@@ -564,6 +619,14 @@ class ResultWriter(ResultVisitor):
             "</body>"
             "</html>"
         )
+        self.protocol_test_case_set = ProtocolTestCaseSetExecutionSummary(
+            test_case_set.key,
+            suite.elapsedtime,
+            test_case_set.exec.key,
+            self.protocol_test_cases,
+            ProtocolComments(html=test_case_set.exec.comments),
+        )
+        self.main_protocol.protocolTestCaseSetExecutionSummary.append(self.protocol_test_case_set)
         write_test_structure_element(self.json_result, test_case_set)
         logger.debug(
             f"Successfully wrote the result from suite "
@@ -592,6 +655,9 @@ class ResultWriter(ResultVisitor):
                 tse.exec.status = execution_result["activity_status"]
                 test_suite_counter += 1
             write_test_structure_element(self.json_result, tt_tree)
+            write_main_protocol(
+                self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
+            )
             if test_suite_counter and self.itb_test_case_catalog:
                 logger.info(f"Successfully read {test_suite_counter} test suites.")
             else:
