@@ -88,7 +88,8 @@ class TestBenchJsonReader:
         return tcs_catalog
 
     def get_test_case_set_uids(self) -> List[str]:
-        nodes = self.test_theme_tree.nodes
+        nodes = [self.test_theme_tree.root]
+        nodes.extend(self.test_theme_tree.nodes)
         return [
             tse.base.uniqueID
             for tse in nodes

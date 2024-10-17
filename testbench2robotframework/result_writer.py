@@ -4,7 +4,7 @@ import re
 import shutil
 import tempfile
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from shutil import copytree
 from typing import Dict, List, Optional, Union
@@ -298,9 +298,8 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_case.comments = ProtocolComments(
             html=f"<html><body>{''.join(exec_comments)}</body></html>"
         )
-        self.protocol_test_case.result.timestamp = self.get_isotime_from_robot_timestamp(
-            test.endtime
-        )
+        end_time=test.end_time.replace(tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset()))
+        self.protocol_test_case.result.timestamp = f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
         self.protocol_test_case.durationMillis = test.elapsedtime
 
     def _set_itb_testcase_execution_result(self, itb_test_case, test_chain):
@@ -645,7 +644,7 @@ class ResultWriter(ResultVisitor):
         tt_tree = self.json_reader.read_test_theme_tree()
         if tt_tree:
             test_suite_counter = 0
-            for tse in tt_tree.nodes:
+            for tse in [tt_tree.root, *tt_tree.nodes]:
                 if self.test_suites.get(tse.base.uniqueID) is None:
                     continue
                 execution_result = self._get_execution_result(

@@ -92,6 +92,7 @@ class PathResolver:
 
     def _analyze_tree(self, test_theme_tree: TestStructureTree):
         self.tree_dict[test_theme_tree.root.base.key] = test_theme_tree.root
+        self._add_existing_tcs_to_catalog(test_theme_tree.root)
         for tse in test_theme_tree.nodes:
             self._add_existing_tcs_to_catalog(tse)
             self.tree_dict[tse.base.key] = tse
