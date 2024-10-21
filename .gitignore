@@ -153,3 +153,4 @@ playwright-log.txt
 results/
 report.html
 new_json/
+tasks.py
