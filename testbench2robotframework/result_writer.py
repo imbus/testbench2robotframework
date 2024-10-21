@@ -299,6 +299,7 @@ class ResultWriter(ResultVisitor):
             html=f"<html><body>{''.join(exec_comments)}</body></html>"
         )
         end_time=test.end_time.replace(tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset()))
+        # self.protocol_test_case.result.timestamp = end_time.isoformat() # Isoformat currently not suported by server
         self.protocol_test_case.result.timestamp = f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
         self.protocol_test_case.durationMillis = test.elapsedtime
 
