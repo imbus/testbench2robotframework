@@ -127,6 +127,11 @@ class ResultWriter(ResultVisitor):
                     interaction.interactions, interaction_type
                 )
 
+    def _propergate_sequence_phase(self, interaction: InteractionDetails, sequence_phase):
+        for child in interaction.interactions:
+            child.spec.sequencePhase = sequence_phase
+            self._propergate_sequence_phase(child, sequence_phase)
+
     def end_test(self, test: TestCase):
         self._test_setup_passed = None
         test_chain = get_test_chain(test.name, self.phase_pattern)
@@ -142,6 +147,8 @@ class ResultWriter(ResultVisitor):
 
         test_uid = test_chain.name if test_chain else test.name
         itb_test_case = self.json_reader.read_test_case(test_uid)  # TODO What if name != UID
+        for interaction in itb_test_case.interactions:
+            self._propergate_sequence_phase(interaction, interaction.spec.sequencePhase)
         self.protocol_test_case: ProtocolTestCaseExecutionSummary = (
             ProtocolTestCaseExecutionSummary(test_uid, itb_test_case.exec.key, None, None, None)
         )

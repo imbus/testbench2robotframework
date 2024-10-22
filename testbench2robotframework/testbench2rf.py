@@ -115,7 +115,7 @@ class RfTestCase:
                 udfs.append(udf.name)
         return udfs
 
-    def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0) -> None:
+    def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0, sequence_phase=None) -> None:
         indent += 1
         if interaction.interactionType != InteractionType.Textual:
             cbv_params = self._get_params_by_use_type(
@@ -128,11 +128,11 @@ class RfTestCase:
             )
             if interaction.interactionType == InteractionType.Compound:
                 self._append_compound_ia_and_analyze_children(
-                    cbr_params, cbv_params, indent, interaction
+                    cbr_params, cbv_params, indent, interaction, sequence_phase
                 )
             elif interaction.interactionType == InteractionType.Atomic:
                 self._append_atomic_ia(
-                    cbr_params, cbv_params, indent, interaction
+                    cbr_params, cbv_params, indent, interaction, sequence_phase
                 )  # TODO: Else für textuelle Interaktionen
 
     def _append_atomic_ia(
@@ -141,6 +141,7 @@ class RfTestCase:
         cbv_params: dict[str, str],
         indent: int,
         interaction: InteractionDetails,
+        sequence_phase = None
     ):
         resource_type, import_prefix = self._get_keyword_import(interaction)
 
@@ -155,7 +156,7 @@ class RfTestCase:
                 cbr_parameters=cbr_params,
                 indent=indent,
                 import_prefix=import_prefix,
-                sequence_phase=interaction.spec.sequencePhase,
+                sequence_phase=sequence_phase or interaction.spec.sequencePhase,
             )
         )
 
@@ -186,6 +187,7 @@ class RfTestCase:
         cbv_params: dict[str, str],
         indent: int,
         interaction_detail: InteractionDetails,
+        sequence_phase = None
     ):
         self.interaction_calls.append(
             CompoundInteractionCall(
@@ -193,11 +195,11 @@ class RfTestCase:
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
-                sequence_phase=interaction_detail.spec.sequencePhase,
+                sequence_phase=sequence_phase or interaction_detail.spec.sequencePhase,
             )
         )
         for interaction in interaction_detail.interactions:
-            self._get_interaction_calls(interaction, indent)
+            self._get_interaction_calls(interaction, indent, interaction_detail.spec.sequencePhase)
 
     def _create_rf_keyword_calls(
         self, interaction_calls: list[InteractionCall]
