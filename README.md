@@ -51,7 +51,7 @@ Zu diesem Zweck wird der Subcommand ``read`` verwendet, der eine XML-Ergebnisdat
 
 Der folgende Aufruf demonstriert das Lesen der Ergebnisse anhand eines Beispiels:
 ```powershell
-tb2robot write -o .\output.xml -r .\ReportWithResults.zip E:\TestBench\report.zip
+tb2robot read -o .\output.xml -r .\ReportWithResults.zip E:\TestBench\report.zip
 ```
 
 # Konfiguration der Ergebnisse
