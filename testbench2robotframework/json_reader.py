@@ -116,6 +116,7 @@ class TestBenchJsonReader:
         tc_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tc_dict is None:
             return None
+            # return None  # TODO: wenn nicht da dann Fehler?
         return TestCaseDetails.from_dict(tc_dict)
 
     def read_test_theme_tree(self) -> Optional[TestStructureTree]:

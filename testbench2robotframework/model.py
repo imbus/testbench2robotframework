@@ -438,9 +438,9 @@ class TestCaseExecutionSummary:
             verdict=VerdictStatus(dictionary.get("verdict", VerdictStatus.Undefined)),
             comments=dictionary.get("comments", ""),
             defects=dictionary.get("defects", []),
-            tester=UserReference.from_dict(dictionary.get("tester"), {})
-            if dictionary.get("tester")
-            else None,
+            # tester=UserReference.from_dict(dictionary.get("tester"), {})
+            # if dictionary.get("tester")
+            # else None,
         )
 
 

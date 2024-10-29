@@ -60,8 +60,9 @@ MEGABYTE = 1000 * 1000
 
 class ResultWriter(ResultVisitor):
     def __init__(
-        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml
+        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml, listener_uid=None
     ) -> None:
+        self.listener_uid = listener_uid
         self.json_dir = get_directory(json_report)
         self.output_xml = output_xml
         self.reference_behaviour = config.referenceBehaviour
@@ -69,12 +70,12 @@ class ResultWriter(ResultVisitor):
         self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
         self._test_setup_passed: Optional[bool] = None
         if json_result is None:
-            self.create_zip = bool(Path(json_report).suffix == ".zip")
             self.json_result = self.json_dir
             self.json_result_path = self.json_dir
-        else:
-            self.json_result_path = str(Path(json_result).parent / Path(json_report).stem)
             self.create_zip = bool(Path(json_report).suffix == ".zip")
+        else:
+            self.create_zip = bool(Path(json_result).suffix == ".zip")
+            self.json_result_path = str(Path(json_result).parent / Path(json_result).stem)
             self.json_result = self.tempdir.name
             if self.create_zip:
                 copytree(self.json_dir, self.json_result, dirs_exist_ok=True)
@@ -88,27 +89,6 @@ class ResultWriter(ResultVisitor):
         self.itb_test_case_catalog: Dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
         self.test_chain: List[TestCase] = []
-        # testdict = dict(
-        #     testCaseSetKey = "4611686020000000131",
-        #     durationMillis = 0,
-        #     executionKey = "4611686020000000435",
-        #     testCases = [
-        #     dict(
-        #         testCaseExecutionKey="2912",
-        #         durationMillis= 0,
-        #         uniqueID= "iTB-TC-681713-PC-11084683",
-        #         parameters= [],
-        #         result=dict(
-        #             execStatus= "Planned",
-        #             status= "NotBlocked",
-        #             verdict= "Pass",
-        #             timestamp= "2024-10-15T07:10:53.905Z"
-        #         ),
-        #         comments=dict(html="<p>tests</p>")
-        #     )
-        #     ]
-        # )
-        # self.main_protocol = MainProtocol.from_list([(dict(testdict))])
         self.main_protocol = MainProtocol.from_list([])
 
     def start_suite(self, suite: TestSuite):
@@ -639,6 +619,23 @@ class ResultWriter(ResultVisitor):
             f"Successfully wrote the result from suite "
             f"{test_case_set.uniqueID} to TestBench's Json Report."
         )
+        if self.listener_uid:
+            self.write_listener_mode_protocols()
+
+    def write_listener_mode_protocols(self):
+        write_main_protocol(
+                self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
+            )
+        os.makedirs(Path(self.json_result_path)/self.listener_uid)
+        shutil.copy(Path(self.json_result)/"protocol.json", Path(self.json_result_path)/self.listener_uid/"protocol.json")
+        shutil.copy(Path(self.json_dir)/"project.json", Path(self.json_result_path)/self.listener_uid/"project.json")
+        for filename in os.listdir(self.json_result):
+            logger.info(filename)
+            if filename.startswith(self.listener_uid) and filename.endswith(".json"):
+                shutil.copy(Path(self.json_result)/filename, Path(self.json_result_path)/self.listener_uid/filename)
+        directory_to_zip(Path(self.json_result_path)/self.listener_uid)
+        shutil.rmtree(Path(self.json_result_path)/self.listener_uid)
+
 
     @staticmethod
     def render_status(status):
@@ -672,10 +669,11 @@ class ResultWriter(ResultVisitor):
             if self.create_zip:
                 directory_to_zip(Path(self.json_result), self.json_result_path)
             elif self.json_result != self.json_result_path:
+                # if not self.create_zip:
                 copytree(self.json_dir, self.json_result_path, dirs_exist_ok=True)
                 copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
             self.tempdir.cleanup()
-        logger.info("Successfully wrote the robot execution results to TestBench's Json Report.")
+        logger.info(f"Successfully wrote the robot execution results to TestBench's Json Report: '{Path(self.json_result_path).absolute()}{self.create_zip*'.zip'}'")
 
     @staticmethod
     def _get_execution_result(robot_status: str) -> Dict:
