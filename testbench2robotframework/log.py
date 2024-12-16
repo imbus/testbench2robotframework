@@ -13,7 +13,6 @@ def setup_logger(config: Configuration):
     console_handler.setLevel(config.loggingConfiguration.console.logLevel)
     console_handler.setFormatter(logging.Formatter(config.loggingConfiguration.console.logFormat))
     logger.addHandler(console_handler)
-
     file_handler = RotatingFileHandler(
         filename=config.loggingConfiguration.file.fileName,
         mode="a",
