@@ -60,7 +60,12 @@ MEGABYTE = 1000 * 1000
 
 class ResultWriter(ResultVisitor):
     def __init__(
-        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml, listener_uid=None
+        self,
+        json_report: str,
+        json_result: Optional[str],
+        config: Configuration,
+        output_xml,
+        listener_uid=None,
     ) -> None:
         self.listener_uid = listener_uid
         self.json_dir = get_directory(json_report)
@@ -285,9 +290,13 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_case.comments = ProtocolComments(
             html=f"<html><body>{''.join(exec_comments)}</body></html>"
         )
-        end_time=test.end_time.replace(tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset()))
+        end_time = test.end_time.replace(
+            tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
+        )
         # self.protocol_test_case.result.timestamp = end_time.isoformat() # Isoformat currently not suported by server
-        self.protocol_test_case.result.timestamp = f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
+        self.protocol_test_case.result.timestamp = (
+            f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
+        )
         self.protocol_test_case.durationMillis = test.elapsedtime
 
     def _set_itb_testcase_execution_result(self, itb_test_case, test_chain):
@@ -409,6 +418,10 @@ class ResultWriter(ResultVisitor):
         )
 
     def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
+        end_time = keyword.end_time.replace(
+            tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
+        )
+
         return InteractionExecutionSummary.from_dict(
             {
                 'verdict': self._get_interaction_result(keyword.status),
@@ -440,6 +453,10 @@ class ResultWriter(ResultVisitor):
 
     def get_html_keyword_comment(self, keyword: Keyword):
         messages = list(self._get_keyword_messages(keyword))
+        unique_messages = []
+        for msg in messages:
+            if msg not in unique_messages:
+                unique_messages.append(msg)
         return (
             "<html>"
             "<body>"
@@ -454,7 +471,7 @@ class ResultWriter(ResultVisitor):
             "</pre>"
             "<table>"
             "<tr>"
-            f"{'</tr><tr>'.join(messages)}"
+            f"{'</tr><tr>'.join(unique_messages)}"
             "</tr>"
             "</table>"
             "</body>"
@@ -577,7 +594,6 @@ class ResultWriter(ResultVisitor):
                 )
             else:
                 message = self.get_isotime_from_robot_timestamp(test.endtime)
-
             table_content.append(
                 f"<td>{name}</td>"
                 f"<td>{phase}</td>"
@@ -624,18 +640,25 @@ class ResultWriter(ResultVisitor):
 
     def write_listener_mode_protocols(self):
         write_main_protocol(
-                self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
-            )
-        os.makedirs(Path(self.json_result_path)/self.listener_uid)
-        shutil.copy(Path(self.json_result)/"protocol.json", Path(self.json_result_path)/self.listener_uid/"protocol.json")
-        shutil.copy(Path(self.json_dir)/"project.json", Path(self.json_result_path)/self.listener_uid/"project.json")
+            self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
+        )
+        os.makedirs(Path(self.json_result_path) / self.listener_uid)
+        shutil.copy(
+            Path(self.json_result) / "protocol.json",
+            Path(self.json_result_path) / self.listener_uid / "protocol.json",
+        )
+        shutil.copy(
+            Path(self.json_dir) / "project.json",
+            Path(self.json_result_path) / self.listener_uid / "project.json",
+        )
         for filename in os.listdir(self.json_result):
-            logger.info(filename)
             if filename.startswith(self.listener_uid) and filename.endswith(".json"):
-                shutil.copy(Path(self.json_result)/filename, Path(self.json_result_path)/self.listener_uid/filename)
-        directory_to_zip(Path(self.json_result_path)/self.listener_uid)
-        shutil.rmtree(Path(self.json_result_path)/self.listener_uid)
-
+                shutil.copy(
+                    Path(self.json_result) / filename,
+                    Path(self.json_result_path) / self.listener_uid / filename,
+                )
+        directory_to_zip(Path(self.json_result_path) / self.listener_uid)
+        shutil.rmtree(Path(self.json_result_path) / self.listener_uid)
 
     @staticmethod
     def render_status(status):
@@ -673,7 +696,9 @@ class ResultWriter(ResultVisitor):
                 copytree(self.json_dir, self.json_result_path, dirs_exist_ok=True)
                 copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
             self.tempdir.cleanup()
-        logger.info(f"Successfully wrote the robot execution results to TestBench's Json Report: '{Path(self.json_result_path).absolute()}{self.create_zip*'.zip'}'")
+        logger.info(
+            f"Successfully wrote the robot execution results to TestBench's Json Report: '{Path(self.json_result_path).absolute()}{self.create_zip*'.zip'}'"
+        )
 
     @staticmethod
     def _get_execution_result(robot_status: str) -> Dict:

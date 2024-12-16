@@ -115,7 +115,9 @@ class RfTestCase:
                 udfs.append(udf.name)
         return udfs
 
-    def _get_interaction_calls(self, interaction: InteractionDetails, indent: int = 0, sequence_phase=None) -> None:
+    def _get_interaction_calls(
+        self, interaction: InteractionDetails, indent: int = 0, sequence_phase=None
+    ) -> None:
         indent += 1
         if interaction.interactionType != InteractionType.Textual:
             cbv_params = self._get_params_by_use_type(
@@ -141,7 +143,7 @@ class RfTestCase:
         cbv_params: dict[str, str],
         indent: int,
         interaction: InteractionDetails,
-        sequence_phase = None
+        sequence_phase=None,
     ):
         resource_type, import_prefix = self._get_keyword_import(interaction)
 
@@ -187,7 +189,7 @@ class RfTestCase:
         cbv_params: dict[str, str],
         indent: int,
         interaction_detail: InteractionDetails,
-        sequence_phase = None
+        sequence_phase=None,
     ):
         self.interaction_calls.append(
             CompoundInteractionCall(
@@ -368,7 +370,7 @@ class RfTestCase:
         parameters = []
         previous_arg_forces_named = False
         for name, value in interaction.cbv_parameters.items():
-            if value == "undef.":
+            if not value or value == "undef.":
                 previous_arg_forces_named = True
                 continue
             if re.match(r'^\*\* ?', name):
