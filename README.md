@@ -17,7 +17,7 @@ Wenn die Installation durchgeführt wurde, liefert folgender Befehl die aktuell 
 tb2robot --version
 ```
 ## Anmerkung
-Im aktuellen TestBench-Release wird der JSON-Bericht noch nicht direkt vom Server generiert. Zur Generierung des JSON-Berichts aus einem TestBench XML-Bericht können die im Repository hinterlegten TestBench-Tools verwendet werden: [Download TestBench-Tools](https://github.com/imbus/testbench2robotframework/raw/testbench-tools/testbench-tools.zip)
+Im aktuellen TestBench-Release wird der JSON-Bericht noch nicht direkt vom Server generiert. Zur Generierung des JSON-Berichts aus einem TestBench XML-Bericht können die im Repository hinterlegten TestBench-Tools verwendet werden: [Download TestBench-Tools](https://github.com/imbus/testbench2robotframework/raw/main/testbench-tools.zip)
 
 # Verwendung des Robot Code Generators
 Nach erfolgreicher Installation des Robot Code Generators kann dieser durch den Befehl ``tb2robot`` oder ``testbench2robotframework`` ausgeführt werden.
