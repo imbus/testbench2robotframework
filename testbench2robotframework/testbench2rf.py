@@ -400,7 +400,9 @@ class RfTestCase:
         return re.sub(r"^#", r"\#", value)
 
     @staticmethod
-    def _create_cbr_parameters(interaction: AtomicInteractionCall) -> list[str]:
+    def _create_cbr_parameters(
+        interaction: AtomicInteractionCall | CompoundInteractionCall,
+    ) -> list[str]:
         cbr_parameters = list(
             filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
         )

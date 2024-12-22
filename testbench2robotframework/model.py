@@ -546,7 +546,7 @@ class InteractionExecutionSummary:
     defects: Optional[List]
 
     @classmethod
-    def from_dict(cls, dictionary):
+    def from_dict(cls, dictionary) -> InteractionExecutionSummary:
         return cls(
             verdict=InteractionVerdict(dictionary.get("verdict", InteractionVerdict.Undefined)),
             time=dictionary.get("time", ""),

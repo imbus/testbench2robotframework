@@ -132,6 +132,9 @@ class ResultWriter(ResultVisitor):
 
         test_uid = test_chain.name if test_chain else test.name
         itb_test_case = self.json_reader.read_test_case(test_uid)  # TODO What if name != UID
+        if not itb_test_case:
+            logger.warning(f"No JSON file corresponding to test '{test_uid}' found in report.")
+            return
         for interaction in itb_test_case.interactions:
             self._propergate_sequence_phase(interaction, interaction.spec.sequencePhase)
         self.protocol_test_case: ProtocolTestCaseExecutionSummary = (
@@ -174,6 +177,8 @@ class ResultWriter(ResultVisitor):
     def _set_itb_testcase_references(
         self, itb_test_case: TestCaseDetails, test_chain: list[TestCase]
     ):
+        if not itb_test_case.exec:
+            return
         for test in test_chain:
             itb_references = self._get_itb_reference(test.message)
             for reference in itb_references:
@@ -200,6 +205,7 @@ class ResultWriter(ResultVisitor):
                         logger.warning(f"Referenced file '{file_path}' does not exist.")
                     continue
                 file_size = Path.stat(reference_path).st_size
+                reference: Optional[Reference] = None
                 if file_size >= 10 * MEGABYTE:
                     logger.error(
                         f"Trying to attach file '{reference_path}'. "
@@ -532,9 +538,9 @@ class ResultWriter(ResultVisitor):
         compound_interaction.exec.time = atomic_interactions[-1].exec.time
 
     @staticmethod
-    def _set_itb_test_case_status(
-        itb_test_case: TestCaseDetails, robot_status: str
-    ) -> ProtocolTestCaseResult:
+    def _set_itb_test_case_status(itb_test_case: TestCaseDetails, robot_status: str):
+        if not itb_test_case.exec:
+            return
         robot_status = robot_status.lower()
         if robot_status == "pass":
             itb_test_case.exec.status = ActivityStatus.Performed
@@ -558,18 +564,18 @@ class ResultWriter(ResultVisitor):
         if not suite.metadata.get("uniqueID") or len(suite.suites):
             return
         test_case_set = self.json_reader.read_test_case_set(suite.metadata["uniqueID"])
-        if not test_case_set:
+        if not test_case_set or not test_case_set.exec:
             return
         test_case_set.exec.verdict = suite.status
-
         for testcase in test_case_set.testCases:
             current_itb_test_case = self.itb_test_case_catalog.get(testcase.uniqueID)
-            if current_itb_test_case is None:
+            if current_itb_test_case is None or testcase.exec is None:
                 continue
-            testcase.exec.verdict = current_itb_test_case.exec.verdict
-            testcase.exec.status = current_itb_test_case.exec.status
-            testcase.exec.execStatus = current_itb_test_case.exec.execStatus
-            testcase.exec.comments = current_itb_test_case.exec.comments
+            if current_itb_test_case.exec:
+                testcase.exec.verdict = current_itb_test_case.exec.verdict
+                testcase.exec.status = current_itb_test_case.exec.status
+                testcase.exec.execStatus = current_itb_test_case.exec.execStatus
+                testcase.exec.comments = current_itb_test_case.exec.comments
         suite_start_time = "99999999 00:00:00.000"
         suite_end_time = "00000000 00:00:00.000"
         table_content = []
