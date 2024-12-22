@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from pathlib import Path
 
 from .model import StrEnum
 
@@ -173,7 +174,7 @@ class Configuration:
 
 
 def write_default_config(config_file):
-    with open(config_file, "w", encoding="utf-8") as file:
+    with Path(config_file).open("w", encoding="utf-8") as file:
         json.dump(
             Configuration.from_dict({}).__dict__,
             file,

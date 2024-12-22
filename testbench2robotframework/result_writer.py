@@ -199,7 +199,7 @@ class ResultWriter(ResultVisitor):
                     else:
                         logger.warning(f"Referenced file '{file_path}' does not exist.")
                     continue
-                file_size = os.path.getsize(reference_path)
+                file_size = Path.stat(reference_path).st_size
                 if file_size >= 10 * MEGABYTE:
                     logger.error(
                         f"Trying to attach file '{reference_path}'. "
