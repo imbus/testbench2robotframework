@@ -1,10 +1,118 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
-[tool.pylint.FORMAT]
-max-line-length = 100
-max-module-lines = 1000
+
+[project]
+name = "testbench2robotframework"
+authors = [
+    {name = "imbus AG", email = "support@imbus.de"},
+]
+description = "Robot Framework Code Generator from Keyword-Driven Tests in imbus TestBench 3.0 and newer"
+requires-python = ">= 3.9"
+readme = "README.md"
+license = {text = "Apache 2.0 License"}
+dynamic = ["version"]
+dependencies = [
+  "robotframework >= 5.0"
+]
+[project.optional-dependencies]
+dev = [
+  "build",
+  "check-manifest",
+  "mypy",
+  "pylint",
+  "pytest",
+  "pytest-cov",
+  "pytest-spec",
+  "ruff",
+  "twine",
+]
+
+[project.scripts]
+tb2robot = "testbench2robotframework.__main__:run"
+testbench2robotframework = "testbench2robotframework.__main__:run"
+
+[project.urls]
+Repository = "https://github.com/imbus/testbench2robotframework"
+
+[tool.setuptools]
+packages = ["testbench2robotframework"]
+
+[tool.setuptools.dynamic]
+version = {attr = "testbench2robotframework.__version__"}
+
+
+[tool.check-manifest]
+ignore = [
+  "config.json",
+  "*.bat",
+  "*.sh",
+  "*.zip",
+  "tests/**"
+]
+
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
+no_implicit_optional = true
+strict_optional = true
+warn_return_any = true
+warn_no_return = true
+warn_unreachable = true
+pretty = true
+
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+lint.select = [
+  "A",
+  "B",
+  "C",
+  "DTZ",
+  "E",
+  "F",
+  "I",
+  "ICN",
+  "INP",
+  "ISC",
+  "N",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "RET",
+  "RSE",
+  "RUF",
+  "SIM",
+  "T20",
+  "UP",
+  "W"
+]
+
+lint.ignore = [
+  "ISC001"
+]
+
+exclude = [
+  "__pycache__",
+  "config.py",
+  "model.py",
+  "tests"
+]
+
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra --spec"
+testpaths = [
+    "tests",
+]
+spec_header_format = "{test_case}"
+
 
 [tool.pylint.MASTER]
 ignore = "tests"
@@ -20,9 +128,6 @@ module-naming-style = 'snake_case'
 variable-naming-style = 'snake_case'
 
 [tool.pylint.DESIGN]
-# Maximum number of arguments for function / method.
-max-args = 5
-# Maximum number of statements in function / method body.
 max-statements = 50
 
 [tool.pylint."MESSAGES CONTROL"]
@@ -38,86 +143,4 @@ disable = '''
 '''
 
 [tool.pylint.REFACTORING]
-# Maximum number of nested blocks for function / method body
 max-nested-blocks = 3
-
-[tool.mypy]
-python_version = "3.8"
-ignore_missing_imports = true
-no_implicit_optional = true
-strict_optional = true
-warn_return_any = true
-warn_no_return = true
-warn_unreachable = true
-pretty = true
-
-[tool.black]
-target-version = ['py38']
-line-length = 100
-include_trailing_comma = false
-skip-string-normalization = true
-
-[tool.isort]
-profile = "black"
-src_paths = ["testbench2robotframework"]
-skip_gitignore = true
-skip = ['external']
-
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra --spec"
-testpaths = [
-    "tests",
-]
-spec_header_format = "{test_case}"
-
-[tool.ruff]
-unfixable = [
-    "UP007"
-]
-exclude = [
-  "__pycache__",
-  "config.py",
-  "model.py",
-  "tests"
-]
-ignore = [
-  "B008",  # do not perform function calls in argument defaults
-  "E501",  # line too long
-  # "N815",  # mixedCase variable in class scope
-  # "N803",  # argument name should be lowercase
-  # "N806",  # variable in function should be lowercase
-  # "N812",  # lowercase imported as non lowercase
-  # "N999",  # Invalid module name: 'Browser'
-  "PLR0913",  # too many arguments
-  # "T201",  # Print statements
-  "UP007",
-]
-target-version = "py37"
-select = [
-  "E",
-  "F",
-  "W",
-  "C90",
-  "I",
-  "N",
-  "B",
-  "PYI",
-  "PL",
-  "PTH",
-  "UP",
-  "A",
-  "C4",
-  "DTZ",
-  "ISC",
-  "ICN",
-  "INP",
-  "PIE",
-  "T20",
-  "PYI",
-  "PT",
-  "RSE",
-  "RET",
-  "SIM",
-  "RUF"
-]
