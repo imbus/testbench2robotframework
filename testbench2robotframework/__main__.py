@@ -18,7 +18,10 @@ import robot
 
 from testbench2robotframework import __version__
 
-from .config import write_default_config
+from .config import (
+    find_pyproject_toml,
+    get_testbench2robotframework_toml_dict,
+)
 from .json_reader import read_json
 from .robotframework2testbench import robot2testbench
 from .testbench2robotframework import testbench2robotframework
@@ -33,9 +36,18 @@ def run():
     if args.version:
         print_version()
         sys.exit()
-    if not Path(args.config).is_file():
-        write_default_config(args.config)
-    configuration = read_json(args.config)
+    if not args.config:
+        pyproject_toml = find_pyproject_toml()
+        if pyproject_toml:
+            configuration = get_testbench2robotframework_toml_dict(pyproject_toml)
+    else:
+        config_path = Path(args.config)
+        if config_path.suffix == ".json":
+            configuration = read_json(args.config)
+        elif config_path.file_path.name == "pyproject.toml":
+            configuration = get_testbench2robotframework_toml_dict(config_path)
+        else:
+            sys.exit("Configuration file must either be 'pyproject.toml' or '*.json' file.")
     if args.subcommand == "write":
         testbench2robotframework(args.jsonReport[0], configuration)
     elif args.subcommand == "read":

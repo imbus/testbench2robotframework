@@ -44,7 +44,6 @@ write_parser.add_argument(
     help=CONFIG_ARGUMENT_HELP,
     type=str,
     required=False,
-    default=str(Path(os.curdir, "config.json").resolve()),
 )
 
 write_parser.add_argument("jsonReport", nargs=1, type=str, help=JSON_PATH_ARGUMENT_HELP)
