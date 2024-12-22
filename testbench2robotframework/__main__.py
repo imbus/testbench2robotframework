@@ -36,16 +36,16 @@ def run():
     if not Path(args.config).is_file():
         write_default_config(args.config)
     configuration = read_json(args.config)
-    if args.subcommand == 'write':
+    if args.subcommand == "write":
         testbench2robotframework(args.jsonReport[0], configuration)
-    elif args.subcommand == 'read':
+    elif args.subcommand == "read":
         robot2testbench(args.jsonReport[0], args.output, args.result, configuration)
 
 
 def print_version():
     print(  # noqa: T201
-        f'TestBench2RobotFramework {__version__} with '
-        f'[Robot Framework {robot.version.get_full_version()}]'
+        f"TestBench2RobotFramework {__version__} with "
+        f"[Robot Framework {robot.version.get_full_version()}]"
     )
 
 

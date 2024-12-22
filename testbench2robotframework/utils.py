@@ -30,10 +30,10 @@ with result should be saved to."""
 
 arg_parser = argparse.ArgumentParser(description=CONVERTER_DESCRIPTION)
 arg_parser.add_argument(
-    '--version',
-    '--info',
-    action='store_true',
-    help='Writes the TestBench2RobotFramework, Robot Framework and Python version to console.',
+    "--version",
+    "--info",
+    action="store_true",
+    help="Writes the TestBench2RobotFramework, Robot Framework and Python version to console.",
 )
 subparsers = arg_parser.add_subparsers(dest="subcommand")
 
@@ -65,7 +65,7 @@ read_parser.add_argument(
     type=str,
     required=False,
 )
-required_named_arguments = read_parser.add_argument_group('required named arguments')
+required_named_arguments = read_parser.add_argument_group("required named arguments")
 required_named_arguments.add_argument(
     "-o", "--output", help=ROBOT_OUTPUT_HELP, type=str, required=True
 )
@@ -131,7 +131,7 @@ class PathResolver:
             self.tt_catalog[tse.baseInformation.uniqueID] = tse
 
     def _file_prefix(self, tse) -> str:
-        prefix_separator = '_' * self._log_suite_numbers
+        prefix_separator = "_" * self._log_suite_numbers
         return f"{self._get_padded_index(tse)}_{prefix_separator}"
 
     def _get_padded_index(self, tse) -> str:
@@ -150,7 +150,7 @@ def get_directory(json_report_path: Optional[str]) -> str:
     ext = Path(json_report_path).suffix
     filename = str(Path(json_report_path).parent / Path(json_report_path).stem)
     if ext.lower() == ".zip":
-        with ZipFile(json_report_path, 'r') as zip_ref:
+        with ZipFile(json_report_path, "r") as zip_ref:
             zip_ref.extractall(filename)
         return str(Path(filename).resolve())
     sys.exit("Error opening " + json_report_path + ". File is not a ZIP file.")
@@ -171,9 +171,9 @@ def get_tse_index(tse: TestStructureTreeNode) -> str:
 
 def directory_to_zip(directory: Path, new_path: Optional[str] = None):
     if new_path:
-        shutil.make_archive(str(new_path), 'zip', str(directory))
+        shutil.make_archive(str(new_path), "zip", str(directory))
     else:
-        shutil.make_archive(str(directory), 'zip', str(directory))
+        shutil.make_archive(str(directory), "zip", str(directory))
 
 
 def get_list_item(liste, index, default: Optional[str]):

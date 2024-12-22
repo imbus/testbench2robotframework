@@ -320,7 +320,9 @@ class RfTestCase:
             phase_pattern = self.config.phasePattern
             tc_name = (
                 phase_pattern.format(
-                    testcase=self.uid, index=index + 1, length=len(rf_keyword_call_lists)
+                    testcase=self.uid,
+                    index=index + 1,
+                    length=len(rf_keyword_call_lists),
                 )
                 if multiple_tests
                 else self.uid
@@ -348,16 +350,16 @@ class RfTestCase:
             if value == "undef.":
                 previous_arg_forces_named = True
                 continue
-            if re.match(r'^\*\*\ ?', name):
+            if re.match(r"^\*\*\ ?", name):
                 escaped_value = RfTestCase.escape_argument_value(value, False, False)
                 parameters.append(escaped_value)
-            elif re.match(r'^\*\ ?', name):
+            elif re.match(r"^\*\ ?", name):
                 escaped_value = RfTestCase.escape_argument_value(value, False)
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
-            elif re.search(r'(^-\ ?|=$)', name) or previous_arg_forces_named:
+            elif re.search(r"(^-\ ?|=$)", name) or previous_arg_forces_named:
                 escaped_value = RfTestCase.escape_argument_value(value, equal_sign_escaping=False)
-                pure_name = re.sub(r'(^-\ ?|=$)', "", name)
+                pure_name = re.sub(r"(^-\ ?|=$)", "", name)
                 parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
             elif value.find("=") != -1 and value[: value.find("=")] in interaction.cbv_parameters:
@@ -371,10 +373,10 @@ class RfTestCase:
     @staticmethod
     def escape_argument_value(value: str, space_escaping=True, equal_sign_escaping=True) -> str:
         if space_escaping:
-            value = re.sub(r'^(?= )|(?<= )$|(?<= )(?= )', r'\\', value)
+            value = re.sub(r"^(?= )|(?<= )$|(?<= )(?= )", r"\\", value)
         if equal_sign_escaping:
-            value = re.sub(r'(?<!\\)=', r'\=', value)
-        return re.sub(r'^#', r'\#', value)
+            value = re.sub(r"(?<!\\)=", r"\=", value)
+        return re.sub(r"^#", r"\#", value)
 
     @staticmethod
     def _create_cbr_parameters(interaction: AtomicInteractionCall) -> list[str]:
@@ -382,7 +384,7 @@ class RfTestCase:
             filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
         )
         for index, parameter in enumerate(cbr_parameters):
-            if not parameter.startswith('${'):
+            if not parameter.startswith("${"):
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
@@ -414,7 +416,9 @@ class RfTestCase:
         )  # TODO  prio later key=value als named erlauben config?
 
     @staticmethod
-    def _generate_compound_interaction_comment(interaction: CompoundInteractionCall) -> str:
+    def _generate_compound_interaction_comment(
+        interaction: CompoundInteractionCall,
+    ) -> str:
         cbr_params = SEPARATOR.join(
             [
                 f"{param_name}={param_value}"
@@ -467,7 +471,10 @@ def create_test_suites(
 
 class RobotInitFileBuilder:
     def __init__(
-        self, test_theme: TestStructureTreeNode, tt_path: PurePath, config: Configuration
+        self,
+        test_theme: TestStructureTreeNode,
+        tt_path: PurePath,
+        config: Configuration,
     ) -> None:
         self.test_theme = test_theme
         self.tt_path = PurePath(tt_path)
@@ -500,12 +507,12 @@ class RobotInitFileBuilder:
 
 def create_meta_data(name, value):
     tokens = [
-        Token(Metadata, 'Metadata', 1),
-        Token(SEPARATOR, '    ', 2),
-        Token('NAME', name, 3),
-        Token(SEPARATOR, '    ', 4),
-        Token('ARGUMENT', value, 5),
-        Token('EOL', '\n', 6),
+        Token(Metadata, "Metadata", 1),
+        Token(SEPARATOR, "    ", 2),
+        Token("NAME", name, 3),
+        Token(SEPARATOR, "    ", 4),
+        Token("ARGUMENT", value, 5),
+        Token("EOL", "\n", 6),
     ]
     return Metadata(tokens)
 
@@ -608,7 +615,9 @@ class RobotSuiteFileBuilder:
             r"^{resourceDirectory}", self.config.resourceDirectory, subdivision_mapping
         )
         subdivision_mapping = re.sub(
-            RELATIVE_RESOURCE_INDICATOR, str(root_path).replace('\\', '/'), subdivision_mapping
+            RELATIVE_RESOURCE_INDICATOR,
+            str(root_path).replace("\\", "/"),
+            subdivision_mapping,
         )
         return str(subdivision_mapping)
 
@@ -616,19 +625,19 @@ class RobotSuiteFileBuilder:
         root_path = Path(os.curdir).absolute()
         return re.sub(
             RELATIVE_RESOURCE_INDICATOR,
-            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            str(root_path).replace("\\", ROBOT_PATH_SEPARATOR),
             str(path),
             flags=re.IGNORECASE,
-        ).replace('\\', ROBOT_PATH_SEPARATOR)
+        ).replace("\\", ROBOT_PATH_SEPARATOR)
 
     def _get_relative_resource_directory(self) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
             RELATIVE_RESOURCE_INDICATOR,
-            str(root_path).replace('\\', ROBOT_PATH_SEPARATOR),
+            str(root_path).replace("\\", ROBOT_PATH_SEPARATOR),
             self.config.resourceDirectory,
             flags=re.IGNORECASE,
-        ).replace('\\', ROBOT_PATH_SEPARATOR)
+        ).replace("\\", ROBOT_PATH_SEPARATOR)
 
     @staticmethod
     def _is_library(root_subdivision: str) -> bool:

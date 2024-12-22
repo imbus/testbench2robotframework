@@ -54,7 +54,11 @@ MEGABYTE = 1000 * 1000
 
 class ResultWriter(ResultVisitor):
     def __init__(
-        self, json_report: str, json_result: Optional[str], config: Configuration, output_xml
+        self,
+        json_report: str,
+        json_result: Optional[str],
+        config: Configuration,
+        output_xml,
     ) -> None:
         self.json_dir = get_directory(json_report)
         self.output_xml = output_xml
@@ -367,7 +371,9 @@ class ResultWriter(ResultVisitor):
             interaction.exec.verdict = InteractionVerdict.Undefined
 
     def _filter_atomic_interactions_by_sequence_phase(
-        self, atomic_interactions: List[InteractionDetails], sequence_phase: SequencePhase
+        self,
+        atomic_interactions: List[InteractionDetails],
+        sequence_phase: SequencePhase,
     ):
         return list(
             filter(
@@ -379,10 +385,10 @@ class ResultWriter(ResultVisitor):
     def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
         return InteractionExecutionSummary.from_dict(
             {
-                'verdict': self._get_interaction_result(keyword.status),
-                'time': keyword.endtime,
-                'duration': keyword.elapsedtime,
-                'comments': self.get_html_keyword_comment(keyword),
+                "verdict": self._get_interaction_result(keyword.status),
+                "time": keyword.endtime,
+                "duration": keyword.elapsedtime,
+                "comments": self.get_html_keyword_comment(keyword),
             }
         )
 
@@ -390,7 +396,7 @@ class ResultWriter(ResultVisitor):
         self, keyword: Keyword, interaction: InteractionDetails
     ) -> None:
         if not is_normalized_equal(keyword.kwname, interaction.name) and not is_normalized_equal(
-            keyword.kwname.split('.')[-1], interaction.name
+            keyword.kwname.split(".")[-1], interaction.name
         ):
             raise NameError(
                 f"Execution can not be parsed, "
@@ -527,8 +533,8 @@ class ResultWriter(ResultVisitor):
                 message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
                 message = (
                     message[len("*HTML*") :]
-                    .replace('<hr>', '<br />')
-                    .replace('<br>', '<br />')
+                    .replace("<hr>", "<br />")
+                    .replace("<br>", "<br />")
                     .strip()
                     if message.startswith("*HTML*")
                     else message

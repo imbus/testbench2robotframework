@@ -29,7 +29,7 @@ def get_generation_directory(generation_directory: str) -> Path:
     return Path(
         re.sub(
             r"^{root}",
-            str(root_path).replace('\\', '\\\\'),
+            str(root_path).replace("\\", "\\\\"),
             generation_directory,
             flags=re.IGNORECASE,
         )

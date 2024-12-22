@@ -126,7 +126,7 @@ class TestBenchJsonReader:
 
 def read_json(filepath: str):  # ToDo Configure to run silent or raise
     try:
-        with Path(filepath).open(encoding='utf-8') as json_file:
+        with Path(filepath).open(encoding="utf-8") as json_file:
             return json.load(json_file)
     except FileNotFoundError:
         logger.debug(f"Cannot find json file {filepath}:")
