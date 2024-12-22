@@ -274,9 +274,7 @@ class RfTestCase:
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(
-        self, teardown_interactions: list[InteractionCall]
-    ) -> Setup | None:
+    def _create_rf_teardown(self, teardown_interactions: list[InteractionCall]) -> Setup | None:
         rf_teardown = None
         if teardown_interactions:
             teardown_params = self._get_teardown_params(teardown_interactions)
