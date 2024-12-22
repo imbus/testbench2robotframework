@@ -4,7 +4,6 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
-from typing import Union
 from uuid import uuid4
 
 from robot.parsing.lexer.tokens import Token
@@ -231,7 +230,7 @@ class RfTestCase:
         )
 
     def _create_rf_setup_call(
-        self, setup_interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
+        self, setup_interaction: AtomicInteractionCall | CompoundInteractionCall
     ) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
@@ -254,7 +253,7 @@ class RfTestCase:
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Union[Setup, None]:
+    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Setup | None:
         rf_setup = None
         if len(setup_interactions) == 1:
             rf_setup = self._create_rf_setup_call(setup_interactions[0])
@@ -277,7 +276,7 @@ class RfTestCase:
 
     def _create_rf_teardown(
         self, teardown_interactions: list[InteractionCall]
-    ) -> Union[Setup, None]:
+    ) -> Setup | None:
         rf_teardown = None
         if teardown_interactions:
             teardown_params = self._get_teardown_params(teardown_interactions)
@@ -392,7 +391,7 @@ class RfTestCase:
         return (self.config.fullyQualified or False) * f"{interaction.import_prefix}."
 
     def _get_interaction_indent(
-        self, interaction: Union[AtomicInteractionCall, CompoundInteractionCall]
+        self, interaction: AtomicInteractionCall | CompoundInteractionCall
     ) -> str:
         return SEPARATOR * interaction.indent if self.config.logCompoundInteractions else SEPARATOR
 
@@ -553,7 +552,7 @@ class RobotSuiteFileBuilder:
         test_case_section.body.extend(robot_ast_test_cases)
         return test_case_section
 
-    def _create_keywords_section(self) -> Union[KeywordSection, None]:
+    def _create_keywords_section(self) -> KeywordSection | None:
         if not self.setup_keywords and not self.teardown_keywords:
             return None
         keywords_section = KeywordSection(header=SectionHeader.from_params(Token.KEYWORD_HEADER))
@@ -621,7 +620,7 @@ class RobotSuiteFileBuilder:
         )
         return str(subdivision_mapping)
 
-    def _replace_relative_resource_indicator(self, path: Union[Path, str]) -> str:
+    def _replace_relative_resource_indicator(self, path: Path | str) -> str:
         root_path = Path(os.curdir).absolute()
         return re.sub(
             RELATIVE_RESOURCE_INDICATOR,
@@ -660,7 +659,7 @@ class RobotSuiteFileBuilder:
         }
         return [LibraryImport.from_params(lib) for lib in sorted(lib_imports)]
 
-    def _create_rf_test_tags(self) -> Union[TestTags, None]:
+    def _create_rf_test_tags(self) -> TestTags | None:
         tb_keyword_names = [keyword.name for keyword in self.test_case_set.details.spec.keywords]
         udfs = [udf.robot_tag for udf in self.test_case_set.details.spec.udfs if udf.robot_tag]
         test_tags = tb_keyword_names + udfs
