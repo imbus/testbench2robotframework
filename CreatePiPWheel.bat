@@ -1,9 +1,7 @@
-
 check-manifest --update
-del dist\* /Q /S /F
-del build\* /Q /S /F
-python setup.py bdist_wheel sdist
+pause
+python -m build
+pause
 twine check dist\*
 pause
-twine upload dist\*
-
+twine upload dist/*

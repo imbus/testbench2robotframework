@@ -1,7 +1,5 @@
 #!/bin/bash
 check-manifest --update
-rm -f dist/*.*
-python setup.py bdist_wheel sdist
-twine check dist/*
-read -n 1
+python -m build
+twine check dist\*
 twine upload dist/*
