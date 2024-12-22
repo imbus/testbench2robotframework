@@ -64,23 +64,12 @@ RESOURCE_IMPORT_TYPE = str(uuid4())
 @dataclass
 class InteractionCall:
     name: str
-
-
-@dataclass
-class AtomicInteractionCall(InteractionCall):
-    cbv_parameters: dict[str, str]
-    cbr_parameters: dict[str, str]
-    indent: int
-    import_prefix: str
-    sequence_phase: str
-
-
-@dataclass
-class CompoundInteractionCall(InteractionCall):
     cbv_parameters: dict[str, str]
     cbr_parameters: dict[str, str]
     indent: int
     sequence_phase: str
+    is_atomic: bool
+    import_prefix: str | None = None
 
 
 class RfTestCase:
@@ -151,13 +140,14 @@ class RfTestCase:
         else:
             self.used_imports[resource_type].add(import_prefix)
         self.interaction_calls.append(
-            AtomicInteractionCall(
+            InteractionCall(
                 name=interaction.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
                 import_prefix=import_prefix,
                 sequence_phase=sequence_phase or interaction.spec.sequencePhase,
+                is_atomic=True,
             )
         )
 
@@ -191,12 +181,13 @@ class RfTestCase:
         sequence_phase=None,
     ):
         self.interaction_calls.append(
-            CompoundInteractionCall(
+            InteractionCall(
                 interaction_detail.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
                 sequence_phase=sequence_phase or interaction_detail.spec.sequencePhase,
+                is_atomic=False,
             )
         )
         for interaction in interaction_detail.interactions:
@@ -209,7 +200,7 @@ class RfTestCase:
         tc_index = 0
         is_first_atomic = True
         for interaction_call in interaction_calls:
-            if isinstance(interaction_call, AtomicInteractionCall):
+            if interaction_call.is_atomic:
                 if (
                     self.is_splitting_ia(interaction_call, keyword_lists, tc_index)
                     and not is_first_atomic
@@ -218,10 +209,7 @@ class RfTestCase:
                     keyword_lists.append([])
                 is_first_atomic = False
                 keyword_lists[tc_index].append(self._create_rf_keyword(interaction_call))
-            elif (
-                isinstance(interaction_call, CompoundInteractionCall)
-                and self.config.logCompoundInteractions
-            ):
+            elif not interaction_call.is_atomic and self.config.logCompoundInteractions:
                 keyword_lists[tc_index].append(self._create_rf_compound_keyword(interaction_call))
         return keyword_lists
 
@@ -235,9 +223,7 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(
-        self, setup_interaction: AtomicInteractionCall | CompoundInteractionCall
-    ) -> Setup:
+    def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -364,7 +350,7 @@ class RfTestCase:
         return rf_test_cases
 
     @staticmethod
-    def _create_cbv_parameters(interaction: AtomicInteractionCall) -> list[str]:
+    def _create_cbv_parameters(interaction: InteractionCall) -> list[str]:
         parameters = []
         previous_arg_forces_named = False
         for name, value in interaction.cbv_parameters.items():
@@ -401,7 +387,7 @@ class RfTestCase:
 
     @staticmethod
     def _create_cbr_parameters(
-        interaction: AtomicInteractionCall | CompoundInteractionCall,
+        interaction: InteractionCall,
     ) -> list[str]:
         cbr_parameters = list(
             filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
@@ -411,15 +397,13 @@ class RfTestCase:
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
-    def _get_interaction_import_prefix(self, interaction: AtomicInteractionCall) -> str:
+    def _get_interaction_import_prefix(self, interaction: InteractionCall) -> str:
         return (self.config.fullyQualified or False) * f"{interaction.import_prefix}."
 
-    def _get_interaction_indent(
-        self, interaction: AtomicInteractionCall | CompoundInteractionCall
-    ) -> str:
+    def _get_interaction_indent(self, interaction: InteractionCall) -> str:
         return SEPARATOR * interaction.indent if self.config.logCompoundInteractions else SEPARATOR
 
-    def _create_rf_keyword(self, interaction: AtomicInteractionCall) -> KeywordCall:
+    def _create_rf_keyword(self, interaction: InteractionCall) -> KeywordCall:
         import_prefix = self._get_interaction_import_prefix(interaction)
         interaction_indent = self._get_interaction_indent(interaction)
         cbv_parameters = self._create_cbv_parameters(interaction)
@@ -431,7 +415,7 @@ class RfTestCase:
             indent=interaction_indent,
         )
 
-    def _create_rf_compound_keyword(self, interaction: CompoundInteractionCall) -> Comment:
+    def _create_rf_compound_keyword(self, interaction: InteractionCall) -> Comment:
         interaction_indent = " " * (interaction.indent * 4)
         return Comment.from_params(
             comment=self._generate_compound_interaction_comment(interaction),
@@ -440,7 +424,7 @@ class RfTestCase:
 
     @staticmethod
     def _generate_compound_interaction_comment(
-        interaction: CompoundInteractionCall,
+        interaction: InteractionCall,
     ) -> str:
         cbr_params = SEPARATOR.join(
             [

@@ -812,7 +812,7 @@ class TestStructureTreeNode:
     filters: list[AttachedFilter]
 
     @classmethod
-    def from_dict(cls, dictionary):
+    def from_dict(cls, dictionary) -> TestStructureTreeNode:
         return cls(
             elementType=TestStructureElementType(
                 dictionary.get("elementType", TestStructureElementType.TestThemeNode)

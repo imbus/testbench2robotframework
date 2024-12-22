@@ -251,7 +251,6 @@ class ResultWriter(ResultVisitor):
             return Reference(ReferenceType.Attachment, f"attachments/{unique_file}")
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.ERROR:
             logger.error(f"Attachment '{filename}' does already exist.")
-            return None
         return None
 
     @staticmethod
