@@ -4,7 +4,7 @@ import re
 import shutil
 import sys
 from pathlib import Path, PurePath
-from typing import Dict, Optional, Tuple
+from typing import Optional
 from zipfile import ZipFile
 
 from testbench2robotframework.model import (
@@ -77,13 +77,13 @@ class PathResolver:
     def __init__(
         self,
         test_theme_tree: TestStructureTree,
-        uids_of_existing_tcs: Tuple[str, ...],
+        uids_of_existing_tcs: tuple[str, ...],
         log_suite_numbers: bool,
     ):
-        self.tcs_catalog: Dict[str, TestStructureTreeNode] = {}
-        self.tt_catalog: Dict[str, TestStructureTreeNode] = {}
-        self.tree_dict: Dict[str, TestStructureTreeNode] = {}
-        self._last_child_indices: Dict[str, int] = {}
+        self.tcs_catalog: dict[str, TestStructureTreeNode] = {}
+        self.tt_catalog: dict[str, TestStructureTreeNode] = {}
+        self.tree_dict: dict[str, TestStructureTreeNode] = {}
+        self._last_child_indices: dict[str, int] = {}
         self._log_suite_numbers = log_suite_numbers
         self._uids_of_existing_tcs = uids_of_existing_tcs
         self._analyze_tree(test_theme_tree)
@@ -111,7 +111,7 @@ class PathResolver:
         ):
             self.tcs_catalog[tse.base.uniqueID] = tse
 
-    def _get_paths(self, tse_catalog: Dict[str, TestStructureTreeNode]) -> Dict[str, PurePath]:
+    def _get_paths(self, tse_catalog: dict[str, TestStructureTreeNode]) -> dict[str, PurePath]:
         return {uid: self._resolve_tse_path(tse) for uid, tse in tse_catalog.items()}
 
     def _resolve_tse_path(self, tse: TestStructureTreeNode) -> PurePath:

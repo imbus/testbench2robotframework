@@ -3,15 +3,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Dict, List
 
 from .model import StrEnum
 
 
 @dataclass
 class SubdivisionsMapping:
-    libraries: Dict
-    resources: Dict
+    libraries: dict
+    resources: dict
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -22,9 +21,9 @@ class SubdivisionsMapping:
 
 @dataclass
 class ForcedImport:
-    libraries: List[str]
-    resources: List[str]
-    variables: List[str]
+    libraries: list[str]
+    resources: list[str]
+    variables: list[str]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -116,10 +115,10 @@ class AttachmentConflictBehaviour(StrEnum):
 
 @dataclass
 class Configuration:
-    rfLibraryRegex: List[str]
-    rfResourceRegex: List[str]
-    rfLibraryRoots: List[str]
-    rfResourceRoots: List[str]
+    rfLibraryRegex: list[str]
+    rfResourceRegex: list[str]
+    rfLibraryRoots: list[str]
+    rfResourceRoots: list[str]
     fullyQualified: bool
     subdivisionsMapping: SubdivisionsMapping
     forcedImport: ForcedImport

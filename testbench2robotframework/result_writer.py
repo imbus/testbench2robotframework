@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from shutil import copytree
-from typing import Dict, List, Optional, Union
+from typing import Optional, Union
 from urllib.parse import unquote
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
@@ -89,11 +89,11 @@ class ResultWriter(ResultVisitor):
         # if self.attachments_path.exists():  TODO: RR Sollten wir löschen????
         #     shutil.rmtree(self.attachments_path)
         # os.mkdir(self.attachments_path)
-        self.test_suites: Dict[str, TestSuite] = {}
-        self.keywords: List[Keyword] = []
-        self.itb_test_case_catalog: Dict[str, TestCaseDetails] = {}
+        self.test_suites: dict[str, TestSuite] = {}
+        self.keywords: list[Keyword] = []
+        self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
-        self.test_chain: List[TestCase] = []
+        self.test_chain: list[TestCase] = []
         self.main_protocol = MainProtocol.from_list([])
 
     def start_suite(self, suite: TestSuite):
@@ -102,7 +102,7 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_cases: list[ProtocolTestCaseExecutionSummary] = []
 
     def _get_interactions_by_type(
-        self, interactions: List[InteractionDetails], interaction_type: InteractionType
+        self, interactions: list[InteractionDetails], interaction_type: InteractionType
     ):
         for interaction in interactions:
             if interaction.interactionType == interaction_type:
@@ -172,7 +172,7 @@ class ResultWriter(ResultVisitor):
         )
 
     def _set_itb_testcase_references(
-        self, itb_test_case: TestCaseDetails, test_chain: List[TestCase]
+        self, itb_test_case: TestCaseDetails, test_chain: list[TestCase]
     ):
         for test in test_chain:
             itb_references = self._get_itb_reference(test.message)
@@ -180,7 +180,7 @@ class ResultWriter(ResultVisitor):
                 if reference not in itb_test_case.exec.references:
                     itb_test_case.exec.references.append(reference)
 
-    def _get_itb_reference(self, test_message: str) -> List[Reference]:
+    def _get_itb_reference(self, test_message: str) -> list[Reference]:
         references = []
         for path in re.findall(r"itb-reference:\s*(\S*)", test_message):
             if path.startswith("file:///"):
@@ -260,7 +260,7 @@ class ResultWriter(ResultVisitor):
             counter += 1
         return attachement_path
 
-    def _set_itb_testcase_execution_comment(self, itb_test_case, test_chain: List[TestCase]):
+    def _set_itb_testcase_execution_comment(self, itb_test_case, test_chain: list[TestCase]):
         exec_comments = []
         for test in test_chain:
             message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
@@ -318,7 +318,7 @@ class ResultWriter(ResultVisitor):
     def _get_test_phase_body(self, test_phase: TestCase) -> Body:
         return test_phase.body
 
-    def _get_test_phase_setup(self, test_phase: TestCase) -> List[Keyword]:
+    def _get_test_phase_setup(self, test_phase: TestCase) -> list[Keyword]:
         test_phase_setup = []
         if test_phase.has_setup and test_phase.setup:
             self._test_setup_passed = test_phase.setup.passed
@@ -334,7 +334,7 @@ class ResultWriter(ResultVisitor):
                 test_phase_setup = [test_phase.setup]
         return test_phase_setup
 
-    def _get_test_phase_teardown(self, test_phase: TestCase) -> List[Keyword]:
+    def _get_test_phase_teardown(self, test_phase: TestCase) -> list[Keyword]:
         test_phase_teardown = []
         if test_phase.has_teardown and test_phase.teardown:
             if test_phase.teardown.name == f"Teardown-{test_phase.name}":
@@ -350,7 +350,7 @@ class ResultWriter(ResultVisitor):
         return test_phase_teardown
 
     def _set_atomic_interactions_execution_result(
-        self, atomic_interactions: List[InteractionDetails], test_chain: List[TestCase]
+        self, atomic_interactions: list[InteractionDetails], test_chain: list[TestCase]
     ):
         self._test_setup_passed = True
         test_chain_setup = [
@@ -387,8 +387,8 @@ class ResultWriter(ResultVisitor):
 
     def _set_interaction_verdicts(
         self,
-        interaction_list: List[InteractionDetails],
-        test_chain_body: List[Keyword],
+        interaction_list: list[InteractionDetails],
+        test_chain_body: list[Keyword],
         sequence_phase: SequencePhase,
     ):
         for index, interaction in enumerate(interaction_list):
@@ -409,7 +409,7 @@ class ResultWriter(ResultVisitor):
 
     def _filter_atomic_interactions_by_sequence_phase(
         self,
-        atomic_interactions: List[InteractionDetails],
+        atomic_interactions: list[InteractionDetails],
         sequence_phase: SequencePhase,
     ):
         return list(
@@ -703,7 +703,7 @@ class ResultWriter(ResultVisitor):
         )
 
     @staticmethod
-    def _get_execution_result(robot_status: str) -> Dict:
+    def _get_execution_result(robot_status: str) -> dict:
         robot_status = robot_status.lower()
         if robot_status == "pass":
             return {
