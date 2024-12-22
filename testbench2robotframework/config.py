@@ -160,7 +160,7 @@ class Configuration:
             ),
             logCompoundInteractions=dictionary.get("logCompoundInteractions", True),
             resourceDirectory=dictionary.get("resourceDirectory", "{root}/Resources").replace(
-                '\\', '/'
+                "\\", "/"
             ),
             testCaseSplitPathRegEx=dictionary.get("testCaseSplitPathRegEx", ".*StopWithRestart.*"),
             phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
@@ -174,7 +174,7 @@ class Configuration:
 
 
 def write_default_config(config_file):
-    with open(config_file, 'w', encoding='utf-8') as file:
+    with open(config_file, "w", encoding="utf-8") as file:
         json.dump(
             Configuration.from_dict({}).__dict__,
             file,

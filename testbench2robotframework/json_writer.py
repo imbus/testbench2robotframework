@@ -23,7 +23,7 @@ def write_test_structure_element(
         filepath = Path(json_dir) / Path(TEST_STRUCTURE_TREE_FILE + ".json")
     else:
         filepath = Path(json_dir) / Path(f"{test_structure_element.uniqueID}.json")
-    with Path(filepath).open('w+', encoding="utf8") as output_file:
+    with Path(filepath).open("w+", encoding="utf8") as output_file:
         json.dump(asdict(test_structure_element), output_file, indent=2)
 
 
@@ -37,7 +37,7 @@ def write_main_protocol(
 
 
 def write_default_config(config_file):
-    with Path(config_file).open('w+', encoding='utf-8') as file:
+    with Path(config_file).open("w+", encoding="utf-8") as file:
         json.dump(
             Configuration.from_dict({}).__dict__,
             file,
