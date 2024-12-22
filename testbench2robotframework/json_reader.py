@@ -31,7 +31,7 @@ class TestCaseSet:
 
 
 class TestBenchJsonReader:
-    def __init__(self, json_dir):
+    def __init__(self, json_dir) -> None:
         self.json_dir = json_dir
         self._test_theme_tree: Optional[TestStructureTree] = None
         self._test_case_sets: dict[str, TestCaseSetDetails] = {}
@@ -78,7 +78,7 @@ class TestBenchJsonReader:
                 self._test_cases[tc_uid] = test_case
                 logger.debug(f"TestCaseDetails {tc_uid} loaded.")
 
-    def get_test_case_set_catalog(self):
+    def get_test_case_set_catalog(self) -> dict[str, TestCaseSet]:
         tcs_catalog: dict[str, TestCaseSet] = {}
         for tcs_uid, tcs in self.test_case_sets.items():
             tc_catalog: dict[str, TestCaseDetails] = {}

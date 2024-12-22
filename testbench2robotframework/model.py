@@ -766,7 +766,7 @@ class TestStructureTreeNode:
     filters: List[AttachedFilter]
 
     @classmethod
-    def from_dict(cls, dictionary):
+    def from_dict(cls, dictionary) -> TestStructureTreeNode:
         return cls(
             elementType=TestStructureTreeNodeType(
                 dictionary.get("elementType", TestStructureTreeNodeType.TestTheme)
@@ -795,8 +795,6 @@ class TestStructureTree:
     @classmethod
     def from_dict(cls, dictionary) -> TestStructureTree:
         return cls(
-            root=TestStructureTreeNode.from_dict(dictionary.get("root", {}))
-            if "root" in dictionary
-            else None,
+            root=TestStructureTreeNode.from_dict(dictionary.get("root", {})),
             nodes=[TestStructureTreeNode.from_dict(node) for node in dictionary.get("nodes", [])],
         )
