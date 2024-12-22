@@ -6,12 +6,12 @@
   "rfResourceRoots": [
     "RF-Resource"
   ],
-  "fullyQualified": true,
+  "fullyQualified": false,
   "generationDirectory": "{root}/Generated",
-  "createOutputZip": true,
+  "createOutputZip": false,
+  "logSuiteNumbering": true,
   "resourceDirectory": "{root}/Resources",
   "clearGenerationDirectory": true,
-  "logSuiteNumbering": true,
   "logCompoundInteractions": true,
   "subdivisionsMapping": {
     "libraries": {

@@ -2,10 +2,34 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 from .model import StrEnum
+
+
+def find_pyproject_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        pyproject_path = parent / "pyproject.toml"
+        if pyproject_path.is_file():
+            return pyproject_path
+    return Path()
+
+
+def get_testbench2robotframework_toml_dict(toml_path: Path):
+    toml_dict = {}
+    try:
+        with Path(toml_path).open("rb") as toml_file:
+            toml_dict = tomllib.load(toml_file)
+    except FileNotFoundError:
+        toml_dict = {}
+    return toml_dict.get("tool", {}).get("testbench2robotframework", {})
 
 
 @dataclass

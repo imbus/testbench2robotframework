@@ -14,8 +14,10 @@ readme = "README.md"
 license = {text = "Apache 2.0 License"}
 dynamic = ["version"]
 dependencies = [
-  "robotframework >= 5.0"
+  "robotframework >= 5.0",
+  "tomli; python_version < '3.11'",
 ]
+
 [project.optional-dependencies]
 dev = [
   "build",
