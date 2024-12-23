@@ -146,3 +146,33 @@ disable = '''
 
 [tool.pylint.REFACTORING]
 max-nested-blocks = 3
+
+
+[tool.robotidy]
+transform = [
+"InlineIf",
+"ReplaceBreakContinue",
+"ReplaceReturns",
+"SplitTooLongLine",
+"ReplaceRunKeywordIf",
+"NormalizeSettingName",
+"NormalizeSectionHeaderName",
+"NormalizeNewLines",
+"AlignVariablesSection",
+"AlignSettingsSection",
+"OrderSettingsSection",
+"OrderSettings",
+"NormalizeAssignments",
+"RemoveEmptySettings",
+"MergeAndOrderSections",
+"DiscardEmptySections",
+"NormalizeSeparators",
+"AddMissingEnd",
+"AlignTemplatedTestCases",
+"RenameTestCases",
+"RenameKeywords"
+]
+configure = [
+"RenameTestCases:enabled=True:capitalize_each_word=True",
+"AlignKeywordsSection:enabled=True:alignment_type=auto"
+]
