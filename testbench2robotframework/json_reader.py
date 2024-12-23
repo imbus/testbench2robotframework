@@ -124,14 +124,19 @@ class TestBenchJsonReader:
         return TestStructureTree.from_dict(test_structure_tree)
 
 
-def read_json(filepath: str):  # ToDo Configure to run silent or raise
+def read_json(filepath: str, silent=True):
     try:
         with Path(filepath).open(encoding="utf-8") as json_file:
             return json.load(json_file)
     except FileNotFoundError:
-        logger.debug(f"Cannot find json file {filepath}:")
+        if not silent:
+            logger.error(f"File '{filepath}' does not exist.")
+            sys.exit(1)
+        logger.warning(f"File '{filepath}' does not exist.")
         return None
-    except JSONDecodeError as error:  # pylint: disable=broad-except
-        logger.warning(f"Cannot decode json file {filepath}:")
-        logger.warning(error)
+    except JSONDecodeError:  # pylint: disable=broad-except
+        if not silent:
+            logger.error(f"File '{filepath}' cannot be decoded.")
+            sys.exit(1)
+        logger.warning(f"File '{filepath}' cannot be decoded.")
         return None

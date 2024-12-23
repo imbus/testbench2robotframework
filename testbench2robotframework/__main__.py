@@ -37,11 +37,11 @@ def run():
         sys.exit()
     if not args.config:
         pyproject_toml = find_pyproject_toml()
-    config_path = pyproject_toml or args.config
+    config_path = args.config or pyproject_toml
     if not config_path:
         configuration = {}
     elif config_path.suffix == ".json":
-        configuration = read_json(args.config)
+        configuration = read_json(args.config, False)
     else:
         configuration = get_testbench2robotframework_toml_dict(config_path)
     if args.subcommand == "write":
