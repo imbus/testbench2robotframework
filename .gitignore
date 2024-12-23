@@ -144,7 +144,6 @@ TestBenchExport
 json-report_out
 report_out
 dist
-atest/
 IssueDebugging/
 MyResources/
 log.html
