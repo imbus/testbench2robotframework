@@ -182,7 +182,7 @@ class Configuration:
                 dictionary.get("loggingConfiguration", {})
             ),
             logCompoundInteractions=dictionary.get("logCompoundInteractions", True),
-            resourceDirectory=dictionary.get("resourceDirectory", "{root}/Resources").replace(
+            resourceDirectory=dictionary.get("resourceDirectory", "").replace(
                 "\\", "/"
             ),
             testCaseSplitPathRegEx=dictionary.get("testCaseSplitPathRegEx", ".*StopWithRestart.*"),
