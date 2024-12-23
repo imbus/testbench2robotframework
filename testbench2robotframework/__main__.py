@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import sys
-from pathlib import Path
 
 import robot
 
@@ -38,8 +37,10 @@ def run():
         sys.exit()
     if not args.config:
         pyproject_toml = find_pyproject_toml()
-    config_path = Path(args.config) or pyproject_toml
-    if config_path.suffix == ".json":
+    config_path = pyproject_toml or args.config
+    if not config_path:
+        configuration = {}
+    elif config_path.suffix == ".json":
         configuration = read_json(args.config)
     else:
         configuration = get_testbench2robotframework_toml_dict(config_path)
