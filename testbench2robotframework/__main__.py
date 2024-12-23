@@ -38,16 +38,11 @@ def run():
         sys.exit()
     if not args.config:
         pyproject_toml = find_pyproject_toml()
-        if pyproject_toml:
-            configuration = get_testbench2robotframework_toml_dict(pyproject_toml)
+    config_path = Path(args.config) or pyproject_toml
+    if config_path.suffix == ".json":
+        configuration = read_json(args.config)
     else:
-        config_path = Path(args.config)
-        if config_path.suffix == ".json":
-            configuration = read_json(args.config)
-        elif config_path.file_path.name == "pyproject.toml":
-            configuration = get_testbench2robotframework_toml_dict(config_path)
-        else:
-            sys.exit("Configuration file must either be 'pyproject.toml' or '*.json' file.")
+        configuration = get_testbench2robotframework_toml_dict(config_path)
     if args.subcommand == "write":
         testbench2robotframework(args.jsonReport[0], configuration)
     elif args.subcommand == "read":
