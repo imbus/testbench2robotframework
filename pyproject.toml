@@ -22,11 +22,13 @@ dependencies = [
 dev = [
   "build",
   "check-manifest",
+  "invoke",
   "mypy",
   "pylint",
   "pytest",
   "pytest-cov",
   "pytest-spec",
+  "robotframework-tidy",
   "ruff",
   "twine",
 ]
