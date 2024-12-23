@@ -1,5 +1,4 @@
 import argparse
-import os
 import re
 import shutil
 import sys
@@ -42,7 +41,7 @@ write_parser.add_argument(
     "-c",
     "--config",
     help=CONFIG_ARGUMENT_HELP,
-    type=str,
+    type=Path,
     required=False,
 )
 
@@ -53,9 +52,8 @@ read_parser.add_argument(
     "-c",
     "--config",
     help=CONFIG_ARGUMENT_HELP,
-    type=str,
+    type=Path,
     required=False,
-    default=str(Path(os.curdir, "config.json").resolve()),
 )
 read_parser.add_argument(
     "-r",
@@ -154,6 +152,18 @@ def get_directory(json_report_path: Optional[str]) -> str:
             zip_ref.extractall(filename)
         return str(Path(filename).resolve())
     sys.exit("Error opening " + json_report_path + ". File is not a ZIP file.")
+
+
+def extract_to_working_directory(zip_file: Path, working_dir: Path) -> None:
+    ext = zip_file.suffix
+    if ext.lower() != ".zip":
+        sys.exit(f"Error opening '{zip_file.as_posix()}'. File is not a ZIP file.")
+    with ZipFile(zip_file, "r") as zip_ref:
+        zip_ref.extractall(working_dir)
+
+
+def is_zip_file(path: Path) -> bool:
+    return path.suffix.lower() == ".zip"
 
 
 def ensure_dir_exists(cli_output_dir):
