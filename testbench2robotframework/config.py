@@ -23,12 +23,11 @@ def find_pyproject_toml() -> Path:
 
 
 def get_testbench2robotframework_toml_dict(toml_path: Path):
-    toml_dict = {}
     try:
         with Path(toml_path).open("rb") as toml_file:
             toml_dict = tomllib.load(toml_file)
     except FileNotFoundError:
-        toml_dict = {}
+        return {}
     return toml_dict.get("tool", {}).get("testbench2robotframework", {})
 
 
