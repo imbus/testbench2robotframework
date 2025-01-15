@@ -432,7 +432,7 @@ class ResultWriter(ResultVisitor):
         return InteractionExecutionSummary.from_dict(
             {
                 "verdict": self._get_interaction_result(keyword.status),
-                "time": keyword.endtime,
+                "time": end_time,
                 "duration": keyword.elapsedtime,
                 "comments": self.get_html_keyword_comment(keyword),
             }
@@ -539,7 +539,7 @@ class ResultWriter(ResultVisitor):
     @staticmethod
     def _set_itb_test_case_status(itb_test_case: TestCaseDetails, robot_status: str):
         if not itb_test_case.exec:
-            return
+            return None
         robot_status = robot_status.lower()
         if robot_status == "pass":
             itb_test_case.exec.status = ActivityStatus.Performed
@@ -649,7 +649,7 @@ class ResultWriter(ResultVisitor):
         write_main_protocol(
             self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
         )
-        os.makedirs(Path(self.json_result_path) / self.listener_uid)
+        Path.makedir(Path(self.json_result_path, parents=True) / self.listener_uid)
         shutil.copy(
             Path(self.json_result) / "protocol.json",
             Path(self.json_result_path) / self.listener_uid / "protocol.json",
@@ -704,7 +704,8 @@ class ResultWriter(ResultVisitor):
                 copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
             self.tempdir.cleanup()
         logger.info(
-            f"Successfully wrote the robot execution results to TestBench's Json Report: '{Path(self.json_result_path).absolute()}{self.create_zip*'.zip'}'"
+            f"Successfully wrote the robot execution results to TestBench's Json Report: "
+            f"'{Path(self.json_result_path).absolute()}{self.create_zip * '.zip'}'"
         )
 
     @staticmethod

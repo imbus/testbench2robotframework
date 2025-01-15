@@ -1,7 +1,6 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import List, Union
 
 from .config import Configuration
 from .log import logger
@@ -17,7 +16,7 @@ TEST_STRUCTURE_TREE_FILE = "cycle_structure"
 
 def write_test_structure_element(
     json_dir: str,
-    test_structure_element: Union[TestStructureTree, TestCaseSetDetails, TestCaseDetails],
+    test_structure_element: TestStructureTree | TestCaseSetDetails | TestCaseDetails,
 ) -> None:
     if isinstance(test_structure_element, TestStructureTree):
         filepath = Path(json_dir) / Path(TEST_STRUCTURE_TREE_FILE + ".json")
@@ -28,11 +27,11 @@ def write_test_structure_element(
 
 
 def write_main_protocol(
-    json_dir: str, main_protocol: List[ProtocolTestCaseSetExecutionSummary]
+    json_dir: str, main_protocol: list[ProtocolTestCaseSetExecutionSummary]
 ) -> None:
     protocol = [asdict(tcs) for tcs in main_protocol]
     filepath = Path(json_dir) / Path("protocol.json")
-    with Path(filepath).open('w+', encoding="utf8") as output_file:
+    with Path(filepath).open("w+", encoding="utf8") as output_file:
         json.dump(protocol, output_file, indent=2)
 
 

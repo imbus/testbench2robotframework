@@ -83,8 +83,8 @@ class RfTestCase:
         for interaction in test_case_details.interactions:
             self._get_interaction_calls(interaction)
         self.rf_tags = self._get_tags(test_case_details)
-        self.setup_keyword: Optional[Keyword] = None
-        self.teardown_keyword: Optional[Keyword] = None
+        self.setup_keyword: Keyword | None = None
+        self.teardown_keyword: Keyword | None = None
         # TODO description
 
     @staticmethod
@@ -238,9 +238,7 @@ class RfTestCase:
 
     def _create_rf_teardown_call(
         self,
-        teardown_interaction: Union[
-            AtomicInteractionCall, CompoundInteractionCall, InteractionCall
-        ],
+        teardown_interaction: InteractionCall,
     ) -> Teardown:
         cbr_parameters = self._create_cbr_parameters(teardown_interaction)
         if cbr_parameters:
@@ -357,10 +355,10 @@ class RfTestCase:
             if not value or value == "undef.":
                 previous_arg_forces_named = True
                 continue
-            if re.match(r'^\*\* ?', name):
+            if re.match(r"^\*\* ?", name):
                 escaped_value = RfTestCase.escape_argument_value(value, False, False)
                 parameters.append(escaped_value)
-            elif re.match(r'^\* ?', name):
+            elif re.match(r"^\* ?", name):
                 escaped_value = RfTestCase.escape_argument_value(value, False)
                 parameters.append(escaped_value)
                 previous_arg_forces_named = True
