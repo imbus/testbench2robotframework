@@ -432,7 +432,9 @@ class ResultWriter(ResultVisitor):
         return InteractionExecutionSummary.from_dict(
             {
                 "verdict": self._get_interaction_result(keyword.status),
-                "time": end_time,
+                "time": (
+                    f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
+                ),
                 "duration": keyword.elapsedtime,
                 "comments": self.get_html_keyword_comment(keyword),
             }
@@ -649,7 +651,7 @@ class ResultWriter(ResultVisitor):
         write_main_protocol(
             self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
         )
-        Path.makedir(Path(self.json_result_path, parents=True) / self.listener_uid)
+        Path.mkdir(Path(self.json_result_path) / self.listener_uid, parents=True)
         shutil.copy(
             Path(self.json_result) / "protocol.json",
             Path(self.json_result_path) / self.listener_uid / "protocol.json",
