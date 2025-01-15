@@ -151,5 +151,5 @@ output.xml
 playwright-log.txt
 results/
 report.html
-new_json/
-tasks.py
+ExampleConfiguration/toml_config_minimal.toml
+ExampleConfiguration/toml_new_names.toml
