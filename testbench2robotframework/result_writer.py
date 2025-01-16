@@ -10,8 +10,7 @@ from shutil import copytree
 from typing import Optional, Union
 from urllib.parse import unquote
 
-from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
-from robot.result.model import Body
+from robot.result import Group, Keyword, ResultVisitor, TestCase, TestSuite
 
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
@@ -320,8 +319,15 @@ class ResultWriter(ResultVisitor):
             protocol_result = self._set_itb_test_case_status(itb_test_case, "undef")
             self.protocol_test_case.result = protocol_result
 
-    def _get_test_phase_body(self, test_phase: TestCase) -> Body:
-        return test_phase.body
+    def _get_test_phase_body(self, test_phase: TestCase) -> list[Keyword]:
+        test_phase_body = []
+        for body_item in test_phase.body:
+            if isinstance(body_item, Keyword):
+                test_phase_body.append(body_item)
+                logger.info(body_item)
+            elif isinstance(body_item, Group):
+                test_phase_body.extend(self._get_test_phase_body(body_item))
+        return test_phase_body
 
     def _get_test_phase_setup(self, test_phase: TestCase) -> list[Keyword]:
         test_phase_setup = []
