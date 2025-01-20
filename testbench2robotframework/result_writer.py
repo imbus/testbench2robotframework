@@ -10,7 +10,7 @@ from shutil import copytree
 from typing import Optional, Union
 from urllib.parse import unquote
 
-from robot.result import Group, Keyword, ResultVisitor, TestCase, TestSuite
+from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
 
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
@@ -36,6 +36,11 @@ from .model import (
     VerdictStatus,
 )
 from .utils import directory_to_zip, ensure_dir_exists, get_directory
+
+try:
+    from robot.parsing.model.blocks import Group
+except ImportError:
+    Group = None
 
 BACKGROUND_COLOR = {
     "PASS": "#04AF91",
@@ -325,7 +330,7 @@ class ResultWriter(ResultVisitor):
         for body_item in test_phase.body:
             if isinstance(body_item, Keyword):
                 test_phase_body.append(body_item)
-            elif isinstance(body_item, Group):
+            elif Group and isinstance(body_item, Group):
                 test_phase_body.extend(self._get_test_phase_body(body_item))
         return test_phase_body
 
