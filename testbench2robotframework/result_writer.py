@@ -38,7 +38,7 @@ from .model import (
 from .utils import directory_to_zip, ensure_dir_exists, get_directory
 
 try:
-    from robot.parsing.model.blocks import Group
+    from robot.result import Group
 except ImportError:
     Group = None
 
