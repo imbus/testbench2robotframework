@@ -159,7 +159,6 @@ def write(  # noqa: PLR0913
     configuration["rfResourceRoots"] = list(rfresourceroot) or configuration.get(
         "rfResourceRoots", DEFAULT_RESOURCE_ROOTS
     )
-    click.echo(configuration)
     testbench2robotframework(jsonreport, configuration)
 
 
