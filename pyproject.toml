@@ -14,6 +14,7 @@ readme = "README.md"
 license = {text = "Apache 2.0 License"}
 dynamic = ["version"]
 dependencies = [
+  "click >= 8.0",
   "robotframework >= 5.0",
   "tomli; python_version < '3.11'",
 ]
@@ -34,8 +35,8 @@ dev = [
 ]
 
 [project.scripts]
-tb2robot = "testbench2robotframework.__main__:run"
-testbench2robotframework = "testbench2robotframework.__main__:run"
+tb2robot = "testbench2robotframework.cli:testbench2robotframework_cli"
+testbench2robotframework = "testbench2robotframework.cli:testbench2robotframework_cli"
 
 [project.urls]
 Repository = "https://github.com/imbus/testbench2robotframework"

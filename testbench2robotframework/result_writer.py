@@ -297,7 +297,8 @@ class ResultWriter(ResultVisitor):
         end_time = test.end_time.replace(
             tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
         )
-        # self.protocol_test_case.result.timestamp = end_time.isoformat() # Isoformat currently not suported by server
+        # Isoformat currently not suported by server
+        # self.protocol_test_case.result.timestamp = end_time.isoformat()
         self.protocol_test_case.result.timestamp = (
             f"{end_time.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3]}Z"
         )
@@ -324,7 +325,6 @@ class ResultWriter(ResultVisitor):
         for body_item in test_phase.body:
             if isinstance(body_item, Keyword):
                 test_phase_body.append(body_item)
-                logger.info(body_item)
             elif isinstance(body_item, Group):
                 test_phase_body.extend(self._get_test_phase_body(body_item))
         return test_phase_body
