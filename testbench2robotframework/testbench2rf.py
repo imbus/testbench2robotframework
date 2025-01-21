@@ -199,7 +199,9 @@ class RfTestCase:
             )
         )
         for interaction in interaction_detail.interactions:
-            self._get_interaction_calls(interaction, indent, interaction_detail.spec.sequencePhase)
+            self._get_interaction_calls(
+                interaction, indent, sequence_phase or interaction_detail.spec.sequencePhase
+            )
 
     def _create_rf_keyword_calls(
         self, interaction_calls: list[InteractionCall]
@@ -229,11 +231,12 @@ class RfTestCase:
                 compound_keyword_call = self._create_rf_compound_keyword(
                     interaction_call, self.config.logCompoundInteractions
                 )
-                keyword_lists[tc_index].append(compound_keyword_call)
-                if group_stack and group_stack[-1][1] >= interaction_call.indent:
+                while group_stack and group_stack[-1][1] >= interaction_call.indent:
                     group_stack.pop()
                 if group_stack:
                     group_stack[-1][0].body.append(compound_keyword_call)
+                else:
+                    keyword_lists[tc_index].append(compound_keyword_call)
                 if (
                     Group
                     and self.config.logCompoundInteractions == CompoundInteractionLogging.GROUP
