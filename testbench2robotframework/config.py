@@ -153,23 +153,23 @@ class AttachmentConflictBehaviour(StrEnum):
 
 @dataclass
 class Configuration:
+    attachmentConflictBehaviour: AttachmentConflictBehaviour
     clean: bool
-    library_regex: list[str]
-    resource_regex: list[str]
-    library_root: list[str]
-    resource_root: list[str]
-    fully_qualified: bool
-    subdivisionsMapping: SubdivisionsMapping
+    compound_interaction_logging: CompoundInteractionLogging
     forcedImport: ForcedImport
-    output_directory: str
-    resource_directory: str
+    fully_qualified: bool
+    library_regex: list[str]
+    library_root: list[str]
     log_suite_numbering: bool
     loggingConfiguration: LoggingConfig
-    compound_interaction_logging: CompoundInteractionLogging
-    testCaseSplitPathRegEx: str
+    output_directory: str
     phasePattern: str
     referenceBehaviour: ReferenceBehaviour
-    attachmentConflictBehaviour: AttachmentConflictBehaviour
+    resource_directory: str
+    resource_regex: list[str]
+    resource_root: list[str]
+    subdivisionsMapping: SubdivisionsMapping
+    testCaseSplitPathRegEx: str
 
     @classmethod
     def from_dict(cls, dictionary) -> Configuration:
@@ -184,14 +184,14 @@ class Configuration:
             library_root=dictionary.get("library-root", DEFAULT_LIBRARY_ROOTS),
             resource_root=dictionary.get("resource-root", DEFAULT_RESOURCE_ROOTS),
             fully_qualified=dictionary.get("fully-qualified", False),
-            subdivisionsMapping=SubdivisionsMapping.from_dict(
-                dictionary.get("subdivisionsMapping", {})
-            ),
             forcedImport=ForcedImport.from_dict(dictionary.get("forcedImport", {})),
             output_directory=dictionary.get("output-directory", DEFAULT_GENERATION_DIRECTORY),
             log_suite_numbering=dictionary.get("log-suite-numbering", False),
             loggingConfiguration=LoggingConfig.from_dict(
-                dictionary.get("loggingConfiguration", {})
+                {
+                    "console":dictionary.get("console-logging", {}),
+                    "file":dictionary.get("file-logging", {})
+                }
             ),
             compound_interaction_logging=CompoundInteractionLogging(dictionary.get("compound-interaction-logging", "GROUP").upper()),
             resource_directory=dictionary.get("resource-directory", "").replace(
@@ -201,6 +201,12 @@ class Configuration:
             phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
                 dictionary.get("referenceBehaviour", "ATTACHMENT").upper()
+            ),
+            subdivisionsMapping=SubdivisionsMapping.from_dict(
+                {
+                    "libraries":dictionary.get("library-mapping", {}),
+                    "resources":dictionary.get("resource-mapping", {})
+                }
             ),
             attachmentConflictBehaviour=AttachmentConflictBehaviour(
                 dictionary.get("attachmentConflictBehaviour", "USE_EXISTING").upper()

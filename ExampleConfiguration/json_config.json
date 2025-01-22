@@ -1,27 +1,24 @@
 {
-  "rfLibraryRoots": [
+  "library-root": [
     "Interactions",
     "RF-Library"
   ],
-  "rfResourceRoots": [
+  "resource_root": [
     "RF-Resource"
   ],
-  "fullyQualified": false,
-  "generationDirectory": "{root}/Generated",
-  "createOutputZip": false,
-  "logSuiteNumbering": true,
-  "resourceDirectory": "{root}/Resources",
-  "clearGenerationDirectory": true,
-  "logCompoundInteractions": true,
-  "subdivisionsMapping": {
-    "libraries": {
+  "fully-qualified": false,
+  "output-directory": "{root}/Generated",
+  "log-suite-numbering": true,
+  "resource-directory": "{root}/Resources",
+  "clean": true,
+  "compound-interaction-logging": "GROUP",
+  "library-mapping": {
       "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
       "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
-    },
-    "resources": {
-      "MyKeywords": "{root}/../MyKeywords.resource",
-      "MyOtherKeywords": "{resourceDirectory}/subdir/MyOtherKeywords.resource"
-    }
+  },
+  "resource-mapping": {
+    "MyKeywords": "{root}/../MyKeywords.resource",
+    "MyOtherKeywords": "{resourceDirectory}/subdir/MyOtherKeywords.resource"
   },
   "forcedImport": {
     "libraries": [
@@ -33,9 +30,10 @@
     ]
   },
   "testCaseSplitPathRegEx": "^StopWithRestart\\..*",
-  "loggingConfiguration": {
-    "console": {
+  "console-logging": {
+    "logLevel": "debug"
+  },
+  "file-logging": {
       "logLevel": "info"
     }
-  }
 }
