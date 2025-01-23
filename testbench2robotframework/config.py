@@ -156,7 +156,7 @@ class Configuration:
     attachmentConflictBehaviour: AttachmentConflictBehaviour
     clean: bool
     compound_interaction_logging: CompoundInteractionLogging
-    forcedImport: ForcedImport
+    forced_import: ForcedImport
     fully_qualified: bool
     library_regex: list[str]
     library_root: list[str]
@@ -184,7 +184,7 @@ class Configuration:
             library_root=dictionary.get("library-root", DEFAULT_LIBRARY_ROOTS),
             resource_root=dictionary.get("resource-root", DEFAULT_RESOURCE_ROOTS),
             fully_qualified=dictionary.get("fully-qualified", False),
-            forcedImport=ForcedImport.from_dict(dictionary.get("forcedImport", {})),
+            forced_import=ForcedImport.from_dict(dictionary.get("forced-import", {})),
             output_directory=dictionary.get("output-directory", DEFAULT_GENERATION_DIRECTORY),
             log_suite_numbering=dictionary.get("log-suite-numbering", False),
             loggingConfiguration=LoggingConfig.from_dict(

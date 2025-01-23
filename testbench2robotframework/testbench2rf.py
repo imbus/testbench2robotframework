@@ -639,7 +639,7 @@ class RobotSuiteFileBuilder:
     def _create_rf_variable_imports(self) -> list[VariablesImport]:
         return [
             VariablesImport.from_params(name=variable_file)
-            for variable_file in self.config.forcedImport.variables
+            for variable_file in self.config.forced_import.variables
         ]
 
     def _create_rf_resource_imports(self, import_dict: dict[str, set[str]]) -> list[ResourceImport]:
@@ -649,7 +649,7 @@ class RobotSuiteFileBuilder:
             for resource in resources
             if not self._is_library(resource_root) and self._is_resource(resource_root)
         }
-        resources.update(self.config.forcedImport.resources)
+        resources.update(self.config.forced_import.resources)
         resource_paths = {
             self._create_resource_path(resource) for resource in sorted(resources)
         }  # TODO Fix Paths to correct models
@@ -719,7 +719,7 @@ class RobotSuiteFileBuilder:
             for library in libraries
             if self._is_library(library_root)
         }
-        libraries.update(self.config.forcedImport.libraries)
+        libraries.update(self.config.forced_import.libraries)
         lib_imports = {
             self.config.subdivisionsMapping.libraries.get(library, library) for library in libraries
         }
