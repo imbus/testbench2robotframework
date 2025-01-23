@@ -168,7 +168,7 @@ def generate_tests(  # noqa: PLR0913
         if output_directory
         else configuration.get("output-directory", DEFAULT_GENERATION_DIRECTORY)
     )
-    configuration["library-mapping"] = library_mapping or configuration.get("library-mapping")
+    configuration["library-mapping"] = library_mapping or configuration.get("library-mapping", {})
     if log_suite_numbering:
         configuration["log-suite-numbering"] = True
     else:
@@ -182,7 +182,9 @@ def generate_tests(  # noqa: PLR0913
         if resource_directory
         else configuration.get("resource-directory", "")
     )
-    configuration["resource-mapping"] = resource_mapping or configuration.get("resource-mapping")
+    configuration["resource-mapping"] = resource_mapping or configuration.get(
+        "resource-mapping", {}
+    )
     configuration["library-regex"] = list(library_regex) or configuration.get(
         "library-regex", [DEFAULT_LIBRARY_REGEX]
     )
