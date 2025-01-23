@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import click
 import robot
@@ -29,6 +30,19 @@ CONFIG_OPTION_HELP = """Path to a configuration file for TestBench2RobotFramewor
 ROBOT_RESULT_HELP = """Path to an XML file containing the robot results."""
 ROBOT_OUTPUT_HELP = """Path to the directory or ZIP File the TestBench JSON-report
     with result should be saved to."""
+
+
+def parse_subdivision_mapping(
+    ctx: click.Context, param: click.Option, values: tuple[str, ...]
+) -> dict[str, Any]:
+    subdivision_mapping = {}
+    for value in values:
+        try:
+            subdivision, import_value = value.split(":", 1)
+            subdivision_mapping[subdivision] = import_value
+        except ValueError as err:
+            raise click.BadParameter("Each mapping must be in 'name:value' format.") from err
+    return subdivision_mapping
 
 
 @click.group(help=TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION)
@@ -108,6 +122,18 @@ def testbench2robotframework_cli():
     help="""TestBench root subdivision which's direct children
         correspond to Robot Framework resources.""",
 )
+@click.option(
+    "--library-mapping",
+    multiple=True,
+    callback=parse_subdivision_mapping,
+    help="",
+)
+@click.option(
+    "--resource-mapping",
+    multiple=True,
+    callback=parse_subdivision_mapping,
+    help="",
+)
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
     clean: bool,
@@ -122,12 +148,13 @@ def generate_tests(  # noqa: PLR0913
     resource_regex: tuple[str],
     resource_root: tuple[str],
     testbench_report: Path,
+    library_mapping: dict[str, str],
+    resource_mapping: dict[str, str],
 ):
     """
     Generates Robot Framework Testsuites from a <TestBench Report>.
     """
     configuration = get_tb2robot_file_configuration(config)
-
     if clean:
         configuration["clean"] = True
     else:
@@ -141,6 +168,7 @@ def generate_tests(  # noqa: PLR0913
         if output_directory
         else configuration.get("output-directory", DEFAULT_GENERATION_DIRECTORY)
     )
+    configuration["library-mapping"] = library_mapping or configuration.get("library-mapping")
     if log_suite_numbering:
         configuration["log-suite-numbering"] = True
     else:
@@ -154,6 +182,7 @@ def generate_tests(  # noqa: PLR0913
         if resource_directory
         else configuration.get("resource-directory", "")
     )
+    configuration["resource-mapping"] = resource_mapping or configuration.get("resource-mapping")
     configuration["library-regex"] = list(library_regex) or configuration.get(
         "library-regex", [DEFAULT_LIBRARY_REGEX]
     )
