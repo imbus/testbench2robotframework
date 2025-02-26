@@ -3,7 +3,7 @@
     "Interactions",
     "RF-Library"
   ],
-  "resource_root": [
+  "resource-root": [
     "RF-Resource"
   ],
   "fully-qualified": false,
