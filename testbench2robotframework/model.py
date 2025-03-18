@@ -634,7 +634,7 @@ class ParameterSummary:
                 dictionary.get("definitionType", ParameterDefinitionType.AtomicInstance)
             ),
             evaluationType=ParameterEvaluationType(
-                dictionary.get("useType", ParameterEvaluationType.CallByValue)
+                dictionary.get("evaluationType", ParameterEvaluationType.CallByValue)
             ),
             dataType=DataTypeSummary.from_dict(data_type) if data_type else None,
         )
