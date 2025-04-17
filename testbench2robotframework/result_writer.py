@@ -590,7 +590,7 @@ class ResultWriter(ResultVisitor):
                     .replace("<br>", "<br />")
                     .strip()
                     if message.startswith("*HTML*")
-                    else message
+                    else html.escape(message)
                 )
             else:
                 message = self.get_isotime_from_robot_timestamp(test.endtime)
@@ -636,23 +636,23 @@ class ResultWriter(ResultVisitor):
         write_main_protocol(
             self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
         )
-        Path.mkdir(Path(self.json_result_path) / self.listener_uid, parents=True)
+        Path.mkdir(Path(self.json_result_path), parents=True)
         shutil.copy(
             Path(self.json_result) / "protocol.json",
-            Path(self.json_result_path) / self.listener_uid / "protocol.json",
+            Path(self.json_result_path) / "protocol.json",
         )
         shutil.copy(
             Path(self.json_dir) / "project.json",
-            Path(self.json_result_path) / self.listener_uid / "project.json",
+            Path(self.json_result_path) / "project.json",
         )
         for filename in os.listdir(self.json_result):
             if filename.startswith(self.listener_uid) and filename.endswith(".json"):
                 shutil.copy(
                     Path(self.json_result) / filename,
-                    Path(self.json_result_path) / self.listener_uid / filename,
+                    Path(self.json_result_path) / filename,
                 )
-        directory_to_zip(Path(self.json_result_path) / self.listener_uid)
-        shutil.rmtree(Path(self.json_result_path) / self.listener_uid)
+        directory_to_zip(Path(self.json_result_path))
+        shutil.rmtree(Path(self.json_result_path))
 
     @staticmethod
     def render_status(status):
