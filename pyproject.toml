@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
 
 
 [project]
@@ -23,6 +23,7 @@ dependencies = [
 dev = [
   "build",
   "check-manifest",
+  "flit",
   "invoke",
   "mypy",
   "pylint",
@@ -40,13 +41,6 @@ testbench2robotframework = "testbench2robotframework.cli:testbench2robotframewor
 
 [project.urls]
 Repository = "https://github.com/imbus/testbench2robotframework"
-
-[tool.setuptools]
-packages = ["testbench2robotframework"]
-
-[tool.setuptools.dynamic]
-version = {attr = "testbench2robotframework.__version__"}
-
 
 [tool.check-manifest]
 ignore = [
