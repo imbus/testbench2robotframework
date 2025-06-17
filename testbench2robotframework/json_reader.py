@@ -9,9 +9,10 @@ from .log import logger
 from .model import (
     TestCaseDetails,
     TestCaseSetDetails,
-    TestStructureElementType,
+    TestCaseSetNode,
     TestStructureTree,
 )
+from .model_utils import from_dict
 
 TEST_STRUCTURE_TREE_FILE = "cycle_structure.json"
 TEST_STRUCTURE_TREE_TOV_FILE = "tov_structure.json"
@@ -56,10 +57,7 @@ class TestBenchJsonReader:
             test_theme_path = self.get_structure_tree_path()
             logger.debug(f"Loading TestThemeTree from {test_theme_path}")
             test_structure_tree = read_json(str(test_theme_path))
-            self._test_theme_tree = TestStructureTree.from_dict(
-                test_structure_tree,
-                bool(str(test_theme_path).endswith(TEST_STRUCTURE_TREE_TOV_FILE)),
-            )
+            self._test_theme_tree = from_dict(TestStructureTree, test_structure_tree)
             logger.info(f"{len(self._test_theme_tree.nodes)} nodes from TestThemeTree loaded.")
         return self._test_theme_tree
 
@@ -103,11 +101,7 @@ class TestBenchJsonReader:
     def get_test_case_set_uids(self) -> list[str]:
         nodes = [self.test_theme_tree.root]
         nodes.extend(self.test_theme_tree.nodes)
-        return [
-            tse.base.uniqueID
-            for tse in nodes
-            if tse.elementType == TestStructureElementType.TestCaseSetNode
-        ]
+        return [tse.base.uniqueID for tse in nodes if isinstance(tse, TestCaseSetNode)]
 
     def get_test_case_uids(self, test_case_set_uid: str) -> list[str]:
         if not self._test_case_sets:
@@ -123,20 +117,20 @@ class TestBenchJsonReader:
         tcs_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tcs_dict is None:
             return None
-        return TestCaseSetDetails.from_dict(tcs_dict)
+        return from_dict(TestCaseSetDetails, tcs_dict)
 
     def read_test_case(self, uid) -> Optional[TestCaseDetails]:
         tc_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tc_dict is None:
             return None
             # return None  # TODO: wenn nicht da dann Fehler?
-        return TestCaseDetails.from_dict(tc_dict)
+        return from_dict(TestCaseDetails, tc_dict)
 
     def read_test_theme_tree(self, is_tov=False) -> Optional[TestStructureTree]:
         test_structure_tree = read_json(str(Path(self.json_dir, TEST_STRUCTURE_TREE_FILE)))
         if test_structure_tree is None:
             return None
-        return TestStructureTree.from_dict(test_structure_tree, is_tov)
+        return from_dict(TestStructureTree, test_structure_tree)
 
 
 def read_json(filepath: str, silent=True):

@@ -9,7 +9,7 @@ authors = [
     {name = "imbus AG", email = "support@imbus.de"},
 ]
 description = "Robot Framework Code Generator from Keyword-Driven Tests in imbus TestBench 3.0 and newer"
-requires-python = ">= 3.9"
+requires-python = ">= 3.10"
 readme = "README.md"
 license = {text = "Apache 2.0 License"}
 dynamic = ["version"]
@@ -53,7 +53,7 @@ ignore = [
 
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 ignore_missing_imports = true
 no_implicit_optional = true
 strict_optional = true

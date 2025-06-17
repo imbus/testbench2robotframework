@@ -1,14 +1,15 @@
 import json
 from dataclasses import asdict
+from enum import Enum
 from pathlib import Path
 from typing import Union
 
 from .config import Configuration
 from .log import logger
 from .model import (
-    ProtocolTestCaseSetExecutionSummary,
     TestCaseDetails,
     TestCaseSetDetails,
+    TestCaseSetExecutionForImport,
     TestStructureTree,
 )
 
@@ -24,16 +25,24 @@ def write_test_structure_element(
     else:
         filepath = Path(json_dir) / Path(f"{test_structure_element.uniqueID}.json")
     with Path(filepath).open("w+", encoding="utf8") as output_file:
-        json.dump(asdict(test_structure_element), output_file, indent=2)
+        json.dump(
+            asdict(test_structure_element),
+            output_file,
+            indent=2,
+            default=lambda o: o.value if isinstance(o, Enum) else str(o),
+        )
 
 
-def write_main_protocol(
-    json_dir: str, main_protocol: list[ProtocolTestCaseSetExecutionSummary]
-) -> None:
+def write_main_protocol(json_dir: str, main_protocol: list[TestCaseSetExecutionForImport]) -> None:
     protocol = [asdict(tcs) for tcs in main_protocol]
     filepath = Path(json_dir) / Path("protocol.json")
     with Path(filepath).open("w+", encoding="utf8") as output_file:
-        json.dump(protocol, output_file, indent=2)
+        json.dump(
+            protocol,
+            output_file,
+            indent=2,
+            default=lambda o: o.value if isinstance(o, Enum) else str(o),
+        )
 
 
 def write_default_config(config_file):

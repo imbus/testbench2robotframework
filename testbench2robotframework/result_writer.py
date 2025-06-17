@@ -12,6 +12,8 @@ from urllib.parse import unquote
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
 
+from testbench2robotframework.model_utils import from_dict
+
 from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
 from .json_reader import TestBenchJsonReader
 from .json_writer import write_main_protocol, write_test_structure_element
@@ -19,20 +21,20 @@ from .log import logger
 from .model import (
     ActivityStatus,
     ExecStatus,
-    InteractionDetails,
-    InteractionExecutionSummary,
+    ExecutionImportingSuccess,
+    ExecutionResultForImport,
+    InteractionCall,
+    InteractionCallExecution,
     InteractionType,
     InteractionVerdict,
-    MainProtocol,
-    ProtocolComments,
-    ProtocolTestCaseExecutionSummary,
-    ProtocolTestCaseResult,
-    ProtocolTestCaseSetExecutionSummary,
     Reference,
-    ReferenceType,
+    RepresentativeType,
+    RichTextForImport,
     SequencePhase,
     TestCaseDetails,
     TestCaseExecutionDetails,
+    TestCaseExecutionForImport,
+    TestCaseSetExecutionForImport,
     VerdictStatus,
 )
 from .utils import directory_to_zip, ensure_dir_exists, get_directory
@@ -98,28 +100,24 @@ class ResultWriter(ResultVisitor):
         self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
         self.test_chain: list[TestCase] = []
-        self.main_protocol = MainProtocol.from_list([])
+        self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": []})
 
     def start_suite(self, suite: TestSuite):
         if suite.metadata:
             self.test_suites[suite.metadata["uniqueID"]] = suite
-        self.protocol_test_cases: list[ProtocolTestCaseExecutionSummary] = []
+        self.protocol_test_cases: list[TestCaseExecutionForImport] = []
 
     def _get_interactions_by_type(
-        self, interactions: list[InteractionDetails], interaction_type: InteractionType
+        self, interactions: list[InteractionCall], interaction_type: InteractionType
     ):
         for interaction in interactions:
-            if interaction.interactionType == interaction_type:
+            if interaction.spec.interactionType == interaction_type:
                 yield interaction
-            if interaction.interactionType == InteractionType.Compound:
-                yield from self._get_interactions_by_type(
-                    interaction.interactions, interaction_type
-                )
 
-    def _propergate_sequence_phase(self, interaction: InteractionDetails, sequence_phase):
-        for child in interaction.interactions:
-            child.spec.sequencePhase = sequence_phase
-            self._propergate_sequence_phase(child, sequence_phase)
+    # def _propergate_sequence_phase(self, interaction: InteractionCall, sequence_phase):
+    #     for child in interaction.interactions:
+    #         child.spec.sequencePhase = sequence_phase
+    #         self._propergate_sequence_phase(child, sequence_phase)
 
     def end_test(self, test: TestCase):
         self._test_setup_passed = None
@@ -139,13 +137,13 @@ class ResultWriter(ResultVisitor):
         if not itb_test_case:
             logger.warning(f"No JSON file corresponding to test '{test_uid}' found in report.")
             return
-        for interaction in itb_test_case.interactions:
-            self._propergate_sequence_phase(interaction, interaction.spec.sequencePhase)
-        self.protocol_test_case: ProtocolTestCaseExecutionSummary = (
-            ProtocolTestCaseExecutionSummary(test_uid, itb_test_case.exec.key, None, None, None)
+        # for interaction in itb_test_case.testSequence:
+        #     self._propergate_sequence_phase(interaction, interaction.spec.sequencePhase)
+        self.protocol_test_case: TestCaseExecutionForImport = TestCaseExecutionForImport(
+            test_uid, itb_test_case.exec.key, None, None, None
         )
         if itb_test_case.exec is None:
-            itb_test_case.exec = TestCaseExecutionDetails.from_dict({})
+            itb_test_case.exec = from_dict(TestCaseExecutionDetails, {})
         if itb_test_case.exec.key in ["", "-1"]:
             logger.warning(
                 f"Test case {itb_test_case.uniqueID} was not exported based on "
@@ -153,23 +151,26 @@ class ResultWriter(ResultVisitor):
             )
         try:
             atomic_interactions = list(
-                self._get_interactions_by_type(itb_test_case.interactions, InteractionType.Atomic)
+                self._get_interactions_by_type(itb_test_case.testSequence, InteractionType.Atomic)
             )
             compound_interactions = list(
-                self._get_interactions_by_type(itb_test_case.interactions, InteractionType.Compound)
+                self._get_interactions_by_type(itb_test_case.testSequence, InteractionType.Compound)
             )
             self._set_atomic_interactions_execution_result(atomic_interactions, self.test_chain)
             for interaction in compound_interactions:
-                self._set_compound_interaction_execution_result(interaction)
+                self._set_compound_interaction_execution_verdict(
+                    interaction, itb_test_case.testSequence
+                )
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
             if self.reference_behaviour != ReferenceBehaviour.NONE:
                 self._set_itb_testcase_references(itb_test_case, self.test_chain)
-        except TypeError:
+        except TypeError as e:
             logger.error(
                 "Could not find an itb testcase that corresponds "
                 "to the given Robot Framework testcase."
             )
+            raise e
         self.itb_test_case_catalog[test_uid] = itb_test_case
         self.protocol_test_cases.append(self.protocol_test_case)
         write_test_structure_element(self.json_result, itb_test_case)
@@ -222,14 +223,14 @@ class ResultWriter(ResultVisitor):
                 if reference:
                     references.append(reference)
             elif re.match(r"\S+://", path):
-                references.append(Reference(ReferenceType.Hyperlink, path))
+                references.append(Reference(RepresentativeType.Hyperlink, path))
             else:
                 logger.warning(f"Could not identify type of test message reference '{path}'.")
         return references
 
     @staticmethod
     def _create_reference(reference_path: Union[Path, str]) -> Reference:
-        return Reference(ReferenceType.Reference, str(reference_path))
+        return Reference(RepresentativeType.Reference, str(reference_path))
 
     def _create_attachment(self, filepath: Path) -> Optional[Reference]:
         if self.reference_behaviour == ReferenceBehaviour.REFERENCE:
@@ -241,9 +242,9 @@ class ResultWriter(ResultVisitor):
             or self.attachment_conflict_behaviour == AttachmentConflictBehaviour.USE_NEW
         ):
             shutil.copyfile(filepath, self.attachments_path / filename, follow_symlinks=True)
-            return Reference(ReferenceType.Attachment, f"attachments/{filename}")
+            return Reference(RepresentativeType.Attachment, f"attachments/{filename}")
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.USE_EXISTING:
-            return Reference(ReferenceType.Attachment, f"attachments/{filename}")
+            return Reference(RepresentativeType.Attachment, f"attachments/{filename}")
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.RENAME_NEW:
             unique_path = self._create_unique_path(self.attachments_path / filename)
             shutil.copyfile(filepath, unique_path, follow_symlinks=True)
@@ -252,7 +253,7 @@ class ResultWriter(ResultVisitor):
                 f"Attachment '{filename}' does already exist. "
                 f"Creating new unique attachment '{unique_file}'."
             )
-            return Reference(ReferenceType.Attachment, f"attachments/{unique_file}")
+            return Reference(RepresentativeType.Attachment, f"attachments/{unique_file}")
         if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.ERROR:
             logger.error(f"Attachment '{filename}' does already exist.")
         return None
@@ -295,10 +296,8 @@ class ResultWriter(ResultVisitor):
                 f"Message: <p><pre>{html_message}</pre></p>\n"
             )
             exec_comments.append(exec_comment)
-        itb_test_case.exec.comments = f"<html><body>{''.join(exec_comments)}</body></html>"
-        self.protocol_test_case.comments = ProtocolComments(
-            html=f"<html><body>{''.join(exec_comments)}</body></html>"
-        )
+        itb_test_case.exec.comments = f"{''.join(exec_comments)}"
+        self.protocol_test_case.comments = RichTextForImport(html=f"{''.join(exec_comments)}")
         end_time = test.end_time.replace(
             tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
         )
@@ -309,7 +308,7 @@ class ResultWriter(ResultVisitor):
         )
         self.protocol_test_case.durationMillis = test.elapsedtime
 
-    def _set_itb_testcase_execution_result(self, itb_test_case, test_chain):
+    def _set_itb_testcase_execution_result(self, itb_test_case: TestCaseDetails, test_chain):
         has_failed_chain = list(filter(lambda tc: tc.status.upper() == "FAIL", test_chain))
         passed_keywords = all(tc.status.upper() == "PASS" for tc in test_chain)
         elapsed_time = sum([tc.elapsedtime for tc in test_chain])
@@ -350,7 +349,7 @@ class ResultWriter(ResultVisitor):
         return keywords
 
     def _set_atomic_interactions_execution_result(
-        self, atomic_interactions: list[InteractionDetails], test_chain: list[TestCase]
+        self, atomic_interactions: list[InteractionCall], test_chain: list[TestCase]
     ):
         self._test_setup_passed = True
         test_chain_setup = [
@@ -387,20 +386,24 @@ class ResultWriter(ResultVisitor):
 
     def _set_interaction_verdicts(
         self,
-        interaction_list: list[InteractionDetails],
+        interaction_list: list[InteractionCall],
         test_chain_body: list[Keyword],
         sequence_phase: SequencePhase,
     ):
         for index, interaction in enumerate(interaction_list):
             if interaction.exec is None:
-                interaction.exec = InteractionExecutionSummary.from_dict({})
+                interaction.exec = from_dict(InteractionCallExecution, {})
             if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
                 interaction.exec.verdict = InteractionVerdict.Skipped
                 continue
             if index < len(test_chain_body):
                 keyword = test_chain_body[index]
                 self._check_matching_interaction_and_keyword_name(keyword, interaction)
-                interaction.exec = self._get_interaction_exec_from_keyword(keyword)
+                tb_keyword_result = self._get_interaction_exec_from_keyword(keyword)
+                interaction.exec.verdict = tb_keyword_result.verdict
+                interaction.exec.duration = tb_keyword_result.duration
+                interaction.exec.comments = tb_keyword_result.comments
+                interaction.exec.time = tb_keyword_result.time
                 continue
             if sequence_phase == SequencePhase.Setup and not self._test_setup_passed:
                 interaction.exec.verdict = InteractionVerdict.Skipped
@@ -409,7 +412,7 @@ class ResultWriter(ResultVisitor):
 
     def _filter_atomic_interactions_by_sequence_phase(
         self,
-        atomic_interactions: list[InteractionDetails],
+        atomic_interactions: list[InteractionCall],
         sequence_phase: SequencePhase,
     ):
         return list(
@@ -419,12 +422,13 @@ class ResultWriter(ResultVisitor):
             )
         )
 
-    def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionExecutionSummary:
+    def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionCallExecution:
         end_time = keyword.end_time.replace(
             tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
         )
 
-        return InteractionExecutionSummary.from_dict(
+        return from_dict(
+            InteractionCallExecution,
             {
                 "verdict": self._get_interaction_result(keyword.status),
                 "time": (
@@ -432,19 +436,22 @@ class ResultWriter(ResultVisitor):
                 ),
                 "duration": keyword.elapsedtime,
                 "comments": self.get_html_keyword_comment(keyword),
-            }
+                "currentUser": None,
+                "references": [],
+                "defects": [],
+            },
         )
 
     def _check_matching_interaction_and_keyword_name(
-        self, keyword: Keyword, interaction: InteractionDetails
+        self, keyword: Keyword, interaction: InteractionCall
     ) -> None:
-        if not is_normalized_equal(keyword.kwname, interaction.name) and not is_normalized_equal(
-            keyword.kwname.split(".")[-1], interaction.name
-        ):
+        if not is_normalized_equal(
+            keyword.kwname, interaction.spec.name
+        ) and not is_normalized_equal(keyword.kwname.split(".")[-1], interaction.spec.name):
             raise NameError(
                 f"Execution can not be parsed, "
                 f"because keyword name '{keyword.kwname}' does not match with "
-                f"interaction '{interaction.name}' name."
+                f"interaction '{interaction.spec.name}' name."
             )
 
     def _get_keyword_messages(self, keyword: Keyword):
@@ -502,32 +509,33 @@ class ResultWriter(ResultVisitor):
                 .strftime(time_format)[:-3]
             )
 
-    def _set_compound_interaction_execution_result(self, compound_interaction: InteractionDetails):
-        atomic_interactions = list(
-            self._get_interactions_by_type(
-                compound_interaction.interactions, InteractionType.Atomic
-            )
-        )
+    def _set_compound_interaction_execution_verdict(
+        self, compound_interaction: InteractionCall, test_steps: list[InteractionCall]
+    ):
         if compound_interaction.exec is None:
-            compound_interaction.exec = InteractionExecutionSummary.from_dict({})
+            compound_interaction.exec = from_dict(InteractionCallExecution, {})
         compound_interaction.exec.verdict = InteractionVerdict.Skipped
-        for atomic in atomic_interactions:
-            if atomic.exec is None:
+        children = list(
+            filter(lambda ts: ts.parentID == compound_interaction.sequenceID, test_steps)
+        )
+        for child in children:
+            if child.exec is None:
                 logger.debug(
-                    f"Atomic interaction {atomic.uniqueID} "
-                    f"had no exec details and therefore ignored."
+                    f"Child interaction {child.uniqueID} had no exec details and therefore ignored."
                 )
-                atomic.exec = InteractionExecutionSummary.from_dict({})
-            if atomic.exec.verdict is InteractionVerdict.Fail:
+                child.exec = from_dict(InteractionCallExecution, {})
+            if child.spec.interactionType == InteractionType.Compound:
+                self._set_compound_interaction_execution_verdict(child, test_steps)
+            if child.exec.verdict is InteractionVerdict.Fail:
                 compound_interaction.exec.verdict = InteractionVerdict.Fail
                 break
-            if atomic.exec.verdict is InteractionVerdict.Pass:
+            if child.exec.verdict is InteractionVerdict.Pass:
                 compound_interaction.exec.verdict = InteractionVerdict.Pass
 
         compound_interaction.exec.duration = sum(
-            [interaction.exec.duration for interaction in atomic_interactions]
+            [interaction.exec.duration for interaction in children]
         )
-        compound_interaction.exec.time = atomic_interactions[-1].exec.time
+        compound_interaction.exec.time = children[-1].exec.time
 
     @staticmethod
     def _set_itb_test_case_status(itb_test_case: TestCaseDetails, robot_status: str):
@@ -537,19 +545,25 @@ class ResultWriter(ResultVisitor):
         if robot_status == "pass":
             itb_test_case.exec.status = ActivityStatus.Performed
             itb_test_case.exec.verdict = VerdictStatus.Pass
-            return ProtocolTestCaseResult(
-                None, ActivityStatus.Performed, VerdictStatus.Pass, ExecStatus.NotBlocked
+            return ExecutionResultForImport(
+                status=ActivityStatus.Performed,
+                verdict=VerdictStatus.Pass,
+                execStatus=ExecStatus.NotBlocked,
             )
         if robot_status == "fail":
             itb_test_case.exec.status = ActivityStatus.Performed
             itb_test_case.exec.verdict = VerdictStatus.Fail
-            return ProtocolTestCaseResult(
-                None, ActivityStatus.Performed, VerdictStatus.Fail, ExecStatus.NotBlocked
+            return ExecutionResultForImport(
+                status=ActivityStatus.Performed,
+                verdict=VerdictStatus.Fail,
+                execStatus=ExecStatus.NotBlocked,
             )
         itb_test_case.exec.status = ActivityStatus.Running
         itb_test_case.exec.verdict = VerdictStatus.Undefined
-        return ProtocolTestCaseResult(
-            None, ActivityStatus.Running, VerdictStatus.Undefined, ExecStatus.NotBlocked
+        return ExecutionResultForImport(
+            status=ActivityStatus.Running,
+            verdict=VerdictStatus.Undefined,
+            execStatus=ExecStatus.NotBlocked,
         )
 
     def end_suite(self, suite: TestSuite):
@@ -602,8 +616,6 @@ class ResultWriter(ResultVisitor):
             )
 
         test_case_set.exec.comments = (
-            "<html>"
-            "<body>"
             "<pre>"
             f"Start Time:   {self.get_isotime_from_robot_timestamp(suite_start_time)}\n"
             f"End Time:     {self.get_isotime_from_robot_timestamp(suite_end_time)}\n"
@@ -613,17 +625,15 @@ class ResultWriter(ResultVisitor):
             f"{'</tr><tr>'.join(table_content)}"
             "</tr>"
             "</table>"
-            "</body>"
-            "</html>"
         )
-        self.protocol_test_case_set = ProtocolTestCaseSetExecutionSummary(
-            test_case_set.key,
-            suite.elapsedtime,
-            test_case_set.exec.key,
-            self.protocol_test_cases,
-            ProtocolComments(html=test_case_set.exec.comments),
+        self.protocol_test_case_set = TestCaseSetExecutionForImport(
+            testCaseSetKey=test_case_set.key,
+            executionKey=str(test_case_set.exec.key),
+            durationMillis=suite.elapsedtime,
+            testCases=self.protocol_test_cases,
+            comments=RichTextForImport(html=test_case_set.exec.comments),
         )
-        self.main_protocol.protocolTestCaseSetExecutionSummary.append(self.protocol_test_case_set)
+        self.main_protocol.testCaseSets.append(self.protocol_test_case_set)
         write_test_structure_element(self.json_result, test_case_set)
         logger.debug(
             f"Successfully wrote the result from suite "
@@ -633,9 +643,7 @@ class ResultWriter(ResultVisitor):
             self.write_listener_mode_protocols()
 
     def write_listener_mode_protocols(self):
-        write_main_protocol(
-            self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
-        )
+        write_main_protocol(self.json_result, self.main_protocol.testCaseSets)
         Path.mkdir(Path(self.json_result_path), parents=True)
         shutil.copy(
             Path(self.json_result) / "protocol.json",
@@ -676,9 +684,7 @@ class ResultWriter(ResultVisitor):
                 tse.exec.status = execution_result["activity_status"]
                 test_suite_counter += 1
             write_test_structure_element(self.json_result, tt_tree)
-            write_main_protocol(
-                self.json_result, self.main_protocol.protocolTestCaseSetExecutionSummary
-            )
+            write_main_protocol(self.json_result, self.main_protocol.testCaseSets)
             if test_suite_counter and self.itb_test_case_catalog:
                 logger.info(f"Successfully read {test_suite_counter} test suites.")
             else:

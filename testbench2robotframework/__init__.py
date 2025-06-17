@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A Python package for converting TestBench reports to Robot Framework test
- suites and enhancing the TestBench report with execution results from Robot Framework."""
+"""A Python package for converting TestBench reports to Robot Framework test 
+suites and enhancing the TestBench report with execution results from Robot Framework."""
 
 from .testbench2robotframework import testbench2robotframework  # noqa: F401
 

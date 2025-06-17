@@ -14,7 +14,7 @@ class TextExtractor(HTMLParser):
 
 
 def extract_text_from_html(html):
-    html = html.replace('&nbsp;', ' ')
+    html = html.replace("&nbsp;", " ")
     parser = TextExtractor()
     parser.feed(html)
-    return parser.get_text().strip().replace('\n', '\n    ...').replace('\u00A0',' ')
+    return parser.get_text().strip().replace("\n", "\n    ...").replace("\u00a0", " ")

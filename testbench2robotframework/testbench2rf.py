@@ -33,6 +33,8 @@ from robot.parsing.model.statements import (
     VariablesImport,
 )
 
+from testbench2robotframework.model_utils import robot_tag_from_udf
+
 try:
     from robot.parsing.model.statements import TestTags
 except ImportError:
@@ -42,6 +44,7 @@ from .config import CompoundInteractionLogging, Configuration
 from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
+    InteractionCall,
     InteractionDetails,
     InteractionType,
     ParameterEvaluationType,
@@ -70,7 +73,7 @@ RESOURCE_IMPORT_TYPE = str(uuid4())
 
 
 @dataclass
-class InteractionCall:
+class RFInteractionCall:
     name: str
     cbv_parameters: dict[str, str]
     cbr_parameters: dict[str, str]
@@ -82,14 +85,15 @@ class InteractionCall:
 
 class RfTestCase:
     def __init__(self, test_case_details: TestCaseDetails, config: Configuration) -> None:
+        self.test_case_details: TestCaseDetails = test_case_details
         self.uid: str = test_case_details.uniqueID
-        self.interaction_calls: list[InteractionCall] = []
+        self.rf_interaction_calls: list[RFInteractionCall] = []
         self.used_imports: dict[str, set[str]] = {}
         self.config = config
         self.lib_pattern_list = [re.compile(pattern) for pattern in config.library_regex]
         self.res_pattern_list = [re.compile(pattern) for pattern in config.resource_regex]
-        for interaction in test_case_details.interactions:
-            self._get_interaction_calls(interaction)
+        for interaction in test_case_details.testSequence:
+            self._get_interaction_call(interaction)
         self.rf_tags = self._get_tags(test_case_details)
         self.setup_keyword: Keyword | None = None
         self.teardown_keyword: Keyword | None = None
@@ -98,7 +102,13 @@ class RfTestCase:
     @staticmethod
     def _get_tags(test_case_details: TestCaseDetails) -> list[str]:
         tags = [keyword.name for keyword in test_case_details.spec.keywords]
-        tags.extend([udf.robot_tag for udf in test_case_details.spec.udfs if udf.robot_tag])
+        tags.extend(
+            [
+                robot_tag_from_udf(udf)
+                for udf in test_case_details.spec.udfs
+                if robot_tag_from_udf(udf)
+            ]
+        )
         return tags
 
     @staticmethod
@@ -111,65 +121,71 @@ class RfTestCase:
                 udfs.append(udf.name)
         return udfs
 
-    def _get_interaction_calls(
-        self, interaction: InteractionDetails, indent: int = 0, sequence_phase=None
-    ) -> None:
-        indent += 1
-        if interaction.interactionType != InteractionType.Textual:
-            cbv_params = self._get_params_by_use_type(
-                interaction, ParameterEvaluationType.CallByValue
+    def _get_interaction_call(self, test_step: InteractionCall) -> None:
+        indent = len(test_step.numbering.split("."))
+        if test_step.spec.interactionType == InteractionType.Textual:
+            return
+        cbv_params = self._get_params_by_use_type(test_step, ParameterEvaluationType.CallByValue)
+        cbr_params = self._get_params_by_use_type(
+            test_step,
+            ParameterEvaluationType.CallByReference,
+            ParameterEvaluationType.CallByReferenceMandatory,
+        )
+        if test_step.spec.interactionType == InteractionType.Compound:
+            self._append_compound_ia(cbr_params, cbv_params, indent, test_step)
+        elif test_step.spec.interactionType == InteractionType.Atomic:
+            interaction_details: InteractionDetails = next(
+                filter(
+                    lambda interaction: interaction.key == test_step.spec.interactionKey,
+                    self.test_case_details.interactions,
+                ),
+                None,
             )
-            cbr_params = self._get_params_by_use_type(
-                interaction,
-                ParameterEvaluationType.CallByReference,
-                ParameterEvaluationType.CallByReferenceMandatory,
-            )
-            if interaction.interactionType == InteractionType.Compound:
-                self._append_compound_ia_and_analyze_children(
-                    cbr_params, cbv_params, indent, interaction, sequence_phase
-                )
-            elif interaction.interactionType == InteractionType.Atomic:
-                self._append_atomic_ia(
-                    cbr_params, cbv_params, indent, interaction, sequence_phase
-                )  # TODO: Else für textuelle Interaktionen
+            if interaction_details:
+                interaction_path = interaction_details.path
+            self._append_atomic_ia(
+                cbr_params, cbv_params, indent, test_step, interaction_path
+            )  # TODO: Else für textuelle Interaktionen
 
     def _append_atomic_ia(
         self,
         cbr_params: dict[str, str],
         cbv_params: dict[str, str],
         indent: int,
-        interaction: InteractionDetails,
-        sequence_phase=None,
+        test_step: InteractionCall,
+        interaction_path: str,
     ):
-        resource_type, import_prefix = self._get_keyword_import(interaction)
+        resource_type, import_prefix = self._get_keyword_import(test_step, interaction_path)
 
         if resource_type not in self.used_imports:
             self.used_imports[resource_type] = {import_prefix}
         else:
             self.used_imports[resource_type].add(import_prefix)
-        self.interaction_calls.append(
-            InteractionCall(
-                name=interaction.name,
+        self.rf_interaction_calls.append(
+            RFInteractionCall(
+                name=test_step.spec.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
                 import_prefix=import_prefix,
-                sequence_phase=sequence_phase or interaction.spec.sequencePhase,
+                sequence_phase=test_step.spec.sequencePhase,
                 is_atomic=True,
             )
         )
 
-    def _get_keyword_import(self, interaction) -> tuple[str, str]:
+    def _get_keyword_import(
+        self, test_step: InteractionCall, interaction_path: str
+    ) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
-            match = pattern.search(interaction.path)
+            match = pattern.search(interaction_path)
             if match:
                 return LIBRARY_IMPORT_TYPE, match[1].strip()
         for pattern in self.res_pattern_list:
-            match = pattern.search(interaction.path)
+            match = pattern.search(interaction_path)
             if match:
                 return RESOURCE_IMPORT_TYPE, match[1].strip()
 
-        ia_path_parts = interaction.path.split(".")
+        ia_path_parts = interaction_path.split(".")
         if len(ia_path_parts) == 1:
             return UNKNOWN_IMPORT_TYPE, ia_path_parts[0]
         root_subdivision, import_prefix = ia_path_parts[:2]
@@ -180,31 +196,26 @@ class RfTestCase:
 
         return root_subdivision, import_prefix
 
-    def _append_compound_ia_and_analyze_children(
+    def _append_compound_ia(
         self,
         cbr_params: dict[str, str],
         cbv_params: dict[str, str],
         indent: int,
-        interaction_detail: InteractionDetails,
-        sequence_phase=None,
+        test_step: InteractionCall,
     ):
-        self.interaction_calls.append(
-            InteractionCall(
-                interaction_detail.name,
+        self.rf_interaction_calls.append(
+            RFInteractionCall(
+                test_step.spec.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
                 indent=indent,
-                sequence_phase=sequence_phase or interaction_detail.spec.sequencePhase,
+                sequence_phase=test_step.spec.sequencePhase,
                 is_atomic=False,
             )
         )
-        for interaction in interaction_detail.interactions:
-            self._get_interaction_calls(
-                interaction, indent, sequence_phase or interaction_detail.spec.sequencePhase
-            )
 
     def _create_rf_keyword_calls(
-        self, interaction_calls: list[InteractionCall]
+        self, interaction_calls: list[RFInteractionCall]
     ) -> list[list[Statement]]:
         keyword_lists: list[list[Statement]] = [[]]
         tc_index = 0
@@ -256,7 +267,7 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_interaction: InteractionCall) -> Setup:
+    def _create_rf_setup_call(self, setup_interaction: RFInteractionCall) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_interaction)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -271,7 +282,7 @@ class RfTestCase:
 
     def _create_rf_teardown_call(
         self,
-        teardown_interaction: InteractionCall,
+        teardown_interaction: RFInteractionCall,
     ) -> Teardown:
         cbr_parameters = self._create_cbr_parameters(teardown_interaction)
         if cbr_parameters:
@@ -286,7 +297,7 @@ class RfTestCase:
         )
 
     def _create_rf_keyword_from_interaction_list(
-        self, keyword_name: str, interactions: list[InteractionCall]
+        self, keyword_name: str, interactions: list[RFInteractionCall]
     ):
         keyword_calls_lists = self._create_rf_keyword_calls(interactions)
         keyword = Keyword(header=TestCaseName.from_params(keyword_name))
@@ -294,7 +305,7 @@ class RfTestCase:
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_interactions: list[InteractionCall]) -> Setup | None:
+    def _create_rf_setup(self, setup_interactions: list[RFInteractionCall]) -> Setup | None:
         rf_setup = None
         if len(setup_interactions) == 1:
             rf_setup = self._create_rf_setup_call(setup_interactions[0])
@@ -305,7 +316,7 @@ class RfTestCase:
             rf_setup = Setup.from_params(name=self.setup_keyword.name)
         return rf_setup
 
-    def _get_teardown_params(self, interaction_calls: list[InteractionCall]):
+    def _get_teardown_params(self, interaction_calls: list[RFInteractionCall]):
         if len(interaction_calls) == 1:
             interaction = interaction_calls[0]
             return {
@@ -315,7 +326,7 @@ class RfTestCase:
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(self, teardown_interactions: list[InteractionCall]) -> Setup | None:
+    def _create_rf_teardown(self, teardown_interactions: list[RFInteractionCall]) -> Setup | None:
         rf_teardown = None
         if len(teardown_interactions) == 1:
             rf_teardown = self._create_rf_teardown_call(teardown_interactions[0])
@@ -334,21 +345,21 @@ class RfTestCase:
         setup_interactions = list(
             filter(
                 lambda interaction: interaction.sequence_phase == SequencePhase.Setup,
-                self.interaction_calls,
+                self.rf_interaction_calls,
             )
         )
         rf_setup = self._create_rf_setup(setup_interactions)
         test_step_interactions = list(
             filter(
                 lambda interaction: interaction.sequence_phase == SequencePhase.TestStep,
-                self.interaction_calls,
+                self.rf_interaction_calls,
             )
         )
         rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_interactions)
         teardown_interactions = list(
             filter(
                 lambda interaction: interaction.sequence_phase == SequencePhase.Teardown,
-                self.interaction_calls,
+                self.rf_interaction_calls,
             )
         )
         rf_teardown = self._create_rf_teardown(teardown_interactions)
@@ -381,7 +392,7 @@ class RfTestCase:
         return rf_test_cases
 
     @staticmethod
-    def _create_cbv_parameters(interaction: InteractionCall) -> list[str]:
+    def _create_cbv_parameters(interaction: RFInteractionCall) -> list[str]:
         parameters = []
         previous_arg_forces_named = False
         for name, value in interaction.cbv_parameters.items():
@@ -418,7 +429,7 @@ class RfTestCase:
 
     @staticmethod
     def _create_cbr_parameters(
-        interaction: InteractionCall,
+        interaction: RFInteractionCall,
     ) -> list[str]:
         cbr_parameters = list(
             filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
@@ -428,10 +439,10 @@ class RfTestCase:
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
-    def _get_interaction_import_prefix(self, interaction: InteractionCall) -> str:
+    def _get_interaction_import_prefix(self, interaction: RFInteractionCall) -> str:
         return (self.config.fully_qualified or False) * f"{interaction.import_prefix}."
 
-    def _get_interaction_indent(self, interaction: InteractionCall) -> str:
+    def _get_interaction_indent(self, interaction: RFInteractionCall) -> str:
         return (
             SEPARATOR * interaction.indent
             if self.config.compound_interaction_logging
@@ -439,7 +450,7 @@ class RfTestCase:
             else SEPARATOR
         )
 
-    def _create_rf_keyword(self, interaction: InteractionCall) -> KeywordCall:
+    def _create_rf_keyword(self, interaction: RFInteractionCall) -> KeywordCall:
         import_prefix = self._get_interaction_import_prefix(interaction)
         interaction_indent = self._get_interaction_indent(interaction)
         cbv_parameters = self._create_cbv_parameters(interaction)
@@ -453,7 +464,7 @@ class RfTestCase:
 
     def _create_rf_compound_keyword(
         self,
-        interaction: InteractionCall,
+        interaction: RFInteractionCall,
         compound_interaction_type=CompoundInteractionLogging.COMMENT,
     ) -> Comment | Group:
         interaction_indent = " " * (interaction.indent * 4)
@@ -470,7 +481,7 @@ class RfTestCase:
 
     @staticmethod
     def _generate_compound_interaction_comment(
-        interaction: InteractionCall,
+        interaction: RFInteractionCall,
     ) -> str:
         cbr_params = SEPARATOR.join(
             [
@@ -494,11 +505,11 @@ class RfTestCase:
 
     @staticmethod
     def _get_params_by_use_type(
-        interaction: InteractionDetails, *param_use_types: ParameterEvaluationType
+        test_step: InteractionCall, *param_use_types: ParameterEvaluationType
     ) -> dict[str, str]:
         return {
             parameter.name: parameter.value
-            for parameter in interaction.parameters
+            for parameter in test_step.spec.callParameters
             if parameter.evaluationType in param_use_types
         }
 
@@ -729,7 +740,11 @@ class RobotSuiteFileBuilder:
 
     def _create_rf_test_tags(self) -> TestTags | None:
         tb_keyword_names = [keyword.name for keyword in self.test_case_set.details.spec.keywords]
-        udfs = [udf.robot_tag for udf in self.test_case_set.details.spec.udfs if udf.robot_tag]
+        udfs = [
+            robot_tag_from_udf(udf)
+            for udf in self.test_case_set.details.spec.udfs
+            if robot_tag_from_udf(udf)
+        ]
         test_tags = tb_keyword_names + udfs
         if test_tags:
             return TestTags.from_params(test_tags)

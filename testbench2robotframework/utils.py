@@ -6,9 +6,12 @@ from typing import Optional
 from zipfile import ZipFile
 
 from testbench2robotframework.model import (
-    TestStructureElementType,
+    RootNode,
+    TestCaseNode,
+    TestCaseSetNode,
     TestStructureTree,
     TestStructureTreeNode,
+    TestThemeNode,
 )
 
 
@@ -34,7 +37,10 @@ class PathResolver:
         self._add_existing_tcs_to_catalog(test_theme_tree.root)
         for tse in test_theme_tree.nodes:
             self._add_existing_tcs_to_catalog(tse)
-            self.tree_dict[tse.base.key] = tse
+            if isinstance(tse, TestCaseNode):
+                self.tree_dict[tse.spec.key] = tse
+            else:
+                self.tree_dict[tse.base.key] = tse
             self._store_highest_child_index(tse)
 
     def _store_highest_child_index(self, tse):
@@ -44,10 +50,7 @@ class PathResolver:
         )
 
     def _add_existing_tcs_to_catalog(self, tse):
-        if (
-            tse.elementType == TestStructureElementType.TestCaseSetNode
-            and tse.base.uniqueID in self._uids_of_existing_tcs
-        ):
+        if isinstance(tse, TestCaseSetNode) and tse.base.uniqueID in self._uids_of_existing_tcs:
             self.tcs_catalog[tse.base.uniqueID] = tse
 
     def _get_paths(self, tse_catalog: dict[str, TestStructureTreeNode]) -> dict[str, PurePath]:
@@ -55,7 +58,7 @@ class PathResolver:
 
     def _resolve_tse_path(self, tse: TestStructureTreeNode) -> PurePath:
         self._add_tt_to_tt_catalog(tse)
-        if tse.elementType == TestStructureElementType.RootNode:
+        if isinstance(tse, RootNode):
             return PurePath()
         tse_name = replace_invalid_characters(tse.base.name)
         if tse.base.parentKey not in self.tree_dict:
@@ -64,10 +67,7 @@ class PathResolver:
         return parent_path / f"{self._file_prefix(tse)}{tse_name}"
 
     def _add_tt_to_tt_catalog(self, tse):
-        if (
-            tse.elementType == TestStructureElementType.TestThemeNode
-            and tse.base.uniqueID not in self.tt_catalog
-        ):
+        if isinstance(tse, TestThemeNode) and tse.base.uniqueID not in self.tt_catalog:
             self.tt_catalog[tse.base.uniqueID] = tse
 
     def _file_prefix(self, tse) -> str:

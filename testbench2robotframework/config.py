@@ -1,6 +1,7 @@
 # pylint: skip-file
 from __future__ import annotations
 
+from enum import Enum, auto
 import json
 import sys
 from dataclasses import dataclass
@@ -11,7 +12,6 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
-from .model import StrEnum
 
 DEFAULT_LIBRARY_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Library\].*"
 DEFAULT_LIBRARY_ROOTS: Final[list[str]] = ["RF", "RF-Library"]
@@ -19,6 +19,18 @@ DEFAULT_RESOURCE_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\
 DEFAULT_RESOURCE_ROOTS: Final[list[str]] = ["RF-Resource"]
 DEFAULT_GENERATION_DIRECTORY = "{root}/Generated"
 
+class StrEnum(str, Enum):
+    def __new__(cls, *args):
+        for arg in args:
+            if not isinstance(arg, (str, auto)):
+                raise TypeError(f"Values of StrEnums must be strings: {arg!r} is a {type(arg)}")
+        return super().__new__(cls, *args)
+
+    def __str__(self):
+        return self.value
+
+    def _generate_next_value_(name, *_):
+        return name
 
 
 def find_pyproject_toml() -> Path:
