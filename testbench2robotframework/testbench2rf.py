@@ -51,6 +51,7 @@ from .model import (
     SequencePhase,
     TestCaseDetails,
     TestStructureTreeNode,
+    TestThemeNode,
     UDFType,
     UserDefinedField,
 )
@@ -554,7 +555,7 @@ class RobotInitFileBuilder:
         tt_path: PurePath,
         config: Configuration,
     ) -> None:
-        self.test_theme = test_theme
+        self.test_theme: TestThemeNode = test_theme
         self.tt_path = PurePath(tt_path)
         self.config = config
 
@@ -579,7 +580,7 @@ class RobotInitFileBuilder:
             "Numbering": self.test_theme.base.numbering,
         }
         if self.test_theme.spec:
-            meta_data["Specification Status"] = self.test_theme.spec.status
+            meta_data["Specification Status"] = self.test_theme.spec.status.value
         return meta_data
 
 

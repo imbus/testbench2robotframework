@@ -93,9 +93,9 @@ def from_dict(cls: type[T], data: dict) -> T:
     type_hints = get_type_hints(cls)
     cls_dict = {}
     for field in fields(cls):
-        # if field.name not in data:
-        #     raise TypeError(f"Missing field '{field.name}' in data for {cls.__name__}")
-        field_value = data.get(field.name, None)
+        if field.name not in data:
+            continue
+        field_value = data.get(field.name)
         field_type_hints = type_hints.get(field.name, Any)
         cls_dict[field.name] = convert_field_value(field_value, field_type_hints)
     return cls(**cls_dict)
