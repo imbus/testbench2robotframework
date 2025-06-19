@@ -1,20 +1,84 @@
-import types
 from dataclasses import fields, is_dataclass
 from enum import Enum
-from typing import Any, Optional, TypeVar, Union, get_args, get_origin, get_type_hints
+from types import UnionType as TypesUnion
+from typing import Any, Optional, TypeVar, get_args, get_origin, get_type_hints
+from typing import Union as TypingUnion
 
 from testbench2robotframework.model import UDFType, UserDefinedField
 
 T = TypeVar("T")
 
 
-def get_field_types(field_type):
-    origin = get_origin(field_type)
-    if origin is types.UnionType or origin is Union:
-        args = get_args(field_type)
-        return [arg for arg in args if arg is not type(None)]
-    return [field_type]
+class Origin(Enum):
+    NO_ORIGIN = "NO_ORIGIN"
+    UNION = "UNION"
+    LIST = "LIST"
 
+
+def get_origin_from_type_hint(type_hint):
+    type_hint_origin = get_origin(type_hint)
+    if type_hint_origin is None:
+        return Origin("NO_ORIGIN")
+    if type_hint_origin is TypesUnion or type_hint_origin is TypingUnion:
+        return Origin("UNION")
+    if type_hint_origin is list:
+        return Origin("LIST")
+    raise ValueError("Unknown type hint origin.")
+
+
+def from_dict(cls: type[T], data: dict) -> T:
+    if not is_dataclass(cls):
+        raise ValueError(f"{cls.__name__} is not a dataclass.")
+    cls_dict = {}
+    class_type_hints = get_type_hints(cls)
+    for cls_field in fields(cls):
+        if cls_field.name not in data:
+            continue
+        field_value = data.get(cls_field.name)
+        field_type_hint = class_type_hints[cls_field.name]
+        cls_dict[cls_field.name] = convert_value(field_value, field_type_hint)
+    return cls(**cls_dict)
+
+
+def convert_value_without_origin(value: Any, type_hint: Any) -> Any:
+    if is_dataclass(type_hint):
+        return from_dict(type_hint, value)
+    return type_hint(value)
+
+
+def convert_value_with_union_type(value: Any, type_hint: Any) -> Any:
+    args = get_args(type_hint)
+    if value is None:
+        if args and type(None) in args:
+            return None
+        raise TypeError("Value does not match any of the union types.")
+    if len(args) == 0:
+        raise TypeError("Union type has no arguments.")
+    for arg in args:
+        try:
+            return convert_value(value, arg)
+        except (TypeError, ValueError):
+            continue
+    raise TypeError("Value does not match any of the union types.")
+
+
+def convert_value_with_list_type(value: Any, type_hint: Any) -> Any:
+    if not isinstance(value, list):
+        raise TypeError("Value is not of type list.")
+    args = get_args(type_hint)
+    if len(args) != 1:
+        raise TypeError(f"List type hint must have exactly one argument, got {args}.")
+    list_item_type_hint = args[0]
+    return [convert_value(item, list_item_type_hint) for item in value]
+
+
+def convert_value(value: Any, type_hint: Any) -> Any:
+    origin = get_origin_from_type_hint(type_hint)
+    if origin is Origin.NO_ORIGIN:
+        return convert_value_without_origin(value, type_hint)
+    if origin is Origin.UNION:
+        return convert_value_with_union_type(value, type_hint)
+    return convert_value_with_list_type(value, type_hint)
 
 def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:
     if (udf.udfType == UDFType.Enumeration and udf.value) or (
@@ -24,78 +88,3 @@ def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:
     if udf.udfType == UDFType.Boolean and udf.value == "true":
         return udf.name
     return None
-
-
-def convert_enum_value(value, field_type):
-    if (
-        value is not None
-        and isinstance(value, (str, int))
-        and isinstance(field_type, type)
-        and issubclass(field_type, Enum)
-    ):
-        try:
-            return field_type(value)
-        except ValueError:
-            pass
-    return value
-
-
-def convert_nested_dictionary(value, field_type):
-    if is_dataclass(field_type) and isinstance(value, dict):
-        return from_dict(field_type, value)
-    return value
-
-
-def convert_list_items(value, field_type):
-    origin = get_origin(field_type)
-    if not (isinstance(value, list) and origin is list):
-        return value
-    args = get_args(field_type)
-    if not (args and len(args) == 1):
-        raise TypeError(f"Expected a single type argument for list, got {args} in {field_type}")
-    item_type = args[0]
-    if is_dataclass(item_type):
-        return [from_dict(item_type, item) for item in value if isinstance(item, dict)]
-    if isinstance(item_type, type) and issubclass(item_type, Enum):
-        return [item_type(item) for item in value if isinstance(item, (str, int))]
-    if get_origin(item_type) is types.UnionType or get_origin(item_type) is Union:
-        list_items = []
-        possible_types = get_args(item_type)
-        for item in value:
-            for possible_type in possible_types:
-                try:
-                    temp = from_dict(possible_type, item)
-                    list_items.append(temp)
-                    break
-                except (TypeError, ValueError):
-                    continue
-                raise TypeError(
-                    f"Item {item} in list does not match any of the possible types {possible_types}"
-                )
-        return list_items
-    return value
-
-
-def convert_field_value(value, type_hints):
-    if value is None:
-        return None
-    type_hints = get_field_types(type_hints)
-    for type_hint in type_hints:
-        value = convert_enum_value(value, type_hint)
-        value = convert_nested_dictionary(value, type_hint)
-        value = convert_list_items(value, type_hint)
-    return value
-
-
-def from_dict(cls: type[T], data: dict) -> T:
-    if not is_dataclass(cls):
-        raise ValueError(f"{cls.__name__} is not a dataclass")
-    type_hints = get_type_hints(cls)
-    cls_dict = {}
-    for field in fields(cls):
-        if field.name not in data:
-            continue
-        field_value = data.get(field.name)
-        field_type_hints = type_hints.get(field.name, Any)
-        cls_dict[field.name] = convert_field_value(field_value, field_type_hints)
-    return cls(**cls_dict)
