@@ -37,9 +37,17 @@ def get_origin_from_type_hint(type_hint):
 def from_dict(cls: type[T], data: dict) -> T:
     if not is_dataclass(cls):
         raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
+    if data is None:
+        raise ValueError("Data cannot be None.")
     cls_dict = {}
     class_type_hints = get_type_hints(cls)
-    for cls_field in fields(cls):
+    class_fields = fields(cls)
+    if len(class_fields) < len(data):
+        raise ValueError(
+            f"Data contains more fields than the dataclass {cls.__name__} has: "
+            f"{set(data.keys()) - set(field.name for field in class_fields)}"
+        )
+    for cls_field in class_fields:
         if cls_field.name not in data:
             continue
         field_value = data.get(cls_field.name)
@@ -49,6 +57,8 @@ def from_dict(cls: type[T], data: dict) -> T:
 
 
 def convert_value_without_origin(value: Any, type_hint: Any) -> Any:
+    if value is None:
+        return None
     if is_dataclass(type_hint):
         return from_dict(type_hint, value)
     return type_hint(value)
