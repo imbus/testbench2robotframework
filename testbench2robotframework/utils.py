@@ -12,7 +12,19 @@ from testbench2robotframework.model import (
     TestStructureTree,
     TestStructureTreeNode,
     TestThemeNode,
+    UDFType,
+    UserDefinedField,
 )
+
+
+def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:
+    if (udf.udfType == UDFType.Enumeration and udf.value) or (
+        udf.udfType == UDFType.String and udf.value
+    ):
+        return f"{udf.name}:{udf.value}"
+    if udf.udfType == UDFType.Boolean and udf.value == "true":
+        return udf.name
+    return None
 
 
 class PathResolver:

@@ -1,18 +1,26 @@
 from dataclasses import fields, is_dataclass
 from enum import Enum
 from types import UnionType as TypesUnion
-from typing import Any, Optional, TypeVar, get_args, get_origin, get_type_hints
+from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 from typing import Union as TypingUnion
 
-from testbench2robotframework.model import UDFType, UserDefinedField
-
 T = TypeVar("T")
+
+ERROR_NOT_A_DATACLASS = "The provided class '{dataclass}' is not a dataclass."
+ERROR_UNKNOWN_TYPE_HINT_ORIGIN = "Unknown type hint origin."
+ERROR_UNION_MISMATCH = "Value does not match any of the union types."
+ERROR_NOT_A_LIST = "Value is not of type list."
+ERROR_LIST_ARGUMENTS_MISMATCH = "List type hint must have exactly one argument, got {args}."
+ERROR_UNION_WITHOUT_ARGUMENTS = "Union type hint must have at least one argument."
 
 
 class Origin(Enum):
     NO_ORIGIN = "NO_ORIGIN"
     UNION = "UNION"
     LIST = "LIST"
+
+
+PRIMITIVE_TYPES = (int, float, str, bool)
 
 
 def get_origin_from_type_hint(type_hint):
@@ -23,12 +31,12 @@ def get_origin_from_type_hint(type_hint):
         return Origin("UNION")
     if type_hint_origin is list:
         return Origin("LIST")
-    raise ValueError("Unknown type hint origin.")
+    raise ValueError(ERROR_UNKNOWN_TYPE_HINT_ORIGIN)
 
 
 def from_dict(cls: type[T], data: dict) -> T:
     if not is_dataclass(cls):
-        raise ValueError(f"{cls.__name__} is not a dataclass.")
+        raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
     cls_dict = {}
     class_type_hints = get_type_hints(cls)
     for cls_field in fields(cls):
@@ -51,23 +59,32 @@ def convert_value_with_union_type(value: Any, type_hint: Any) -> Any:
     if value is None:
         if args and type(None) in args:
             return None
-        raise TypeError("Value does not match any of the union types.")
+        raise TypeError(ERROR_UNION_MISMATCH)
     if len(args) == 0:
-        raise TypeError("Union type has no arguments.")
+        raise TypeError(ERROR_UNION_WITHOUT_ARGUMENTS)
+    primitive_args = []
     for arg in args:
+        if arg in PRIMITIVE_TYPES:
+            primitive_args.append(arg)
+            continue
         try:
             return convert_value(value, arg)
         except (TypeError, ValueError):
             continue
-    raise TypeError("Value does not match any of the union types.")
+    for arg in primitive_args:
+        try:
+            return convert_value(value, arg)
+        except (TypeError, ValueError):
+            continue
+    raise TypeError(ERROR_UNION_MISMATCH)
 
 
 def convert_value_with_list_type(value: Any, type_hint: Any) -> Any:
     if not isinstance(value, list):
-        raise TypeError("Value is not of type list.")
+        raise TypeError(ERROR_NOT_A_LIST)
     args = get_args(type_hint)
     if len(args) != 1:
-        raise TypeError(f"List type hint must have exactly one argument, got {args}.")
+        raise TypeError(ERROR_LIST_ARGUMENTS_MISMATCH.format(args=len(args)))
     list_item_type_hint = args[0]
     return [convert_value(item, list_item_type_hint) for item in value]
 
@@ -79,12 +96,3 @@ def convert_value(value: Any, type_hint: Any) -> Any:
     if origin is Origin.UNION:
         return convert_value_with_union_type(value, type_hint)
     return convert_value_with_list_type(value, type_hint)
-
-def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:
-    if (udf.udfType == UDFType.Enumeration and udf.value) or (
-        udf.udfType == UDFType.String and udf.value
-    ):
-        return f"{udf.name}:{udf.value}"
-    if udf.udfType == UDFType.Boolean and udf.value == "true":
-        return udf.name
-    return None

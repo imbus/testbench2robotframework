@@ -33,7 +33,7 @@ from robot.parsing.model.statements import (
     VariablesImport,
 )
 
-from testbench2robotframework.model_utils import robot_tag_from_udf
+from testbench2robotframework.utils import robot_tag_from_udf
 
 try:
     from robot.parsing.model.statements import TestTags
