@@ -12,6 +12,8 @@ ERROR_UNION_MISMATCH = "Value does not match any of the union types."
 ERROR_NOT_A_LIST = "Value is not of type list."
 ERROR_LIST_ARGUMENTS_MISMATCH = "List type hint must have exactly one argument, got {args}."
 ERROR_UNION_WITHOUT_ARGUMENTS = "Union type hint must have at least one argument."
+ERROR_TOO_MANY_DATA_FIELDS = "Data dictionary contains more fields than the dataclass has."
+ERROR_NONETYPE_DATA = "Data cannot be None."
 
 
 class Origin(Enum):
@@ -38,15 +40,12 @@ def from_dict(cls: type[T], data: dict) -> T:
     if not is_dataclass(cls):
         raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
     if data is None:
-        raise ValueError("Data cannot be None.")
+        raise ValueError(ERROR_NONETYPE_DATA)
     cls_dict = {}
     class_type_hints = get_type_hints(cls)
     class_fields = fields(cls)
     if len(class_fields) < len(data):
-        raise ValueError(
-            f"Data contains more fields than the dataclass {cls.__name__} has: "
-            f"{set(data.keys()) - set(field.name for field in class_fields)}"
-        )
+        raise ValueError(ERROR_TOO_MANY_DATA_FIELDS)
     for cls_field in class_fields:
         if cls_field.name not in data:
             continue
