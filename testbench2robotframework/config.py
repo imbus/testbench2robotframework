@@ -48,6 +48,8 @@ def get_testbench2robotframework_toml_dict(toml_path: Path):
             toml_dict = tomllib.load(toml_file)
     except FileNotFoundError:
         return {}
+    except PermissionError:
+        return {}
     return toml_dict.get("tool", {}).get("testbench2robotframework", {})
 
 
