@@ -12,6 +12,7 @@ from .config import (
     DEFAULT_LIBRARY_REGEX,
     DEFAULT_LIBRARY_ROOTS,
     DEFAULT_RESOURCE_REGEX,
+    DEFAULT_RESOURCE_DIRECTORY_REGEX,
     DEFAULT_RESOURCE_ROOTS,
     find_pyproject_toml,
     get_testbench2robotframework_toml_dict,
@@ -95,6 +96,12 @@ def testbench2robotframework_cli():
     help="Directory containing the Robot Framework resource files.",
 )
 @click.option(
+    "--resource-directory-regex",
+    type=str,
+    help="""Regex that can be used to identify TestBench Subdivisions
+         that correspond to the root directory of the Robot Framework Resources.""",
+)
+@click.option(
     "--library-regex",
     multiple=True,
     type=str,
@@ -141,6 +148,7 @@ def generate_tests(  # noqa: PLR0913
     config: Path,
     fully_qualified: bool,
     library_regex: tuple[str],
+    resource_directory_regex: str,
     library_root: tuple[str],
     log_suite_numbering: bool,
     output_directory: Path,
@@ -180,7 +188,10 @@ def generate_tests(  # noqa: PLR0913
     configuration["resource-directory"] = (
         resource_directory.as_posix()
         if resource_directory
-        else configuration.get("resource-directory", "")
+        else configuration.get("resource-directory", "resources")
+    )
+    configuration["resource-directory-regex"] = resource_directory_regex or configuration.get(
+        "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX
     )
     configuration["resource-mapping"] = resource_mapping or configuration.get(
         "resource-mapping", {}

@@ -180,22 +180,12 @@ class RfTestCase:
         for pattern in self.lib_pattern_list:
             match = pattern.search(interaction_path)
             if match:
-                return LIBRARY_IMPORT_TYPE, match[1].strip()
+                return LIBRARY_IMPORT_TYPE, match.group("resourceName").strip()
         for pattern in self.res_pattern_list:
             match = pattern.search(interaction_path)
             if match:
-                return RESOURCE_IMPORT_TYPE, match[1].strip()
-
-        ia_path_parts = interaction_path.split(".")
-        if len(ia_path_parts) == 1:
-            return UNKNOWN_IMPORT_TYPE, ia_path_parts[0]
-        root_subdivision, import_prefix = ia_path_parts[:2]
-        if root_subdivision in self.config.library_root:
-            return LIBRARY_IMPORT_TYPE, import_prefix
-        if root_subdivision in self.config.resource_root:
-            return RESOURCE_IMPORT_TYPE, import_prefix
-
-        return root_subdivision, import_prefix
+                return RESOURCE_IMPORT_TYPE, interaction_path
+        return UNKNOWN_IMPORT_TYPE, interaction_path
 
     def _append_compound_ia(
         self,
@@ -669,36 +659,52 @@ class RobotSuiteFileBuilder:
         }  # TODO Fix Paths to correct models
         return [ResourceImport.from_params(res) for res in sorted(resource_paths)]
 
+    def _get_resource_name(self, resource: str) -> str | None:
+        resource_path_part = resource.split(".")[-1]
+        for resource_regex in self.config.resource_regex:
+            resource_name_match = re.search(resource_regex, resource_path_part, flags=re.IGNORECASE)
+            if resource_name_match:
+                return resource_name_match.group("resourceName").strip()
+
+    def _get_resource_directory_path_index(self, resource: str) -> int | None:
+        splitted_interaction_path = resource.split(".")
+        for index, part in enumerate(splitted_interaction_path):
+            resource_directory_match = re.match(
+                self.config.resource_directory_regex, part, flags=re.IGNORECASE
+            )
+            if resource_directory_match:
+                return index
+
+    def _get_resource_path_index(self, resource: str) -> int | None:
+        return len(resource.split(".")) - 1 if resource else None
+
     def _create_resource_path(self, resource: str) -> str:
-        subdivision_mapping = self.config.subdivisionsMapping.resources.get(resource)
-        resource = re.sub(".resource", "", resource)
-        if not subdivision_mapping:
-            if not self.config.resource_directory:
-                return f"{resource}.resource"
-            if not re.match(RELATIVE_RESOURCE_INDICATOR, self.config.resource_directory):
-                return Path(self.config.resource_directory, f"{resource}.resource").as_posix()
-            generation_directory = self._replace_relative_resource_indicator(
-                self.config.output_directory
-            )
-            robot_file_path = Path(generation_directory) / self.tcs_path.parent
-            resource_directory = self._replace_relative_resource_indicator(
-                self.config.resource_directory
-            )
-            resource_import = (
-                Path(os.path.relpath(Path(resource_directory), robot_file_path))
-                / f"{resource}.resource"
-            )
-            return resource_import.as_posix()
-        root_path = Path(os.curdir).absolute()
-        subdivision_mapping = re.sub(
-            r"^{resourceDirectory}", self.config.resource_directory, subdivision_mapping
+        splitted_interaction_path = resource.split(".")
+        resource_dir_index = self._get_resource_directory_path_index(resource)
+        resource_name = self._get_resource_name(resource)
+        resource_name_index = self._get_resource_path_index(resource)
+        cropped_interaction_path = []
+        if resource_dir_index is None:
+            return f"{resource_name}.resource"
+        cropped_interaction_path.extend(
+            splitted_interaction_path[resource_dir_index + 1 : resource_name_index]
         )
-        subdivision_mapping = re.sub(
+        resource_path = Path(
+            self.config.resource_directory,
+            *cropped_interaction_path,
+            f"{resource_name}.resource",
+        ).as_posix()
+        resource_path = self.config.subdivisionsMapping.resources.get(resource_name, resource_path)
+        resource_path = re.sub(
+            r"^{resourceDirectory}", self.config.resource_directory, resource_path
+        )
+        root_path = Path(os.curdir).absolute()
+        resource_path = re.sub(
             RELATIVE_RESOURCE_INDICATOR,
             str(root_path).replace("\\", "/"),
-            subdivision_mapping,
+            resource_path,
         )
-        return str(subdivision_mapping)
+        return resource_path
 
     def _replace_relative_resource_indicator(self, path: Path | str) -> str:
         root_path = Path(os.curdir).absolute()

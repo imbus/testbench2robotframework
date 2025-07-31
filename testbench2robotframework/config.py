@@ -18,6 +18,7 @@ DEFAULT_LIBRARY_ROOTS: Final[list[str]] = ["RF", "RF-Library"]
 DEFAULT_RESOURCE_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\].*"
 DEFAULT_RESOURCE_ROOTS: Final[list[str]] = ["RF-Resource"]
 DEFAULT_GENERATION_DIRECTORY = "{root}/Generated"
+DEFAULT_RESOURCE_DIRECTORY_REGEX = r".*\[Robot-Resources\].*"
 
 class StrEnum(str, Enum):
     def __new__(cls, *args):
@@ -180,6 +181,7 @@ class Configuration:
     phasePattern: str
     referenceBehaviour: ReferenceBehaviour
     resource_directory: str
+    resource_directory_regex: str
     resource_regex: list[str]
     resource_root: list[str]
     subdivisionsMapping: SubdivisionsMapping
@@ -192,6 +194,8 @@ class Configuration:
             library_regex=dictionary.get(
                 "library-regex", [DEFAULT_LIBRARY_REGEX]
             ),
+            resource_directory_regex=dictionary.get(
+                "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX),
             resource_regex=dictionary.get(
                 "resource-regex", [DEFAULT_RESOURCE_REGEX]
             ),
