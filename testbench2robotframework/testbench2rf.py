@@ -125,6 +125,17 @@ class RfTestCase:
     def _get_interaction_call(self, test_step: InteractionCall) -> None:
         indent = len(test_step.numbering.split("."))
         if test_step.spec.interactionType == InteractionType.Textual:
+            self.rf_interaction_calls.append(
+                RFInteractionCall(
+                    name=f"# {test_step.spec.name}",
+                    cbv_parameters={},
+                    cbr_parameters={},
+                    indent=indent,
+                    import_prefix=None,
+                    sequence_phase=test_step.spec.sequencePhase,
+                    is_atomic=True,
+                )
+            )
             return
         cbv_params = self._get_params_by_use_type(test_step, ParameterEvaluationType.CallByValue)
         cbr_params = self._get_params_by_use_type(
@@ -185,6 +196,12 @@ class RfTestCase:
             match = pattern.search(interaction_path)
             if match:
                 return RESOURCE_IMPORT_TYPE, interaction_path
+        splitted_interaction_path = interaction_path.split(".")
+        if (
+            len(splitted_interaction_path) == 2
+            and splitted_interaction_path[0] in self.config.library_root
+        ):
+            return LIBRARY_IMPORT_TYPE, splitted_interaction_path[1]
         return UNKNOWN_IMPORT_TYPE, interaction_path
 
     def _append_compound_ia(
