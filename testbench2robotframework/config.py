@@ -42,6 +42,22 @@ def find_pyproject_toml() -> Path:
             return pyproject_path
     return Path()
 
+def find_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        robot_path = parent / "robot.toml"
+        if robot_path.is_file():
+            return robot_path
+    return Path()
+
+def find_private_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        private_robot_path = parent / ".robot.toml"
+        if private_robot_path.is_file():
+            return private_robot_path
+    return Path()
+
 
 def get_testbench2robotframework_toml_dict(toml_path: Path):
     try:

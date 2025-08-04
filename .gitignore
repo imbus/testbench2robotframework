@@ -159,3 +159,5 @@ reportt/
 itorx_report/
 config.json
 resources/
+robot.toml
+.robot.toml
