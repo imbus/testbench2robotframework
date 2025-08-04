@@ -73,8 +73,8 @@ def testbench2robotframework_cli():
 @click.option(
     "--fully-qualified",
     is_flag=True,
-    help="""Option to call Robot Framework keywords by their
-         fully qualified name in the generated test suites.""",
+    help="""Calls Robot Framework keywords by their fully
+    qualified names in the generated test suites.""",
 )
 @click.option(
     "-d",
@@ -98,15 +98,14 @@ def testbench2robotframework_cli():
 @click.option(
     "--resource-directory-regex",
     type=str,
-    help="""Regex that can be used to identify TestBench Subdivisions
-         that correspond to the root directory of the Robot Framework Resources.""",
+    help="""Regex that can be used to identify the TestBench Subdivision that corresponds to the <resource-directory>.
+    Resources will be imported relative to this Subdivision based on the test elements structure in TestBench.""",
 )
 @click.option(
     "--library-regex",
     multiple=True,
     type=str,
-    help="""Regex that can be used to identify TestBench
-         Subdivisions that correspond to Robot Framework libraries.""",
+    help="""Regular expression used to identify TestBench subdivisions corresponding to Robot Framework libraries.""",
 )
 @click.option(
     "--library-root",
@@ -119,8 +118,7 @@ def testbench2robotframework_cli():
     "--resource-regex",
     multiple=True,
     type=str,
-    help="""Regex that can be used to identify TestBench Subdivisions
-         that correspond to Robot Framework resources.""",
+    help="""Regular expression used to identify TestBench subdivisions corresponding to Robot Framework resources.""",
 )
 @click.option(
     "--resource-root",
@@ -133,13 +131,13 @@ def testbench2robotframework_cli():
     "--library-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="",
+    help="Library import statement to use when a keyword from the specified TestBench subdivision is encountered.",
 )
 @click.option(
     "--resource-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="",
+    help="Resource import statement to use when a keyword from the specified TestBench subdivision is encountered.",
 )
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
