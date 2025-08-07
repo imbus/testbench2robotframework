@@ -11,12 +11,12 @@ from .config import (
     DEFAULT_GENERATION_DIRECTORY,
     DEFAULT_LIBRARY_REGEX,
     DEFAULT_LIBRARY_ROOTS,
-    DEFAULT_RESOURCE_REGEX,
     DEFAULT_RESOURCE_DIRECTORY_REGEX,
+    DEFAULT_RESOURCE_REGEX,
     DEFAULT_RESOURCE_ROOTS,
+    find_private_robot_toml,
     find_pyproject_toml,
     find_robot_toml,
-    find_private_robot_toml,
     get_testbench2robotframework_toml_dict,
 )
 from .json_reader import read_json
@@ -100,14 +100,17 @@ def testbench2robotframework_cli():
 @click.option(
     "--resource-directory-regex",
     type=str,
-    help="""Regex that can be used to identify the TestBench Subdivision that corresponds to the <resource-directory>.
-    Resources will be imported relative to this Subdivision based on the test elements structure in TestBench.""",
+    help="""Regex that can be used to identify the TestBench
+    Subdivision that corresponds to the <resource-directory>.
+    Resources will be imported relative to this Subdivision
+    based on the test elements structure in TestBench.""",
 )
 @click.option(
     "--library-regex",
     multiple=True,
     type=str,
-    help="""Regular expression used to identify TestBench subdivisions corresponding to Robot Framework libraries.""",
+    help="""Regular expression used to identify TestBench subdivisions
+    corresponding to Robot Framework libraries.""",
 )
 @click.option(
     "--library-root",
@@ -120,7 +123,8 @@ def testbench2robotframework_cli():
     "--resource-regex",
     multiple=True,
     type=str,
-    help="""Regular expression used to identify TestBench subdivisions corresponding to Robot Framework resources.""",
+    help="""Regular expression used to identify TestBench subdivisions
+    corresponding to Robot Framework resources.""",
 )
 @click.option(
     "--resource-root",
@@ -133,13 +137,15 @@ def testbench2robotframework_cli():
     "--library-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="Library import statement to use when a keyword from the specified TestBench subdivision is encountered.",
+    help="""Library import statement to use when a keyword from the
+    specified TestBench subdivision is encountered.""",
 )
 @click.option(
     "--resource-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="Resource import statement to use when a keyword from the specified TestBench subdivision is encountered.",
+    help="""Resource import statement to use when a keyword from the
+    specified TestBench subdivision is encountered.""",
 )
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
@@ -232,8 +238,7 @@ def get_tb2robot_file_configuration(config: Path) -> dict:
         pyproject_config = get_testbench2robotframework_toml_dict(pyproject_toml)
         robot_config = get_testbench2robotframework_toml_dict(robot_toml)
         private_robot_config = get_testbench2robotframework_toml_dict(private_robot_toml)
-        detected_toml_config = {**pyproject_config, **robot_config, **private_robot_config}
-        return detected_toml_config
+        return {**pyproject_config, **robot_config, **private_robot_config}
     config_path = config
     if not config_path:
         return {}

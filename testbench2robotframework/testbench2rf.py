@@ -197,8 +197,9 @@ class RfTestCase:
             if match:
                 return RESOURCE_IMPORT_TYPE, interaction_path
         splitted_interaction_path = interaction_path.split(".")
+        minimum_length_subdivision_path_length = 2
         if (
-            len(splitted_interaction_path) == 2
+            len(splitted_interaction_path) == minimum_length_subdivision_path_length
             and splitted_interaction_path[0] in self.config.library_root
         ):
             return LIBRARY_IMPORT_TYPE, splitted_interaction_path[1]
@@ -682,6 +683,7 @@ class RobotSuiteFileBuilder:
             resource_name_match = re.search(resource_regex, resource_path_part, flags=re.IGNORECASE)
             if resource_name_match:
                 return resource_name_match.group("resourceName").strip()
+        return None
 
     def _get_resource_directory_path_index(self, resource: str) -> int | None:
         splitted_interaction_path = resource.split(".")
@@ -691,6 +693,7 @@ class RobotSuiteFileBuilder:
             )
             if resource_directory_match:
                 return index
+        return None
 
     def _get_resource_path_index(self, resource: str) -> int | None:
         return len(resource.split(".")) - 1 if resource else None
@@ -716,12 +719,11 @@ class RobotSuiteFileBuilder:
             r"^{resourceDirectory}", self.config.resource_directory, resource_path
         )
         root_path = Path(os.curdir).absolute()
-        resource_path = re.sub(
+        return re.sub(
             RELATIVE_RESOURCE_INDICATOR,
             str(root_path).replace("\\", "/"),
             resource_path,
         )
-        return resource_path
 
     def _replace_relative_resource_indicator(self, path: Path | str) -> str:
         root_path = Path(os.curdir).absolute()

@@ -7,16 +7,16 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from shutil import copytree
-from typing import Optional, Union
-from urllib.parse import unquote
+from typing import Optional
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
 
 from testbench2robotframework.model_utils import from_dict
 
-from .config import AttachmentConflictBehaviour, Configuration, ReferenceBehaviour
+from .config import Configuration
+from .execution_artifacts import ExecutionArtifactStorage
 from .json_reader import TestBenchJsonReader
-from .json_writer import write_main_protocol, write_test_structure_element
+from .json_writer import write_main_protocol, write_references, write_test_structure_element
 from .log import logger
 from .model import (
     ActivityStatus,
@@ -27,8 +27,6 @@ from .model import (
     InteractionCallExecution,
     InteractionType,
     InteractionVerdict,
-    Reference,
-    RepresentativeType,
     RichTextForImport,
     SequencePhase,
     TestCaseDetails,
@@ -37,7 +35,7 @@ from .model import (
     TestCaseSetExecutionForImport,
     VerdictStatus,
 )
-from .utils import directory_to_zip, ensure_dir_exists, get_directory
+from .utils import directory_to_zip, get_directory
 
 try:
     from robot.result import Group
@@ -62,6 +60,7 @@ COLOR = {
 }
 
 MEGABYTE = 1000 * 1000
+TB_ARTIFACT_REGEX = r"itb-reference:\s*(\S*)"
 
 
 class ResultWriter(ResultVisitor):
@@ -92,15 +91,22 @@ class ResultWriter(ResultVisitor):
                 copytree(self.json_dir, self.json_result, dirs_exist_ok=True)
         self.json_reader = TestBenchJsonReader(self.json_dir)
         self.attachments_path = Path(self.json_result, "attachments")
-        # if self.attachments_path.exists():  TODO: RR Sollten wir löschen????
-        #     shutil.rmtree(self.attachments_path)
-        # os.mkdir(self.attachments_path)
+        self.artifact_storage = self._create_artifact_storage()
         self.test_suites: dict[str, TestSuite] = {}
         self.keywords: list[Keyword] = []
         self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
         self.test_chain: list[TestCase] = []
         self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": []})
+
+    def _create_artifact_storage(self):
+        return ExecutionArtifactStorage(
+            self.reference_behaviour,
+            self.attachment_conflict_behaviour,
+            self.json_reader.read_references(),
+            self.output_xml,
+            self.attachments_path.as_posix(),
+        )
 
     def start_suite(self, suite: TestSuite):
         if suite.metadata:
@@ -113,11 +119,6 @@ class ResultWriter(ResultVisitor):
         for interaction in interactions:
             if interaction.spec.interactionType == interaction_type:
                 yield interaction
-
-    # def _propergate_sequence_phase(self, interaction: InteractionCall, sequence_phase):
-    #     for child in interaction.interactions:
-    #         child.spec.sequencePhase = sequence_phase
-    #         self._propergate_sequence_phase(child, sequence_phase)
 
     def end_test(self, test: TestCase):
         self._test_setup_passed = None
@@ -137,8 +138,6 @@ class ResultWriter(ResultVisitor):
         if not itb_test_case:
             logger.warning(f"No JSON file corresponding to test '{test_uid}' found in report.")
             return
-        # for interaction in itb_test_case.testSequence:
-        #     self._propergate_sequence_phase(interaction, interaction.spec.sequencePhase)
         self.protocol_test_case: TestCaseExecutionForImport = TestCaseExecutionForImport(
             test_uid, itb_test_case.exec.key, None, None, None
         )
@@ -163,8 +162,7 @@ class ResultWriter(ResultVisitor):
                 )
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
-            if self.reference_behaviour != ReferenceBehaviour.NONE:
-                self._set_itb_testcase_references(itb_test_case, self.test_chain)
+            self._set_itb_testcase_references(itb_test_case, self.test_chain)
         except TypeError as e:
             logger.error(
                 "Could not find an itb testcase that corresponds "
@@ -185,78 +183,14 @@ class ResultWriter(ResultVisitor):
         if not itb_test_case.exec:
             return
         for test in test_chain:
-            itb_references = self._get_itb_reference(test.message)
-            for reference in itb_references:
-                if reference not in itb_test_case.exec.references:
-                    itb_test_case.exec.references.append(reference)
+            reference_values = self._get_itb_reference_values(test.message)
+            for reference_value in reference_values:
+                reference_key = self.artifact_storage.add_artifact(reference_value)
+                if reference_key and reference_key not in itb_test_case.exec.references:
+                    itb_test_case.exec.references.append(reference_key)
 
-    def _get_itb_reference(self, test_message: str) -> list[Reference]:
-        references = []
-        for path in re.findall(r"itb-reference:\s*(\S*)", test_message):
-            if path.startswith("file:///"):
-                file_path = Path(unquote(path[len("file:///") :]))
-                output_dir = Path(self.output_xml).parent
-                if file_path.exists():
-                    reference_path = file_path
-                elif Path(output_dir, file_path).exists():
-                    reference_path = Path(output_dir, file_path)
-                else:
-                    if (
-                        file_path.is_absolute()
-                        and self.reference_behaviour == ReferenceBehaviour.REFERENCE
-                    ):
-                        references.append(self._create_reference(file_path))
-                    else:
-                        logger.warning(f"Referenced file '{file_path}' does not exist.")
-                    continue
-                file_size = Path.stat(reference_path).st_size
-                reference: Optional[Reference] = None
-                if file_size >= 10 * MEGABYTE:
-                    logger.error(
-                        f"Trying to attach file '{reference_path}'. "
-                        "Attachment file size must not exceed 10 MB "
-                        f"but is {file_size / MEGABYTE} MB."
-                    )
-                    reference = self._create_reference(reference_path.name)
-                else:
-                    reference = self._create_attachment(reference_path)
-                if reference:
-                    references.append(reference)
-            elif re.match(r"\S+://", path):
-                references.append(Reference(RepresentativeType.Hyperlink, path))
-            else:
-                logger.warning(f"Could not identify type of test message reference '{path}'.")
-        return references
-
-    @staticmethod
-    def _create_reference(reference_path: Union[Path, str]) -> Reference:
-        return Reference(RepresentativeType.Reference, str(reference_path))
-
-    def _create_attachment(self, filepath: Path) -> Optional[Reference]:
-        if self.reference_behaviour == ReferenceBehaviour.REFERENCE:
-            return self._create_reference(filepath.resolve())
-        ensure_dir_exists(self.attachments_path)
-        filename = Path(filepath).name
-        if (
-            not Path(self.attachments_path, filename).exists()
-            or self.attachment_conflict_behaviour == AttachmentConflictBehaviour.USE_NEW
-        ):
-            shutil.copyfile(filepath, self.attachments_path / filename, follow_symlinks=True)
-            return Reference(RepresentativeType.Attachment, f"attachments/{filename}")
-        if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.USE_EXISTING:
-            return Reference(RepresentativeType.Attachment, f"attachments/{filename}")
-        if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.RENAME_NEW:
-            unique_path = self._create_unique_path(self.attachments_path / filename)
-            shutil.copyfile(filepath, unique_path, follow_symlinks=True)
-            unique_file = Path(unique_path).name
-            logger.info(
-                f"Attachment '{filename}' does already exist. "
-                f"Creating new unique attachment '{unique_file}'."
-            )
-            return Reference(RepresentativeType.Attachment, f"attachments/{unique_file}")
-        if self.attachment_conflict_behaviour == AttachmentConflictBehaviour.ERROR:
-            logger.error(f"Attachment '{filename}' does already exist.")
-        return None
+    def _get_itb_reference_values(self, test_message: str) -> list[str]:
+        return re.findall(f".*{TB_ARTIFACT_REGEX}.*", test_message)
 
     @staticmethod
     def _create_unique_path(attachement_path: Path) -> Path:
@@ -273,7 +207,7 @@ class ResultWriter(ResultVisitor):
     def _set_itb_testcase_execution_comment(self, itb_test_case, test_chain: list[TestCase]):
         exec_comments = []
         for test in test_chain:
-            message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
+            message = re.sub(TB_ARTIFACT_REGEX, "", test.message)
             html_message = (
                 message[len("*HTML*") :].replace("<hr>", "<br/>").replace("<br>", "<br/>").strip()
                 if test.message.startswith("*HTML*")
@@ -597,7 +531,7 @@ class ResultWriter(ResultVisitor):
                 name = test.name
                 phase = ""
             if test.status != "PASS":
-                message = re.sub(r"\s*itb-reference:\s*(\S*)", "", test.message)
+                message = re.sub(TB_ARTIFACT_REGEX, "", test.message)
                 message = (
                     message[len("*HTML*") :]
                     .replace("<hr>", "<br />")
@@ -685,6 +619,7 @@ class ResultWriter(ResultVisitor):
                 test_suite_counter += 1
             write_test_structure_element(self.json_result, tt_tree)
             write_main_protocol(self.json_result, self.main_protocol.testCaseSets)
+            write_references(self.json_result, self.artifact_storage.tb_references)
             if test_suite_counter and self.itb_test_case_catalog:
                 logger.info(f"Successfully read {test_suite_counter} test suites.")
             else:
