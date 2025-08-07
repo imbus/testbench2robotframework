@@ -7,6 +7,7 @@ from typing import Optional
 
 from .log import logger
 from .model import (
+    ReferenceAssignment,
     TestCaseDetails,
     TestCaseSetDetails,
     TestCaseSetNode,
@@ -131,6 +132,12 @@ class TestBenchJsonReader:
         if test_structure_tree is None:
             return None
         return from_dict(TestStructureTree, test_structure_tree)
+
+    def read_references(self) -> list[ReferenceAssignment]:
+        references = read_json(str(Path(self.json_dir, "references.json")))
+        if references is None:
+            return []
+        return [from_dict(ReferenceAssignment, ref) for ref in references]
 
 
 def read_json(filepath: str, silent=True):

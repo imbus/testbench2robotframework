@@ -18,6 +18,7 @@ DEFAULT_LIBRARY_ROOTS: Final[list[str]] = ["RF", "RF-Library"]
 DEFAULT_RESOURCE_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\].*"
 DEFAULT_RESOURCE_ROOTS: Final[list[str]] = ["RF-Resource"]
 DEFAULT_GENERATION_DIRECTORY = "{root}/Generated"
+DEFAULT_RESOURCE_DIRECTORY_REGEX = r".*\[Robot-Resources\].*"
 
 class StrEnum(str, Enum):
     def __new__(cls, *args):
@@ -39,6 +40,22 @@ def find_pyproject_toml() -> Path:
         pyproject_path = parent / "pyproject.toml"
         if pyproject_path.is_file():
             return pyproject_path
+    return Path()
+
+def find_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        robot_path = parent / "robot.toml"
+        if robot_path.is_file():
+            return robot_path
+    return Path()
+
+def find_private_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        private_robot_path = parent / ".robot.toml"
+        if private_robot_path.is_file():
+            return private_robot_path
     return Path()
 
 
@@ -180,6 +197,7 @@ class Configuration:
     phasePattern: str
     referenceBehaviour: ReferenceBehaviour
     resource_directory: str
+    resource_directory_regex: str
     resource_regex: list[str]
     resource_root: list[str]
     subdivisionsMapping: SubdivisionsMapping
@@ -192,6 +210,8 @@ class Configuration:
             library_regex=dictionary.get(
                 "library-regex", [DEFAULT_LIBRARY_REGEX]
             ),
+            resource_directory_regex=dictionary.get(
+                "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX),
             resource_regex=dictionary.get(
                 "resource-regex", [DEFAULT_RESOURCE_REGEX]
             ),
@@ -211,10 +231,10 @@ class Configuration:
             resource_directory=dictionary.get("resource-directory", "").replace(
                 "\\", "/"
             ),
-            testCaseSplitPathRegEx=dictionary.get("testCaseSplitPathRegEx", ".*StopWithRestart.*"),
+            testCaseSplitPathRegEx=dictionary.get("testcase-splitting-regex", ".*StopWithRestart.*"),
             phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
-                dictionary.get("referenceBehaviour", "ATTACHMENT").upper()
+                dictionary.get("reference-behaviour", "ATTACHMENT").upper()
             ),
             subdivisionsMapping=SubdivisionsMapping.from_dict(
                 {
@@ -223,7 +243,7 @@ class Configuration:
                 }
             ),
             attachmentConflictBehaviour=AttachmentConflictBehaviour(
-                dictionary.get("attachmentConflictBehaviour", "USE_EXISTING").upper()
+                dictionary.get("attachment-conflict-behaviour", "USE_EXISTING").upper()
             ),
         )
 

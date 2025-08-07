@@ -11,9 +11,12 @@ from .config import (
     DEFAULT_GENERATION_DIRECTORY,
     DEFAULT_LIBRARY_REGEX,
     DEFAULT_LIBRARY_ROOTS,
+    DEFAULT_RESOURCE_DIRECTORY_REGEX,
     DEFAULT_RESOURCE_REGEX,
     DEFAULT_RESOURCE_ROOTS,
+    find_private_robot_toml,
     find_pyproject_toml,
+    find_robot_toml,
     get_testbench2robotframework_toml_dict,
 )
 from .json_reader import read_json
@@ -72,8 +75,8 @@ def testbench2robotframework_cli():
 @click.option(
     "--fully-qualified",
     is_flag=True,
-    help="""Option to call Robot Framework keywords by their
-         fully qualified name in the generated test suites.""",
+    help="""Calls Robot Framework keywords by their fully
+    qualified names in the generated test suites.""",
 )
 @click.option(
     "-d",
@@ -95,11 +98,19 @@ def testbench2robotframework_cli():
     help="Directory containing the Robot Framework resource files.",
 )
 @click.option(
+    "--resource-directory-regex",
+    type=str,
+    help="""Regex that can be used to identify the TestBench
+    Subdivision that corresponds to the <resource-directory>.
+    Resources will be imported relative to this Subdivision
+    based on the test elements structure in TestBench.""",
+)
+@click.option(
     "--library-regex",
     multiple=True,
     type=str,
-    help="""Regex that can be used to identify TestBench
-         Subdivisions that correspond to Robot Framework libraries.""",
+    help="""Regular expression used to identify TestBench subdivisions
+    corresponding to Robot Framework libraries.""",
 )
 @click.option(
     "--library-root",
@@ -112,8 +123,8 @@ def testbench2robotframework_cli():
     "--resource-regex",
     multiple=True,
     type=str,
-    help="""Regex that can be used to identify TestBench Subdivisions
-         that correspond to Robot Framework resources.""",
+    help="""Regular expression used to identify TestBench subdivisions
+    corresponding to Robot Framework resources.""",
 )
 @click.option(
     "--resource-root",
@@ -126,13 +137,15 @@ def testbench2robotframework_cli():
     "--library-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="",
+    help="""Library import statement to use when a keyword from the
+    specified TestBench subdivision is encountered.""",
 )
 @click.option(
     "--resource-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="",
+    help="""Resource import statement to use when a keyword from the
+    specified TestBench subdivision is encountered.""",
 )
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
@@ -141,6 +154,7 @@ def generate_tests(  # noqa: PLR0913
     config: Path,
     fully_qualified: bool,
     library_regex: tuple[str],
+    resource_directory_regex: str,
     library_root: tuple[str],
     log_suite_numbering: bool,
     output_directory: Path,
@@ -180,7 +194,10 @@ def generate_tests(  # noqa: PLR0913
     configuration["resource-directory"] = (
         resource_directory.as_posix()
         if resource_directory
-        else configuration.get("resource-directory", "")
+        else configuration.get("resource-directory", "resources")
+    )
+    configuration["resource-directory-regex"] = resource_directory_regex or configuration.get(
+        "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX
     )
     configuration["resource-mapping"] = resource_mapping or configuration.get(
         "resource-mapping", {}
@@ -216,11 +233,15 @@ def fetch_results(config: Path, robot_result: Path, output_directory: Path, test
 def get_tb2robot_file_configuration(config: Path) -> dict:
     if not config:
         pyproject_toml = find_pyproject_toml()
-    config_path = config or pyproject_toml
+        robot_toml = find_robot_toml()
+        private_robot_toml = find_private_robot_toml()
+        pyproject_config = get_testbench2robotframework_toml_dict(pyproject_toml)
+        robot_config = get_testbench2robotframework_toml_dict(robot_toml)
+        private_robot_config = get_testbench2robotframework_toml_dict(private_robot_toml)
+        return {**pyproject_config, **robot_config, **private_robot_config}
+    config_path = config
     if not config_path:
-        configuration = {}
-    elif config_path.suffix == ".json":
-        configuration = read_json(config, False)
-    else:
-        configuration = get_testbench2robotframework_toml_dict(config_path)
-    return configuration
+        return {}
+    if config_path.suffix == ".json":
+        return read_json(config, False)
+    return get_testbench2robotframework_toml_dict(config_path)

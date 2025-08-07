@@ -7,6 +7,7 @@ from typing import Union
 from .config import Configuration
 from .log import logger
 from .model import (
+    ReferenceAssignment,
     TestCaseDetails,
     TestCaseSetDetails,
     TestCaseSetExecutionForImport,
@@ -39,6 +40,17 @@ def write_main_protocol(json_dir: str, main_protocol: list[TestCaseSetExecutionF
     with Path(filepath).open("w+", encoding="utf8") as output_file:
         json.dump(
             protocol,
+            output_file,
+            indent=2,
+            default=lambda o: o.value if isinstance(o, Enum) else str(o),
+        )
+
+
+def write_references(json_dir: str, references: list[ReferenceAssignment]) -> None:
+    filepath = Path(json_dir) / Path("references.json")
+    with Path(filepath).open("w+", encoding="utf8") as output_file:
+        json.dump(
+            [asdict(ref) for ref in references],
             output_file,
             indent=2,
             default=lambda o: o.value if isinstance(o, Enum) else str(o),
