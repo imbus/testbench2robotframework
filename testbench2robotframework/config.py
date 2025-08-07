@@ -231,10 +231,10 @@ class Configuration:
             resource_directory=dictionary.get("resource-directory", "").replace(
                 "\\", "/"
             ),
-            testCaseSplitPathRegEx=dictionary.get("testCaseSplitPathRegEx", ".*StopWithRestart.*"),
+            testCaseSplitPathRegEx=dictionary.get("testcase-splitting-regex", ".*StopWithRestart.*"),
             phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
-                dictionary.get("referenceBehaviour", "ATTACHMENT").upper()
+                dictionary.get("reference-behaviour", "ATTACHMENT").upper()
             ),
             subdivisionsMapping=SubdivisionsMapping.from_dict(
                 {
@@ -243,7 +243,7 @@ class Configuration:
                 }
             ),
             attachmentConflictBehaviour=AttachmentConflictBehaviour(
-                dictionary.get("attachmentConflictBehaviour", "USE_EXISTING").upper()
+                dictionary.get("attachment-conflict-behaviour", "USE_EXISTING").upper()
             ),
         )
 
