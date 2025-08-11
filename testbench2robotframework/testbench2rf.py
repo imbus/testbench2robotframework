@@ -444,6 +444,11 @@ class RfTestCase:
             filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
         )
         for index, parameter in enumerate(cbr_parameters):
+            if not parameter:
+                logger.warning(
+                    f"Interaction {interaction.name} has undefined CallByReference parameter value."
+                )
+                continue
             if not parameter.startswith("${"):
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
@@ -630,6 +635,7 @@ class RobotSuiteFileBuilder:
         test_case_section = TestCaseSection(header=SectionHeader.from_params(Token.TESTCASE_HEADER))
         robot_ast_test_cases = []
         for index, test_case in enumerate(self._rf_test_cases):
+            logger.debug(f"Processing test case: {test_case.uid}")
             robot_ast_test_cases.extend(test_case.to_robot_ast_test_cases())
             if index != len(self._rf_test_cases) - 1:
                 robot_ast_test_cases[-1].body.extend(LINE_SEPARATOR)
