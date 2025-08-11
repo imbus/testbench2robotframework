@@ -95,6 +95,8 @@ class TestBenchJsonReader:
         for tcs_uid, tcs in self.test_case_sets.items():
             tc_catalog: dict[str, TestCaseDetails] = {}
             for tc_uid in self.get_test_case_uids(tcs_uid):
+                if tc_uid not in self.test_cases:
+                    continue
                 tc_catalog[tc_uid] = self.test_cases[tc_uid]
             tcs_catalog[tcs_uid] = TestCaseSet(tcs, tc_catalog)
         return tcs_catalog
