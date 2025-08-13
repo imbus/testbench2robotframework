@@ -4,6 +4,7 @@ import sys
 from pathlib import Path, PurePath
 from typing import Optional
 from zipfile import ZipFile
+from .log import logger
 
 from testbench2robotframework.model import (
     RootNode,
@@ -45,6 +46,9 @@ class PathResolver:
         self.tt_paths = self._get_paths(self.tt_catalog)
 
     def _analyze_tree(self, test_theme_tree: TestStructureTree):
+        if not test_theme_tree.root:
+            logger.warning("Test Structure Tree contains no root node.")
+            return
         self.tree_dict[test_theme_tree.root.base.key] = test_theme_tree.root
         self._add_existing_tcs_to_catalog(test_theme_tree.root)
         for tse in test_theme_tree.nodes:
