@@ -54,7 +54,7 @@ class PathResolver:
         for tse in test_theme_tree.nodes:
             self._add_existing_tcs_to_catalog(tse)
             if isinstance(tse, TestCaseNode):
-                self.tree_dict[tse.spec.key] = tse
+                self.tree_dict[f"tc_{tse.spec.key}"] = tse
             else:
                 self.tree_dict[tse.base.key] = tse
             self._store_highest_child_index(tse)
