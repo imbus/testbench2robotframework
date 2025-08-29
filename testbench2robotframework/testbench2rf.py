@@ -454,7 +454,11 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_interaction_import_prefix(self, interaction: RFInteractionCall) -> str:
-        return (self.config.fully_qualified or False) * f"{interaction.import_prefix}."
+        for resource_regex in self.config.resource_regex:
+            resource_name_match = re.search(resource_regex, interaction.import_prefix, flags=re.IGNORECASE)
+            if resource_name_match:
+                return (self.config.fully_qualified or False) * f"{resource_name_match.group('resourceName').strip()}."
+        return ""
 
     def _get_interaction_indent(self, interaction: RFInteractionCall) -> str:
         return (
