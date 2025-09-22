@@ -30,6 +30,7 @@ class TestCaseSet:
             "UniqueID": self.details.uniqueID,
             "Name": self.details.name,
             "Numbering": self.details.numbering,
+            "Path": self.details.path or "",
         }
 
 

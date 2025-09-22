@@ -715,15 +715,19 @@ class RobotSuiteFileBuilder:
         resource_name_index = self._get_resource_path_index(resource)
         cropped_interaction_path = []
         if resource_dir_index is None:
-            return f"{resource_name}.resource"
-        cropped_interaction_path.extend(
-            splitted_interaction_path[resource_dir_index + 1 : resource_name_index]
-        )
-        resource_path = Path(
-            self.config.resource_directory,
-            *cropped_interaction_path,
-            f"{resource_name}.resource",
-        ).as_posix()
+            resource_path = Path(
+                self.config.resource_directory,
+                f"{resource_name}.resource",
+            ).as_posix()
+        else:
+            cropped_interaction_path.extend(
+                splitted_interaction_path[resource_dir_index + 1 : resource_name_index]
+            )
+            resource_path = Path(
+                self.config.resource_directory,
+                *cropped_interaction_path,
+                f"{resource_name}.resource",
+            ).as_posix()
         resource_path = self.config.subdivisionsMapping.resources.get(resource_name, resource_path)
         resource_path = re.sub(
             r"^{resourceDirectory}", self.config.resource_directory, resource_path

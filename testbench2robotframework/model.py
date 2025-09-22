@@ -772,6 +772,7 @@ class TestCaseSetDetails:
     uniqueID: str
     name: str
     spec: TestCaseSetSpecificationSummary
+    path: str
     testCases: List[TestCaseSummary]
     exec: Optional[TestCaseSetExecutionSummary] = None
 
