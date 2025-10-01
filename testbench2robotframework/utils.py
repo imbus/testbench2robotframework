@@ -1,3 +1,4 @@
+import ast
 import re
 import shutil
 import sys
@@ -94,6 +95,57 @@ class PathResolver:
         index = get_tse_index(tse)
         max_length = len(str(self._last_child_indices.get(tse.base.parentKey, "")))
         return index.zfill(max_length)
+
+
+def safe_eval(expr: str, names: dict):
+    tree = ast.parse(expr, mode="eval")
+    allowed_nodes = (
+        ast.Expression,
+        ast.Call,
+        ast.Attribute,
+        ast.Load,
+        ast.Name,
+        ast.ListComp,
+        ast.GeneratorExp,
+        ast.comprehension,
+        ast.List,
+        ast.Tuple,
+        ast.Constant,
+        ast.Subscript,
+        ast.JoinedStr,
+        ast.FormattedValue,
+        ast.BinOp,
+        ast.UnaryOp,
+        ast.Compare,
+        ast.BoolOp,
+        ast.Eq,
+        ast.NotEq,
+        ast.Gt,
+        ast.Lt,
+        ast.GtE,
+        ast.LtE,
+        ast.In,
+        ast.And,
+        ast.Or,
+        ast.Not,
+        ast.Add,
+        ast.Sub,
+        ast.Mult,
+        ast.Div,
+        ast.Mod,
+        ast.Store,
+        ast.keyword,
+    )
+    for node in ast.walk(tree):
+        if not isinstance(node, allowed_nodes):
+            raise ValueError(f"Disallowed expression: {type(node).__name__}")
+        if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
+            raise ValueError(f"Access to private attribute {node.attr} is not allowed")
+        if isinstance(node, ast.Name) and node.id == "__import__":
+            raise ValueError("Use of __import__ is forbidden")
+
+    code = compile(tree, "<safe_eval>", "eval")
+    return eval(code, {"__builtins__": {}}, names)
 
 
 def get_directory(json_report_path: Optional[str]) -> str:

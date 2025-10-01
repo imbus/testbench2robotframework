@@ -455,9 +455,13 @@ class RfTestCase:
 
     def _get_interaction_import_prefix(self, interaction: RFInteractionCall) -> str:
         for resource_regex in self.config.resource_regex:
-            resource_name_match = re.search(resource_regex, interaction.import_prefix, flags=re.IGNORECASE)
+            resource_name_match = re.search(
+                resource_regex, interaction.import_prefix, flags=re.IGNORECASE
+            )
             if resource_name_match:
-                return (self.config.fully_qualified or False) * f"{resource_name_match.group('resourceName').strip()}."
+                return (
+                    self.config.fully_qualified or False
+                ) * f"{resource_name_match.group('resourceName').strip()}."
         return ""
 
     def _get_interaction_indent(self, interaction: RFInteractionCall) -> str:
@@ -819,6 +823,21 @@ class RobotSuiteFileBuilder:
         setting_section.body.extend(self._create_rf_resource_imports(subdivisions))
         setting_section.body.extend(self._create_rf_unknown_imports(subdivisions))
         setting_section_meta_data = self.test_case_set.metadata
+        for md_name, md_expression in self.config.metadata.items():
+            from .utils import safe_eval
+            md_expression = re.sub(r"\$tcs", "tcs", md_expression)
+            try:
+                setting_section_meta_data[md_name] = safe_eval(
+                    md_expression, {"tcs": self.test_case_set.details}
+                )
+            except ValueError as ve:
+                logger.warning(
+                    f"Value '{md_expression}' from the custom metadata setting could not be evaluated: {ve}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error while evaluating the custom metadata setting '{md_expression}': {e}"
+                )
         setting_section.body.extend(
             [
                 create_meta_data(metadata_name, metadata_value)

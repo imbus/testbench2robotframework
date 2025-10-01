@@ -193,6 +193,7 @@ class Configuration:
     library_root: list[str]
     log_suite_numbering: bool
     loggingConfiguration: LoggingConfig
+    metadata: dict[str, str]
     output_directory: str
     phasePattern: str
     referenceBehaviour: ReferenceBehaviour
@@ -227,6 +228,7 @@ class Configuration:
                     "file":dictionary.get("file-logging", {})
                 }
             ),
+            metadata=dictionary.get("metadata", {}),
             compound_interaction_logging=CompoundInteractionLogging(dictionary.get("compound-interaction-logging", "GROUP").upper()),
             resource_directory=dictionary.get("resource-directory", "").replace(
                 "\\", "/"
