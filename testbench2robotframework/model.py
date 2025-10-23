@@ -510,6 +510,7 @@ class TestCaseSetDetails:
     key: str
     numbering: str
     uniqueID: str
+    path:str
     name: str
     spec: TestCaseSetSpecificationSummary
     testCases: list[TestCaseSummary]
@@ -522,6 +523,7 @@ class TestCaseSetDetails:
             numbering=dictionary.get("numbering", ""),
             uniqueID=dictionary.get("uniqueID", ""),
             name=dictionary.get("name", ""),
+            path=dictionary.get("path", ""),
             spec=TestCaseSetSpecificationSummary.from_dict(dictionary.get("spec", {})),
             exec=TestCaseSetExecutionSummary.from_dict(dictionary.get("exec", {}))
             if dictionary.get("exec")

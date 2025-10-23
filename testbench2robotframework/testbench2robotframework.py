@@ -15,6 +15,7 @@ def testbench2robotframework(testbench_report: str, config: dict):
     setup_logger(configuration)
     logger.debug("Configuration loaded.")
     testbench_report = Path(testbench_report)
+    temp_dir = None
     try:
         if is_zip_file(testbench_report):
             temp_dir = tempfile.TemporaryDirectory(dir=Path.cwd())
@@ -41,6 +42,6 @@ def testbench2robotframework(testbench_report: str, config: dict):
             return
         write_test_suites(test_suites, configuration)
     except Exception as exception:
-        if temp_dir:
+        if temp_dir is not None:
             temp_dir.cleanup()
         raise exception
