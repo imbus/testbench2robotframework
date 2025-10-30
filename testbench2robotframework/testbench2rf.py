@@ -455,6 +455,8 @@ class RfTestCase:
 
     def _get_interaction_import_prefix(self, interaction: RFInteractionCall) -> str:
         for resource_regex in self.config.resource_regex:
+            if not interaction.import_prefix:
+                continue
             resource_name_match = re.search(
                 resource_regex, interaction.import_prefix, flags=re.IGNORECASE
             )
