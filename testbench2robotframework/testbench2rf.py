@@ -507,6 +507,9 @@ def create_test_suites(
     test_case_set_catalog: dict[str, TestCaseSet],
     path_resolver: PathResolver,
     config: Configuration,
+    project: str | None,
+    tov: str | None,
+    cycle: str | None
 ) -> dict[str, File]:
     if not Group:
         if config.compound_interaction_logging == CompoundInteractionLogging.GROUP:
@@ -526,7 +529,7 @@ def create_test_suites(
     test_suites = {}
     for uid, test_case_set in test_case_set_catalog.items():
         test_suites[uid] = RobotSuiteFileBuilder(
-            test_case_set, tcs_paths[uid], config
+            test_case_set, tcs_paths[uid], config, project, tov, cycle
         ).create_test_suite_file()
     tt_paths = path_resolver.tt_paths
     for uid, test_theme in path_resolver.tt_catalog.items():
@@ -586,11 +589,14 @@ def create_meta_data(name, value):
 
 class RobotSuiteFileBuilder:
     def __init__(
-        self, test_case_set: TestCaseSet, tcs_path: PurePath, config: Configuration
+        self, test_case_set: TestCaseSet, tcs_path: PurePath, config: Configuration, project: str | None, tov: str | None, cycle: str | None
     ) -> None:
         self.test_case_set = test_case_set
         self.tcs_path = tcs_path
         self.config = config
+        self.project = project
+        self.tov = tov
+        self.cycle = cycle
         self._rf_test_cases: list[RfTestCase] = [
             RfTestCase(test_case_details=test_case, config=config)
             for test_case in self.test_case_set.test_cases.values()
@@ -764,6 +770,9 @@ class RobotSuiteFileBuilder:
         setting_section.body.extend(self._create_rf_resource_imports(subdivisions))
         setting_section.body.extend(self._create_rf_unknown_imports(subdivisions))
         setting_section_meta_data = self.test_case_set.metadata
+        setting_section.body.append(create_meta_data("Project", self.project))
+        setting_section.body.append(create_meta_data("TOV", self.tov))
+        setting_section.body.append(create_meta_data("Cycle", self.cycle))
         setting_section.body.extend(
             [
                 create_meta_data(metadata_name, metadata_value)

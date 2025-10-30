@@ -50,6 +50,10 @@ class TestBenchJsonReader:
         if not tov_path.exists():
             sys.exit(f"Neither {cycle_path} nor {tov_path} found.")
         return tov_path
+    
+    def get_project_json(self) -> Optional[dict]:
+        project_path = Path(self.json_dir) / "project.json"
+        return read_json(str(project_path))
 
     @property
     def test_theme_tree(self) -> TestStructureTree:

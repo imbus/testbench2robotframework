@@ -34,8 +34,12 @@ def testbench2robotframework(testbench_report: str, config: dict):
             tuple(reader.get_test_case_set_catalog().keys()),
             configuration.log_suite_numbering,
         )
+        project_information = reader.get_project_json()
+        project = project_information.get("name") if project_information else None
+        tov = project_information.get("projectContext", {}).get("tovName") if project_information else None
+        cycle = project_information.get("projectContext", {}).get("cycleName") if project_information else None
         test_suites = create_test_suites(
-            reader.get_test_case_set_catalog(), path_resolver, configuration
+            reader.get_test_case_set_catalog(), path_resolver, configuration, project, tov, cycle
         )
         if not test_suites:
             logger.warning("There are no test suites in the exported TestBench Projekt.")
