@@ -158,6 +158,13 @@ class ResultWriter(ResultVisitor):
             compound_interactions = list(
                 self._get_interactions_by_type(itb_test_case.interactions, InteractionType.Compound)
             )
+            textual_interactions = list(
+                self._get_interactions_by_type(itb_test_case.interactions, InteractionType.Textual)
+            )
+            for step in textual_interactions:
+                if step.exec is None:
+                    step.exec = InteractionExecutionSummary.from_dict({})
+                step.exec.verdict = InteractionVerdict.Skipped
             self._set_atomic_interactions_execution_result(atomic_interactions, self.test_chain)
             for interaction in compound_interactions:
                 self._set_compound_interaction_execution_result(interaction)
