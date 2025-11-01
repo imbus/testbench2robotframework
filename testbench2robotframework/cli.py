@@ -120,6 +120,15 @@ def testbench2robotframework_cli():
          children correspond to Robot Framework libraries.""",
 )
 @click.option(
+    "--metadata",
+    multiple=True,
+    callback=parse_subdivision_mapping,
+    help="""Add extra metadata to the settings of the generated Robot Framework test suite. 
+        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value. 
+        Values may also be Python expressions. 
+        The special variable '$tcs' gives access to the TestBench Python model of the test case set.""",
+)
+@click.option(
     "--resource-regex",
     multiple=True,
     type=str,
@@ -157,6 +166,7 @@ def generate_tests(  # noqa: PLR0913
     resource_directory_regex: str,
     library_root: tuple[str],
     log_suite_numbering: bool,
+    metadata: dict[str, str],
     output_directory: Path,
     resource_directory: Path,
     resource_regex: tuple[str],
@@ -187,7 +197,7 @@ def generate_tests(  # noqa: PLR0913
         configuration["log-suite-numbering"] = True
     else:
         configuration["log-suite-numbering"] = configuration.get("log-suite-numbering", False)
-
+    configuration["metadata"] = metadata or configuration.get("metadata", {})
     configuration["compound-interaction-logging"] = (
         compound_interaction_logging or configuration.get("compound-interaction-logging", "GROUP")
     )

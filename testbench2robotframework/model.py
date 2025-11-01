@@ -1651,3 +1651,35 @@ class CycleForUpdate:
     status: Optional[ProjectStatus] = None
     testingIntelligence: Optional[bool] = None
     startDate: Optional[OptionalLocalDateTime] = None
+
+
+
+@dataclass
+class AllModels:
+    ProjectMember: ProjectMember
+    ProjectDetails: ProjectDetails
+    TOVDetails: TOVDetails
+    CycleDetails: CycleDetails
+    UserDetails: UserDetails
+    TestStructureTree: TestStructureTree
+    TestCaseDetails: TestCaseDetails
+    InteractionDetails: InteractionDetails
+    ParameterSummary: ParameterSummary
+    TestCaseSpecificationDetails: TestCaseSpecificationDetails
+    TestCaseExecutionDetails: TestCaseExecutionDetails
+    TestStructureSpecification: TestStructureSpecification
+    TestStructureAutomation: TestStructureAutomation
+    TestStructureExecution: TestStructureExecution
+    AttachedFilter: AttachedFilter
+    TestStructureTreeNode: TestStructureTreeNode
+    TestCaseExecutionSummary: TestCaseExecutionSummary
+    TestCaseSetExecutionSummary: TestCaseSetExecutionSummary
+    ActivityStatus: ActivityStatus
+    ExecStatus: ExecStatus
+    VerdictStatus: VerdictStatus
+    SpecStatus: SpecStatus
+    DataTypeSummary: DataTypeSummary
+    TestCaseSetDetails: TestCaseSetDetails
+    TestCaseSetSpecificationSummary: TestCaseSetSpecificationSummary
+    TestCaseSpecificationSummary: TestCaseSpecificationSummary
+    TestCaseSummary: TestCaseSummary
