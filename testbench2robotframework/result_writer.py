@@ -97,7 +97,7 @@ class ResultWriter(ResultVisitor):
         self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
         self.phase_pattern = config.phasePattern
         self.test_chain: list[TestCase] = []
-        self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": []})
+        self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": [], "checkedInTestStructureElements":[], "checkedInTestElements": []})
 
     def _create_artifact_storage(self):
         return ExecutionArtifactStorage(
