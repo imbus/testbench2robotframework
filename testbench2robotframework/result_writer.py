@@ -332,7 +332,7 @@ class ResultWriter(ResultVisitor):
                 continue
             if index < len(test_chain_body):
                 keyword = test_chain_body[index]
-                self._check_matching_keyword_and_keyword_name(keyword, keyword)
+                self._check_matching_keyword_name(keyword, keyword)
                 tb_keyword_result = self._get_keyword_exec_from_keyword(keyword)
                 keyword.exec.verdict = tb_keyword_result.verdict
                 keyword.exec.duration = tb_keyword_result.duration
@@ -376,16 +376,16 @@ class ResultWriter(ResultVisitor):
             },
         )
 
-    def _check_matching_keyword_and_keyword_name(
-        self, keyword: Keyword, keyword: KeywordCall
+    def _check_matching_keyword_name(
+        self, rf_keyword: Keyword, tb_keyword: KeywordCall
     ) -> None:
         if not is_normalized_equal(
-            keyword.kwname, keyword.spec.name
-        ) and not is_normalized_equal(keyword.kwname.split(".")[-1], keyword.spec.name):
+            rf_keyword.kwname, tb_keyword.spec.name
+        ) and not is_normalized_equal(rf_keyword.kwname.split(".")[-1], tb_keyword.spec.name):
             raise NameError(
                 f"Execution can not be parsed, "
-                f"because keyword name '{keyword.kwname}' does not match with "
-                f"keyword '{keyword.spec.name}' name."
+                f"because keyword name '{rf_keyword.kwname}' does not match with "
+                f"keyword '{tb_keyword.spec.name}' name."
             )
 
     def _get_keyword_messages(self, keyword: Keyword):
