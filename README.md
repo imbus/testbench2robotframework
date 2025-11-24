@@ -53,7 +53,7 @@ testbench2robotframework generate-tests [OPTIONS] TESTBENCH_REPORT
 | `-c`, `--config PATH` | Path to a configuration file for TestBench2RobotFramework. |
 | `--clean` | Deletes all files present in the output-directory before new test suites are created. |
 | `-d`, `--output-directory PATH` | Directory or ZIP archive containing the generated test suites. |
-| `--compound-interaction-logging` | Mode for logging compound interactions. Options: `GROUP`, `COMMENT`, or `NONE`. |
+| `--compound-keyword-logging` | Mode for logging compound keywords. Options: `GROUP`, `COMMENT`, or `NONE`. |
 | `--fully-qualified` | Calls Robot Framework keywords by their fully qualified names in the generated test suites. |
 | `--log-suite-numbering` | Enables logging of the test suite numbering. |
 | `--metadata` | Add extra metadata to the settings of the generated Robot Framework test suite. Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value. Values may also be Python expressions. The special variable '$tcs' gives access to the TestBench Python model of the test case set. |
@@ -101,7 +101,7 @@ fully-qualified = false
 output-directory = "{root}/Generated"
 log-suite-numbering = false
 clean = true
-compound-interaction-logging = GROUP
+compound-keyword-logging = GROUP
 resource-directory = "{root}/Resources"
 resource-directory-regex = ".*\\[Robot-Resources\\].*"
 reference-behaviour = "ATTACHMENT"

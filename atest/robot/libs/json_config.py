@@ -3,7 +3,7 @@ from pathlib import Path
 
 data = {
     # "rfLibraryRoots": [
-    #     "Interactions",
+    #     "Keywords",
     #     "RF-Library"
     # ],
     # "rfResourceRoots": [
@@ -15,7 +15,7 @@ data = {
     # "logSuiteNumbering": True,
     # "resourceDirectory": "{root}/Resources",
     # "clearGenerationDirectory": True,
-    # "logCompoundInteractions": True,
+    # "logCompoundKeywords": True,
     # "subdivisionsMapping": {
     #     "libraries": {
     #         "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",

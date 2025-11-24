@@ -163,7 +163,7 @@ class LoggingConfig:
         )
 
 
-class CompoundInteractionLogging(StrEnum):
+class CompoundKeywordLogging(StrEnum):
     GROUP = "GROUP"
     COMMENT = "COMMENT"
     NONE = "NONE"
@@ -186,7 +186,7 @@ class AttachmentConflictBehaviour(StrEnum):
 class Configuration:
     attachmentConflictBehaviour: AttachmentConflictBehaviour
     clean: bool
-    compound_interaction_logging: CompoundInteractionLogging
+    compound_keyword_logging: CompoundKeywordLogging
     forced_import: ForcedImport
     fully_qualified: bool
     library_regex: list[str]
@@ -229,7 +229,7 @@ class Configuration:
                 }
             ),
             metadata=dictionary.get("metadata", {}),
-            compound_interaction_logging=CompoundInteractionLogging(dictionary.get("compound-interaction-logging", "GROUP").upper()),
+            compound_keyword_logging=CompoundKeywordLogging(dictionary.get("compound-keyword-logging", "GROUP").upper()),
             resource_directory=dictionary.get("resource-directory", "").replace(
                 "\\", "/"
             ),

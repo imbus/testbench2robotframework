@@ -1,6 +1,6 @@
 {
   "library-root": [
-    "Interactions",
+    "Keywords",
     "RF-Library"
   ],
   "resource-root": [
@@ -11,7 +11,7 @@
   "log-suite-numbering": true,
   "resource-directory": "{root}/Resources",
   "clean": true,
-  "compound-interaction-logging": "GROUP",
+  "compound-keyword-logging": "GROUP",
   "library-mapping": {
       "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
       "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"

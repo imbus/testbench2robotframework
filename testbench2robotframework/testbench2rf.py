@@ -40,7 +40,7 @@ try:
 except ImportError:
     from robot.parsing.model.statements import ForceTags as TestTags
 
-from .config import CompoundInteractionLogging, Configuration
+from .config import CompoundKeywordLogging, Configuration
 from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
@@ -88,13 +88,13 @@ class RfTestCase:
     def __init__(self, test_case_details: TestCaseDetails, config: Configuration) -> None:
         self.test_case_details: TestCaseDetails = test_case_details
         self.uid: str = test_case_details.uniqueID
-        self.rf_interaction_calls: list[RFKeywordCall] = []
+        self.rf_keyword_calls: list[RFKeywordCall] = []
         self.used_imports: dict[str, set[str]] = {}
         self.config = config
         self.lib_pattern_list = [re.compile(pattern) for pattern in config.library_regex]
         self.res_pattern_list = [re.compile(pattern) for pattern in config.resource_regex]
-        for interaction in test_case_details.testSequence:
-            self._get_interaction_call(interaction)
+        for keyword in test_case_details.testSequence:
+            self._get_keyword_call(keyword)
         self.rf_tags = self._get_tags(test_case_details)
         self.setup_keyword: Keyword | None = None
         self.teardown_keyword: Keyword | None = None
@@ -122,10 +122,10 @@ class RfTestCase:
                 udfs.append(udf.name)
         return udfs
 
-    def _get_interaction_call(self, test_step: KeywordCall) -> None:
+    def _get_keyword_call(self, test_step: KeywordCall) -> None:
         indent = len(test_step.numbering.split("."))
         if test_step.spec.keywordType == KeywordType.Textual:
-            self.rf_interaction_calls.append(
+            self.rf_keyword_calls.append(
                 RFKeywordCall(
                     name=f"# {test_step.spec.name}",
                     cbv_parameters={},
@@ -146,17 +146,17 @@ class RfTestCase:
         if test_step.spec.keywordType == KeywordType.Compound:
             self._append_compound_ia(cbr_params, cbv_params, indent, test_step)
         elif test_step.spec.keywordType == KeywordType.Atomic:
-            interaction_details: KeywordDetails = next(
+            keyword_details: KeywordDetails = next(
                 filter(
-                    lambda interaction: interaction.key == test_step.spec.keywordKey,
-                    self.test_case_details.interactions,
+                    lambda keyword: keyword.key == test_step.spec.keywordKey,
+                    self.test_case_details.keywords,
                 ),
                 None,
             )
-            if interaction_details:
-                interaction_path = interaction_details.path
+            if keyword_details:
+                keyword_path = keyword_details.path
             self._append_atomic_ia(
-                cbr_params, cbv_params, indent, test_step, interaction_path
+                cbr_params, cbv_params, indent, test_step, keyword_path
             )  # TODO: Else für textuelle Interaktionen
 
     def _append_atomic_ia(
@@ -165,15 +165,15 @@ class RfTestCase:
         cbv_params: dict[str, str],
         indent: int,
         test_step: KeywordCall,
-        interaction_path: str,
+        keyword_path: str,
     ):
-        resource_type, import_prefix = self._get_keyword_import(test_step, interaction_path)
+        resource_type, import_prefix = self._get_keyword_import(test_step, keyword_path)
 
         if resource_type not in self.used_imports:
             self.used_imports[resource_type] = {import_prefix}
         else:
             self.used_imports[resource_type].add(import_prefix)
-        self.rf_interaction_calls.append(
+        self.rf_keyword_calls.append(
             RFKeywordCall(
                 name=test_step.spec.name,
                 cbv_parameters=cbv_params,
@@ -186,24 +186,24 @@ class RfTestCase:
         )
 
     def _get_keyword_import(
-        self, test_step: KeywordCall, interaction_path: str
+        self, test_step: KeywordCall, keyword_path: str
     ) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
-            match = pattern.search(interaction_path)
+            match = pattern.search(keyword_path)
             if match:
                 return LIBRARY_IMPORT_TYPE, match.group("resourceName").strip()
         for pattern in self.res_pattern_list:
-            match = pattern.search(interaction_path)
+            match = pattern.search(keyword_path)
             if match:
-                return RESOURCE_IMPORT_TYPE, interaction_path
-        splitted_interaction_path = interaction_path.split(".")
+                return RESOURCE_IMPORT_TYPE, keyword_path
+        splitted_keyword_path = keyword_path.split(".")
         minimum_length_subdivision_path_length = 2
         if (
-            len(splitted_interaction_path) == minimum_length_subdivision_path_length
-            and splitted_interaction_path[0] in self.config.library_root
+            len(splitted_keyword_path) == minimum_length_subdivision_path_length
+            and splitted_keyword_path[0] in self.config.library_root
         ):
-            return LIBRARY_IMPORT_TYPE, splitted_interaction_path[1]
-        return UNKNOWN_IMPORT_TYPE, interaction_path
+            return LIBRARY_IMPORT_TYPE, splitted_keyword_path[1]
+        return UNKNOWN_IMPORT_TYPE, keyword_path
 
     def _append_compound_ia(
         self,
@@ -212,7 +212,7 @@ class RfTestCase:
         indent: int,
         test_step: KeywordCall,
     ):
-        self.rf_interaction_calls.append(
+        self.rf_keyword_calls.append(
             RFKeywordCall(
                 test_step.spec.name,
                 cbv_parameters=cbv_params,
@@ -224,36 +224,36 @@ class RfTestCase:
         )
 
     def _create_rf_keyword_calls(
-        self, interaction_calls: list[RFKeywordCall]
+        self, keyword_calls: list[RFKeywordCall]
     ) -> list[list[Statement]]:
         keyword_lists: list[list[Statement]] = [[]]
         tc_index = 0
         is_first_atomic = True
         group_stack = []
-        for interaction_call in interaction_calls:
-            if interaction_call.is_atomic:
+        for keyword_call in keyword_calls:
+            if keyword_call.is_atomic:
                 if (
-                    self.is_splitting_ia(interaction_call, keyword_lists, tc_index)
+                    self.is_splitting_ia(keyword_call, keyword_lists, tc_index)
                     and not is_first_atomic
                 ):
                     tc_index += 1
                     keyword_lists.append([])
                 is_first_atomic = False
-                atomic_keyword_call = self._create_rf_keyword(interaction_call)
-                while group_stack and group_stack[-1][1] >= interaction_call.indent:
+                atomic_keyword_call = self._create_rf_keyword(keyword_call)
+                while group_stack and group_stack[-1][1] >= keyword_call.indent:
                     group_stack.pop()
                 if group_stack:
                     group_stack[-1][0].body.append(atomic_keyword_call)
                 else:
                     keyword_lists[tc_index].append(atomic_keyword_call)
             elif (
-                not interaction_call.is_atomic
-                and self.config.compound_interaction_logging != CompoundInteractionLogging.NONE
+                not keyword_call.is_atomic
+                and self.config.compound_keyword_logging != CompoundKeywordLogging.NONE
             ):
                 compound_keyword_call = self._create_rf_compound_keyword(
-                    interaction_call, self.config.compound_interaction_logging
+                    keyword_call, self.config.compound_keyword_logging
                 )
-                while group_stack and group_stack[-1][1] >= interaction_call.indent:
+                while group_stack and group_stack[-1][1] >= keyword_call.indent:
                     group_stack.pop()
                 if group_stack:
                     group_stack[-1][0].body.append(compound_keyword_call)
@@ -261,87 +261,87 @@ class RfTestCase:
                     keyword_lists[tc_index].append(compound_keyword_call)
                 if (
                     Group
-                    and self.config.compound_interaction_logging == CompoundInteractionLogging.GROUP
+                    and self.config.compound_keyword_logging == CompoundKeywordLogging.GROUP
                 ):
-                    group_stack.append((compound_keyword_call, interaction_call.indent))
+                    group_stack.append((compound_keyword_call, keyword_call.indent))
         return keyword_lists
 
-    def is_splitting_ia(self, interaction_call, keyword_lists, tc_index):
+    def is_splitting_ia(self, keyword_call, keyword_lists, tc_index):
         return (
             re.search(
                 self.config.testCaseSplitPathRegEx,
-                f"{interaction_call.import_prefix}.{interaction_call.name}",
+                f"{keyword_call.import_prefix}.{keyword_call.name}",
             )
             and keyword_lists[tc_index]
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_interaction: RFKeywordCall) -> Setup:
-        cbr_parameters = self._create_cbr_parameters(setup_interaction)
+    def _create_rf_setup_call(self, setup_keyword: RFKeywordCall) -> Setup:
+        cbr_parameters = self._create_cbr_parameters(setup_keyword)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
-        import_prefix = self._get_interaction_import_prefix(setup_interaction)
-        interaction_indent = self._get_interaction_indent(setup_interaction)
-        cbv_parameters = self._create_cbv_parameters(setup_interaction)
+        import_prefix = self._get_keyword_import_prefix(setup_keyword)
+        keyword_indent = self._get_keyword_indent(setup_keyword)
+        cbv_parameters = self._create_cbv_parameters(setup_keyword)
         return Setup.from_params(
-            name=f"{import_prefix}{setup_interaction.name}",
+            name=f"{import_prefix}{setup_keyword.name}",
             args=tuple(cbv_parameters),
-            indent=interaction_indent,
+            indent=keyword_indent,
         )
 
     def _create_rf_teardown_call(
         self,
-        teardown_interaction: RFKeywordCall,
+        teardown_keyword: RFKeywordCall,
     ) -> Teardown:
-        cbr_parameters = self._create_cbr_parameters(teardown_interaction)
+        cbr_parameters = self._create_cbr_parameters(teardown_keyword)
         if cbr_parameters:
             logger.error("No variable assignment in [teardown] possible.")
-        import_prefix = self._get_interaction_import_prefix(teardown_interaction)
-        interaction_indent = self._get_interaction_indent(teardown_interaction)
-        cbv_parameters = self._create_cbv_parameters(teardown_interaction)
+        import_prefix = self._get_keyword_import_prefix(teardown_keyword)
+        keyword_indent = self._get_keyword_indent(teardown_keyword)
+        cbv_parameters = self._create_cbv_parameters(teardown_keyword)
         return Teardown.from_params(
-            name=f"{import_prefix}{teardown_interaction.name}",
+            name=f"{import_prefix}{teardown_keyword.name}",
             args=tuple(cbv_parameters),
-            indent=interaction_indent,
+            indent=keyword_indent,
         )
 
-    def _create_rf_keyword_from_interaction_list(
-        self, keyword_name: str, interactions: list[RFKeywordCall]
+    def _create_rf_keyword_from_keyword_list(
+        self, keyword_name: str, keywords: list[RFKeywordCall]
     ):
-        keyword_calls_lists = self._create_rf_keyword_calls(interactions)
+        keyword_calls_lists = self._create_rf_keyword_calls(keywords)
         keyword = Keyword(header=TestCaseName.from_params(keyword_name))
         keyword.body.extend(keyword_calls_lists[0])
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_interactions: list[RFKeywordCall]) -> Setup | None:
+    def _create_rf_setup(self, setup_keywords: list[RFKeywordCall]) -> Setup | None:
         rf_setup = None
-        if len(setup_interactions) == 1:
-            rf_setup = self._create_rf_setup_call(setup_interactions[0])
-        elif len(setup_interactions) > 1:
-            self.setup_keyword = self._create_rf_keyword_from_interaction_list(
-                f"Setup-{self.uid}", setup_interactions
+        if len(setup_keywords) == 1:
+            rf_setup = self._create_rf_setup_call(setup_keywords[0])
+        elif len(setup_keywords) > 1:
+            self.setup_keyword = self._create_rf_keyword_from_keyword_list(
+                f"Setup-{self.uid}", setup_keywords
             )
             rf_setup = Setup.from_params(name=self.setup_keyword.name)
         return rf_setup
 
-    def _get_teardown_params(self, interaction_calls: list[RFKeywordCall]):
-        if len(interaction_calls) == 1:
-            interaction = interaction_calls[0]
+    def _get_teardown_params(self, keyword_calls: list[RFKeywordCall]):
+        if len(keyword_calls) == 1:
+            keyword = keyword_calls[0]
             return {
-                "name": f"{self._get_interaction_import_prefix(interaction)}{interaction.name}",
-                "args": tuple(self._create_cbv_parameters(interaction)),
-                "indent": self._get_interaction_indent(interaction),
+                "name": f"{self._get_keyword_import_prefix(keyword)}{keyword.name}",
+                "args": tuple(self._create_cbv_parameters(keyword)),
+                "indent": self._get_keyword_indent(keyword),
             }
         return {"name": f"Teardown-{self.uid}"}
 
-    def _create_rf_teardown(self, teardown_interactions: list[RFKeywordCall]) -> Setup | None:
+    def _create_rf_teardown(self, teardown_keywords: list[RFKeywordCall]) -> Setup | None:
         rf_teardown = None
-        if len(teardown_interactions) == 1:
-            rf_teardown = self._create_rf_teardown_call(teardown_interactions[0])
-        elif len(teardown_interactions) > 1:
-            self.teardown_keyword = self._create_rf_keyword_from_interaction_list(
-                f"Teardown-{self.uid}", teardown_interactions
+        if len(teardown_keywords) == 1:
+            rf_teardown = self._create_rf_teardown_call(teardown_keywords[0])
+        elif len(teardown_keywords) > 1:
+            self.teardown_keyword = self._create_rf_keyword_from_keyword_list(
+                f"Teardown-{self.uid}", teardown_keywords
             )
             rf_teardown = Teardown.from_params(name=self.teardown_keyword.name)
         return rf_teardown
@@ -351,27 +351,27 @@ class RfTestCase:
     ) -> list[
         TestCase
     ]:  # TODO: Separate testcase splitting from this method --> new method: to_robot_ast_test_case
-        setup_interactions = list(
+        setup_keywords = list(
             filter(
-                lambda interaction: interaction.sequence_phase == SequencePhase.Setup,
-                self.rf_interaction_calls,
+                lambda keyword: keyword.sequence_phase == SequencePhase.Setup,
+                self.rf_keyword_calls,
             )
         )
-        rf_setup = self._create_rf_setup(setup_interactions)
-        test_step_interactions = list(
+        rf_setup = self._create_rf_setup(setup_keywords)
+        test_step_keywords = list(
             filter(
-                lambda interaction: interaction.sequence_phase == SequencePhase.TestStep,
-                self.rf_interaction_calls,
+                lambda keyword: keyword.sequence_phase == SequencePhase.TestStep,
+                self.rf_keyword_calls,
             )
         )
-        rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_interactions)
-        teardown_interactions = list(
+        rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_keywords)
+        teardown_keywords = list(
             filter(
-                lambda interaction: interaction.sequence_phase == SequencePhase.Teardown,
-                self.rf_interaction_calls,
+                lambda keyword: keyword.sequence_phase == SequencePhase.Teardown,
+                self.rf_keyword_calls,
             )
         )
-        rf_teardown = self._create_rf_teardown(teardown_interactions)
+        rf_teardown = self._create_rf_teardown(teardown_keywords)
         rf_test_cases: list[TestCase] = []
         multiple_tests = len(rf_keyword_call_lists) > 1
         for index, rf_keywords in enumerate(rf_keyword_call_lists):
@@ -401,10 +401,10 @@ class RfTestCase:
         return rf_test_cases
 
     @staticmethod
-    def _create_cbv_parameters(interaction: RFKeywordCall) -> list[str]:
+    def _create_cbv_parameters(keyword: RFKeywordCall) -> list[str]:
         parameters = []
         previous_arg_forces_named = False
-        for name, value in interaction.cbv_parameters.items():
+        for name, value in keyword.cbv_parameters.items():
             if not value or value == "undef.":
                 previous_arg_forces_named = True
                 continue
@@ -420,7 +420,7 @@ class RfTestCase:
                 pure_name = re.sub(r"(^-\ ?|=$)", "", name)
                 parameters.append(f"{pure_name}={escaped_value}")
                 previous_arg_forces_named = True
-            elif value.find("=") != -1 and value[: value.find("=")] in interaction.cbv_parameters:
+            elif value.find("=") != -1 and value[: value.find("=")] in keyword.cbv_parameters:
                 escaped_value = RfTestCase.escape_argument_value(value)
                 parameters.append(escaped_value)
             else:
@@ -438,27 +438,27 @@ class RfTestCase:
 
     @staticmethod
     def _create_cbr_parameters(
-        interaction: RFKeywordCall,
+        keyword: RFKeywordCall,
     ) -> list[str]:
         cbr_parameters = list(
-            filter(lambda parameter: parameter != "", interaction.cbr_parameters.values())
+            filter(lambda parameter: parameter != "", keyword.cbr_parameters.values())
         )
         for index, parameter in enumerate(cbr_parameters):
             if not parameter:
                 logger.warning(
-                    f"Interaction {interaction.name} has undefined CallByReference parameter value."
+                    f"Keyword {keyword.name} has undefined CallByReference parameter value."
                 )
                 continue
             if not parameter.startswith("${"):
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
-    def _get_interaction_import_prefix(self, interaction: RFKeywordCall) -> str:
+    def _get_keyword_import_prefix(self, keyword: RFKeywordCall) -> str:
         for resource_regex in self.config.resource_regex:
-            if not interaction.import_prefix:
+            if not keyword.import_prefix:
                 continue
             resource_name_match = re.search(
-                resource_regex, interaction.import_prefix, flags=re.IGNORECASE
+                resource_regex, keyword.import_prefix, flags=re.IGNORECASE
             )
             if resource_name_match:
                 return (
@@ -466,63 +466,63 @@ class RfTestCase:
                 ) * f"{resource_name_match.group('resourceName').strip()}."
         return ""
 
-    def _get_interaction_indent(self, interaction: RFKeywordCall) -> str:
+    def _get_keyword_indent(self, keyword: RFKeywordCall) -> str:
         return (
-            SEPARATOR * interaction.indent
-            if self.config.compound_interaction_logging
-            in [CompoundInteractionLogging.GROUP, CompoundInteractionLogging.COMMENT]
+            SEPARATOR * keyword.indent
+            if self.config.compound_keyword_logging
+            in [CompoundKeywordLogging.GROUP, CompoundKeywordLogging.COMMENT]
             else SEPARATOR
         )
 
-    def _create_rf_keyword(self, interaction: RFKeywordCall) -> KeywordCall:
-        import_prefix = self._get_interaction_import_prefix(interaction)
-        interaction_indent = self._get_interaction_indent(interaction)
-        cbv_parameters = self._create_cbv_parameters(interaction)
-        cbr_parameters = self._create_cbr_parameters(interaction)
+    def _create_rf_keyword(self, keyword: RFKeywordCall) -> KeywordCall:
+        import_prefix = self._get_keyword_import_prefix(keyword)
+        keyword_indent = self._get_keyword_indent(keyword)
+        cbv_parameters = self._create_cbv_parameters(keyword)
+        cbr_parameters = self._create_cbr_parameters(keyword)
         return KeywordCall.from_params(
             assign=tuple(cbr_parameters),
-            name=f"{import_prefix}{interaction.name}",
+            name=f"{import_prefix}{keyword.name}",
             args=tuple(cbv_parameters),
-            indent=interaction_indent,
+            indent=keyword_indent,
         )
 
     def _create_rf_compound_keyword(
         self,
-        interaction: RFKeywordCall,
-        compound_interaction_type=CompoundInteractionLogging.COMMENT,
+        keyword: RFKeywordCall,
+        compound_keyword_type=CompoundKeywordLogging.COMMENT,
     ) -> Comment | Group:
-        interaction_indent = " " * (interaction.indent * 4)
-        if Group and compound_interaction_type == CompoundInteractionLogging.GROUP:
+        keyword_indent = " " * (keyword.indent * 4)
+        if Group and compound_keyword_type == CompoundKeywordLogging.GROUP:
             return Group(
-                GroupHeader.from_params(interaction.name, indent=interaction_indent),
-                end=End.from_params(interaction_indent),
+                GroupHeader.from_params(keyword.name, indent=keyword_indent),
+                end=End.from_params(keyword_indent),
             )
 
         return Comment.from_params(
-            comment=self._generate_compound_interaction_comment(interaction),
-            indent=interaction_indent,
+            comment=self._generate_compound_keyword_comment(keyword),
+            indent=keyword_indent,
         )  # TODO  prio later key=value als named erlauben config?
 
     @staticmethod
-    def _generate_compound_interaction_comment(
-        interaction: RFKeywordCall,
+    def _generate_compound_keyword_comment(
+        keyword: RFKeywordCall,
     ) -> str:
         cbr_params = SEPARATOR.join(
             [
                 f"{param_name}={param_value}"
-                for param_name, param_value in interaction.cbr_parameters.items()
+                for param_name, param_value in keyword.cbr_parameters.items()
             ]
         )
         cbv_params = SEPARATOR.join(
             [
                 f"{param_name}={param_value}"
-                for param_name, param_value in interaction.cbv_parameters.items()
+                for param_name, param_value in keyword.cbv_parameters.items()
             ]
         )
         cmd = []
         if cbr_params:
             cmd.append(cbr_params)
-        cmd.append(interaction.name)
+        cmd.append(keyword.name)
         if cbv_params:
             cmd.append(cbv_params)
         return f"# {SEPARATOR.join(cmd)}"
@@ -544,18 +544,18 @@ def create_test_suites(
     config: Configuration,
 ) -> dict[str, File]:
     if not Group:
-        if config.compound_interaction_logging == CompoundInteractionLogging.GROUP:
+        if config.compound_keyword_logging == CompoundKeywordLogging.GROUP:
             logger.warning(
                 f"You're using Robot Framework {robot_version.get_full_version()} "
                 "which does not support 'Robot Framework Groups'. "
-                "Compund interactions are logged as 'COMMENT'. To hide the warning "
-                "set the configuration '--logCompoundInteractions' to 'COMMENT' or 'NONE'."
+                "Compound keywords are logged as 'COMMENT'. To hide the warning "
+                "set the configuration '--logCompoundKeywords' to 'COMMENT' or 'NONE'."
             )
         else:
             logger.debug(
                 f"You're using Robot Framework {robot_version.get_full_version()} "
                 "which does not support 'Robot Framework Groups'. Consider updating to "
-                "newer Robot Framework version to get enhanced logging for compound interactions."
+                "newer Robot Framework version to get enhanced logging for compound keywords."
             )
     tcs_paths = path_resolver.tcs_paths
     test_suites = {}
@@ -702,8 +702,8 @@ class RobotSuiteFileBuilder:
         return None
 
     def _get_resource_directory_path_index(self, resource: str) -> int | None:
-        splitted_interaction_path = resource.split(".")
-        for index, part in enumerate(splitted_interaction_path):
+        splitted_keyword_path = resource.split(".")
+        for index, part in enumerate(splitted_keyword_path):
             resource_directory_match = re.match(
                 self.config.resource_directory_regex, part, flags=re.IGNORECASE
             )
@@ -715,23 +715,23 @@ class RobotSuiteFileBuilder:
         return len(resource.split(".")) - 1 if resource else None
 
     def _create_resource_path(self, resource: str) -> str:
-        splitted_interaction_path = resource.split(".")
+        splitted_keyword_path = resource.split(".")
         resource_dir_index = self._get_resource_directory_path_index(resource)
         resource_name = self._get_resource_name(resource)
         resource_name_index = self._get_resource_path_index(resource)
-        cropped_interaction_path = []
+        cropped_keyword_path = []
         if resource_dir_index is None:
             resource_path = Path(
                 self.config.resource_directory,
                 f"{resource_name}.resource",
             ).as_posix()
         else:
-            cropped_interaction_path.extend(
-                splitted_interaction_path[resource_dir_index + 1 : resource_name_index]
+            cropped_keyword_path.extend(
+                splitted_keyword_path[resource_dir_index + 1 : resource_name_index]
             )
             resource_path = Path(
                 self.config.resource_directory,
-                *cropped_interaction_path,
+                *cropped_keyword_path,
                 f"{resource_name}.resource",
             ).as_posix()
         resource_path = self.config.subdivisionsMapping.resources.get(resource_name, resource_path)

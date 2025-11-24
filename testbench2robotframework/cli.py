@@ -85,9 +85,9 @@ def testbench2robotframework_cli():
     help="Directory or ZIP archive containing the generated test suites.",
 )
 @click.option(
-    "--compound-interaction-logging",
+    "--compound-keyword-logging",
     type=click.Choice(["GROUP", "COMMENT", "NONE"], case_sensitive=False),
-    help="Mode for logging compound interactions.",
+    help="Mode for logging compound keywords.",
 )
 @click.option(
     "--log-suite-numbering", is_flag=True, help="Enables logging of the test suite numbering."
@@ -159,7 +159,7 @@ def testbench2robotframework_cli():
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
     clean: bool,
-    compound_interaction_logging: str,
+    compound_keyword_logging: str,
     config: Path,
     fully_qualified: bool,
     library_regex: tuple[str],
@@ -198,8 +198,8 @@ def generate_tests(  # noqa: PLR0913
     else:
         configuration["log-suite-numbering"] = configuration.get("log-suite-numbering", False)
     configuration["metadata"] = metadata or configuration.get("metadata", {})
-    configuration["compound-interaction-logging"] = (
-        compound_interaction_logging or configuration.get("compound-interaction-logging", "GROUP")
+    configuration["compound-keyword-logging"] = (
+        compound_keyword_logging or configuration.get("compound-keyword-logging", "GROUP")
     )
     configuration["resource-directory"] = (
         resource_directory.as_posix()
