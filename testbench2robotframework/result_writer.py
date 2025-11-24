@@ -23,10 +23,10 @@ from .model import (
     ExecStatus,
     ExecutionImportingSuccess,
     ExecutionResultForImport,
-    InteractionCall,
-    InteractionCallExecution,
-    InteractionType,
-    InteractionVerdict,
+    KeywordCall,
+    KeywordCallExecution,
+    KeywordType,
+    KeywordVerdict,
     RichTextForImport,
     SequencePhase,
     TestCaseDetails,
@@ -114,10 +114,10 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_cases: list[TestCaseExecutionForImport] = []
 
     def _get_interactions_by_type(
-        self, interactions: list[InteractionCall], interaction_type: InteractionType
+        self, interactions: list[KeywordCall], interaction_type: KeywordType
     ):
         for interaction in interactions:
-            if interaction.spec.interactionType == interaction_type:
+            if interaction.spec.keywordType == interaction_type:
                 yield interaction
 
     def end_test(self, test: TestCase):
@@ -150,10 +150,10 @@ class ResultWriter(ResultVisitor):
             )
         try:
             atomic_interactions = list(
-                self._get_interactions_by_type(itb_test_case.testSequence, InteractionType.Atomic)
+                self._get_interactions_by_type(itb_test_case.testSequence, KeywordType.Atomic)
             )
             compound_interactions = list(
-                self._get_interactions_by_type(itb_test_case.testSequence, InteractionType.Compound)
+                self._get_interactions_by_type(itb_test_case.testSequence, KeywordType.Compound)
             )
             self._set_atomic_interactions_execution_result(atomic_interactions, self.test_chain)
             for interaction in compound_interactions:
@@ -283,7 +283,7 @@ class ResultWriter(ResultVisitor):
         return keywords
 
     def _set_atomic_interactions_execution_result(
-        self, atomic_interactions: list[InteractionCall], test_chain: list[TestCase]
+        self, atomic_interactions: list[KeywordCall], test_chain: list[TestCase]
     ):
         self._test_setup_passed = True
         test_chain_setup = [
@@ -320,15 +320,15 @@ class ResultWriter(ResultVisitor):
 
     def _set_interaction_verdicts(
         self,
-        interaction_list: list[InteractionCall],
+        interaction_list: list[KeywordCall],
         test_chain_body: list[Keyword],
         sequence_phase: SequencePhase,
     ):
         for index, interaction in enumerate(interaction_list):
             if interaction.exec is None:
-                interaction.exec = from_dict(InteractionCallExecution, {})
+                interaction.exec = from_dict(KeywordCallExecution, {})
             if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
-                interaction.exec.verdict = InteractionVerdict.Skipped
+                interaction.exec.verdict = KeywordVerdict.Skipped
                 continue
             if index < len(test_chain_body):
                 keyword = test_chain_body[index]
@@ -340,13 +340,13 @@ class ResultWriter(ResultVisitor):
                 interaction.exec.time = tb_keyword_result.time
                 continue
             if sequence_phase == SequencePhase.Setup and not self._test_setup_passed:
-                interaction.exec.verdict = InteractionVerdict.Skipped
+                interaction.exec.verdict = KeywordVerdict.Skipped
                 continue
-            interaction.exec.verdict = InteractionVerdict.Undefined
+            interaction.exec.verdict = KeywordVerdict.Undefined
 
     def _filter_atomic_interactions_by_sequence_phase(
         self,
-        atomic_interactions: list[InteractionCall],
+        atomic_interactions: list[KeywordCall],
         sequence_phase: SequencePhase,
     ):
         return list(
@@ -356,13 +356,13 @@ class ResultWriter(ResultVisitor):
             )
         )
 
-    def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> InteractionCallExecution:
+    def _get_interaction_exec_from_keyword(self, keyword: Keyword) -> KeywordCallExecution:
         end_time = keyword.end_time.replace(
             tzinfo=timezone(datetime.now(timezone.utc).astimezone().utcoffset())
         )
 
         return from_dict(
-            InteractionCallExecution,
+            KeywordCallExecution,
             {
                 "verdict": self._get_interaction_result(keyword.status),
                 "time": (
@@ -377,7 +377,7 @@ class ResultWriter(ResultVisitor):
         )
 
     def _check_matching_interaction_and_keyword_name(
-        self, keyword: Keyword, interaction: InteractionCall
+        self, keyword: Keyword, interaction: KeywordCall
     ) -> None:
         if not is_normalized_equal(
             keyword.kwname, interaction.spec.name
@@ -444,11 +444,11 @@ class ResultWriter(ResultVisitor):
             )
 
     def _set_compound_interaction_execution_verdict(
-        self, compound_interaction: InteractionCall, test_steps: list[InteractionCall]
+        self, compound_interaction: KeywordCall, test_steps: list[KeywordCall]
     ):
         if compound_interaction.exec is None:
-            compound_interaction.exec = from_dict(InteractionCallExecution, {})
-        compound_interaction.exec.verdict = InteractionVerdict.Skipped
+            compound_interaction.exec = from_dict(KeywordCallExecution, {})
+        compound_interaction.exec.verdict = KeywordVerdict.Skipped
         children = list(
             filter(lambda ts: ts.parentID == compound_interaction.sequenceID, test_steps)
         )
@@ -457,14 +457,14 @@ class ResultWriter(ResultVisitor):
                 logger.debug(
                     f"Child interaction {child.uniqueID} had no exec details and therefore ignored."
                 )
-                child.exec = from_dict(InteractionCallExecution, {})
-            if child.spec.interactionType == InteractionType.Compound:
+                child.exec = from_dict(KeywordCallExecution, {})
+            if child.spec.keywordType == KeywordType.Compound:
                 self._set_compound_interaction_execution_verdict(child, test_steps)
-            if child.exec.verdict is InteractionVerdict.Fail:
-                compound_interaction.exec.verdict = InteractionVerdict.Fail
+            if child.exec.verdict is KeywordVerdict.Fail:
+                compound_interaction.exec.verdict = KeywordVerdict.Fail
                 break
-            if child.exec.verdict is InteractionVerdict.Pass:
-                compound_interaction.exec.verdict = InteractionVerdict.Pass
+            if child.exec.verdict is KeywordVerdict.Pass:
+                compound_interaction.exec.verdict = KeywordVerdict.Pass
 
         compound_interaction.exec.duration = sum(
             [interaction.exec.duration for interaction in children]
@@ -655,15 +655,15 @@ class ResultWriter(ResultVisitor):
         }
 
     @staticmethod
-    def _get_interaction_result(robot_status: str) -> InteractionVerdict:
+    def _get_interaction_result(robot_status: str) -> KeywordVerdict:
         robot_status = robot_status.upper()
         if robot_status == "PASS":
-            return InteractionVerdict.Pass
+            return KeywordVerdict.Pass
         if robot_status == "FAIL":
-            return InteractionVerdict.Fail
+            return KeywordVerdict.Fail
         if robot_status == "NOT RUN":
-            return InteractionVerdict.Skipped
-        return InteractionVerdict.Skipped
+            return KeywordVerdict.Skipped
+        return KeywordVerdict.Skipped
 
 
 class TestChain:
