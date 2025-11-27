@@ -20,14 +20,14 @@ from robot.parsing.model.blocks import (
 from robot.parsing.model.statements import (
     Comment,
     EmptyLine,
-    KeywordCall,
+    KeywordCall as RFKeywordCall,
     LibraryImport,
     Metadata,
     ResourceImport,
     SectionHeader,
     Setup,
     Statement,
-    Tags,
+    Tags as RFTags,
     Teardown,
     TestCaseName,
     VariablesImport,
@@ -44,7 +44,7 @@ from .config import CompoundKeywordLogging, Configuration
 from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
-    KeywordCall,
+    KeywordCall as TBKeywordCall,
     KeywordDetails,
     KeywordType,
     ParameterEvaluationType,
@@ -74,7 +74,7 @@ RESOURCE_IMPORT_TYPE = str(uuid4())
 
 
 @dataclass
-class RFKeywordCall:
+class RFKeywordCallInformation:
     name: str
     cbv_parameters: dict[str, str]
     cbr_parameters: dict[str, str]
@@ -88,7 +88,7 @@ class RfTestCase:
     def __init__(self, test_case_details: TestCaseDetails, config: Configuration) -> None:
         self.test_case_details: TestCaseDetails = test_case_details
         self.uid: str = test_case_details.uniqueID
-        self.rf_keyword_calls: list[RFKeywordCall] = []
+        self.rf_keyword_call_information: list[RFKeywordCallInformation] = []
         self.used_imports: dict[str, set[str]] = {}
         self.config = config
         self.lib_pattern_list = [re.compile(pattern) for pattern in config.library_regex]
@@ -122,11 +122,11 @@ class RfTestCase:
                 udfs.append(udf.name)
         return udfs
 
-    def _get_keyword_call(self, test_step: KeywordCall) -> None:
+    def _get_keyword_call(self, test_step: TBKeywordCall) -> None:
         indent = len(test_step.numbering.split("."))
         if test_step.spec.keywordType == KeywordType.Textual:
-            self.rf_keyword_calls.append(
-                RFKeywordCall(
+            self.rf_keyword_call_information.append(
+                RFKeywordCallInformation(
                     name=f"# {test_step.spec.name}",
                     cbv_parameters={},
                     cbr_parameters={},
@@ -164,7 +164,7 @@ class RfTestCase:
         cbr_params: dict[str, str],
         cbv_params: dict[str, str],
         indent: int,
-        test_step: KeywordCall,
+        test_step: TBKeywordCall,
         keyword_path: str,
     ):
         resource_type, import_prefix = self._get_keyword_import(test_step, keyword_path)
@@ -173,8 +173,8 @@ class RfTestCase:
             self.used_imports[resource_type] = {import_prefix}
         else:
             self.used_imports[resource_type].add(import_prefix)
-        self.rf_keyword_calls.append(
-            RFKeywordCall(
+        self.rf_keyword_call_information.append(
+            RFKeywordCallInformation(
                 name=test_step.spec.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
@@ -186,7 +186,7 @@ class RfTestCase:
         )
 
     def _get_keyword_import(
-        self, test_step: KeywordCall, keyword_path: str
+        self, test_step: TBKeywordCall, keyword_path: str
     ) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
             match = pattern.search(keyword_path)
@@ -210,10 +210,10 @@ class RfTestCase:
         cbr_params: dict[str, str],
         cbv_params: dict[str, str],
         indent: int,
-        test_step: KeywordCall,
+        test_step: TBKeywordCall,
     ):
-        self.rf_keyword_calls.append(
-            RFKeywordCall(
+        self.rf_keyword_call_information.append(
+            RFKeywordCallInformation(
                 test_step.spec.name,
                 cbv_parameters=cbv_params,
                 cbr_parameters=cbr_params,
@@ -224,7 +224,7 @@ class RfTestCase:
         )
 
     def _create_rf_keyword_calls(
-        self, keyword_calls: list[RFKeywordCall]
+        self, keyword_calls: list[RFKeywordCallInformation]
     ) -> list[list[Statement]]:
         keyword_lists: list[list[Statement]] = [[]]
         tc_index = 0
@@ -276,7 +276,7 @@ class RfTestCase:
             and self.config.testCaseSplitPathRegEx
         )
 
-    def _create_rf_setup_call(self, setup_keyword: RFKeywordCall) -> Setup:
+    def _create_rf_setup_call(self, setup_keyword: RFKeywordCallInformation) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_keyword)
         if cbr_parameters:
             logger.error("No variable assignment in [setup] possible.")
@@ -291,7 +291,7 @@ class RfTestCase:
 
     def _create_rf_teardown_call(
         self,
-        teardown_keyword: RFKeywordCall,
+        teardown_keyword: RFKeywordCallInformation,
     ) -> Teardown:
         cbr_parameters = self._create_cbr_parameters(teardown_keyword)
         if cbr_parameters:
@@ -306,7 +306,7 @@ class RfTestCase:
         )
 
     def _create_rf_keyword_from_keyword_list(
-        self, keyword_name: str, keywords: list[RFKeywordCall]
+        self, keyword_name: str, keywords: list[RFKeywordCallInformation]
     ):
         keyword_calls_lists = self._create_rf_keyword_calls(keywords)
         keyword = Keyword(header=TestCaseName.from_params(keyword_name))
@@ -314,7 +314,7 @@ class RfTestCase:
         keyword.body.extend(LINE_SEPARATOR)
         return keyword
 
-    def _create_rf_setup(self, setup_keywords: list[RFKeywordCall]) -> Setup | None:
+    def _create_rf_setup(self, setup_keywords: list[RFKeywordCallInformation]) -> Setup | None:
         rf_setup = None
         if len(setup_keywords) == 1:
             rf_setup = self._create_rf_setup_call(setup_keywords[0])
@@ -325,7 +325,7 @@ class RfTestCase:
             rf_setup = Setup.from_params(name=self.setup_keyword.name)
         return rf_setup
 
-    def _get_teardown_params(self, keyword_calls: list[RFKeywordCall]):
+    def _get_teardown_params(self, keyword_calls: list[RFKeywordCallInformation]):
         if len(keyword_calls) == 1:
             keyword = keyword_calls[0]
             return {
@@ -354,21 +354,21 @@ class RfTestCase:
         setup_keywords = list(
             filter(
                 lambda keyword: keyword.sequence_phase == SequencePhase.Setup,
-                self.rf_keyword_calls,
+                self.rf_keyword_call_information,
             )
         )
         rf_setup = self._create_rf_setup(setup_keywords)
         test_step_keywords = list(
             filter(
                 lambda keyword: keyword.sequence_phase == SequencePhase.TestStep,
-                self.rf_keyword_calls,
+                self.rf_keyword_call_information,
             )
         )
         rf_keyword_call_lists = self._create_rf_keyword_calls(test_step_keywords)
         teardown_keywords = list(
             filter(
                 lambda keyword: keyword.sequence_phase == SequencePhase.Teardown,
-                self.rf_keyword_calls,
+                self.rf_keyword_call_information,
             )
         )
         rf_teardown = self._create_rf_teardown(teardown_keywords)
@@ -389,7 +389,7 @@ class RfTestCase:
             # tc_name = f"{self.uid}{suffix}"  # TODO later UID or Comments
             rf_test_case = TestCase(header=TestCaseName.from_params(tc_name))
             if self.rf_tags:
-                rf_test_case.body.append(Tags.from_params(self.rf_tags))
+                rf_test_case.body.append(RFTags.from_params(self.rf_tags))
             if index == 0 and rf_setup:
                 rf_test_case.body.append(rf_setup)
             rf_test_case.body.extend(rf_keywords)
@@ -401,7 +401,7 @@ class RfTestCase:
         return rf_test_cases
 
     @staticmethod
-    def _create_cbv_parameters(keyword: RFKeywordCall) -> list[str]:
+    def _create_cbv_parameters(keyword: RFKeywordCallInformation) -> list[str]:
         parameters = []
         previous_arg_forces_named = False
         for name, value in keyword.cbv_parameters.items():
@@ -438,7 +438,7 @@ class RfTestCase:
 
     @staticmethod
     def _create_cbr_parameters(
-        keyword: RFKeywordCall,
+        keyword: RFKeywordCallInformation,
     ) -> list[str]:
         cbr_parameters = list(
             filter(lambda parameter: parameter != "", keyword.cbr_parameters.values())
@@ -453,7 +453,7 @@ class RfTestCase:
                 cbr_parameters[index] = f"${{{parameter}}}"
         return cbr_parameters
 
-    def _get_keyword_import_prefix(self, keyword: RFKeywordCall) -> str:
+    def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
         for resource_regex in self.config.resource_regex:
             if not keyword.import_prefix:
                 continue
@@ -466,7 +466,7 @@ class RfTestCase:
                 ) * f"{resource_name_match.group('resourceName').strip()}."
         return ""
 
-    def _get_keyword_indent(self, keyword: RFKeywordCall) -> str:
+    def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
         return (
             SEPARATOR * keyword.indent
             if self.config.compound_keyword_logging
@@ -474,12 +474,12 @@ class RfTestCase:
             else SEPARATOR
         )
 
-    def _create_rf_keyword(self, keyword: RFKeywordCall) -> KeywordCall:
+    def _create_rf_keyword(self, keyword: RFKeywordCallInformation) -> RFKeywordCall:
         import_prefix = self._get_keyword_import_prefix(keyword)
         keyword_indent = self._get_keyword_indent(keyword)
         cbv_parameters = self._create_cbv_parameters(keyword)
         cbr_parameters = self._create_cbr_parameters(keyword)
-        return KeywordCall.from_params(
+        return RFKeywordCall.from_params(
             assign=tuple(cbr_parameters),
             name=f"{import_prefix}{keyword.name}",
             args=tuple(cbv_parameters),
@@ -488,7 +488,7 @@ class RfTestCase:
 
     def _create_rf_compound_keyword(
         self,
-        keyword: RFKeywordCall,
+        keyword: RFKeywordCallInformation,
         compound_keyword_type=CompoundKeywordLogging.COMMENT,
     ) -> Comment | Group:
         keyword_indent = " " * (keyword.indent * 4)
@@ -505,7 +505,7 @@ class RfTestCase:
 
     @staticmethod
     def _generate_compound_keyword_comment(
-        keyword: RFKeywordCall,
+        keyword: RFKeywordCallInformation,
     ) -> str:
         cbr_params = SEPARATOR.join(
             [
@@ -529,7 +529,7 @@ class RfTestCase:
 
     @staticmethod
     def _get_params_by_use_type(
-        test_step: KeywordCall, *param_use_types: ParameterEvaluationType
+        test_step: TBKeywordCall, *param_use_types: ParameterEvaluationType
     ) -> dict[str, str]:
         return {
             parameter.name: parameter.value
