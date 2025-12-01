@@ -324,25 +324,25 @@ class ResultWriter(ResultVisitor):
         test_chain_body: list[Keyword],
         sequence_phase: SequencePhase,
     ):
-        for index, keyword in enumerate(keyword_list):
-            if keyword.exec is None:
-                keyword.exec = from_dict(KeywordCallExecution, {})
+        for index, tb_keyword in enumerate(keyword_list):
+            if tb_keyword.exec is None:
+                tb_keyword.exec = from_dict(KeywordCallExecution, {})
             if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
-                keyword.exec.verdict = KeywordVerdict.Skipped
+                tb_keyword.exec.verdict = KeywordVerdict.Skipped
                 continue
             if index < len(test_chain_body):
                 keyword = test_chain_body[index]
-                self._check_matching_keyword_name(keyword, keyword)
+                self._check_matching_keyword_name(keyword, tb_keyword)
                 tb_keyword_result = self._get_keyword_exec_from_keyword(keyword)
-                keyword.exec.verdict = tb_keyword_result.verdict
-                keyword.exec.duration = tb_keyword_result.duration
-                keyword.exec.comments = tb_keyword_result.comments
-                keyword.exec.time = tb_keyword_result.time
+                tb_keyword.exec.verdict = tb_keyword_result.verdict
+                tb_keyword.exec.duration = tb_keyword_result.duration
+                tb_keyword.exec.comments = tb_keyword_result.comments
+                tb_keyword.exec.time = tb_keyword_result.time
                 continue
             if sequence_phase == SequencePhase.Setup and not self._test_setup_passed:
-                keyword.exec.verdict = KeywordVerdict.Skipped
+                tb_keyword.exec.verdict = KeywordVerdict.Skipped
                 continue
-            keyword.exec.verdict = KeywordVerdict.Undefined
+            tb_keyword.exec.verdict = KeywordVerdict.Undefined
 
     def _filter_atomic_keywords_by_sequence_phase(
         self,

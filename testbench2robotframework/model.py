@@ -890,6 +890,7 @@ class ReferenceKind(Enum):
     Reference = 'Reference'
     Link = 'Link'
     Attachment = 'Attachment'
+    Hyperlink = 'Hyperlink'
 
 
 class TestFilterType(Enum):
