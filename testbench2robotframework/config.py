@@ -60,6 +60,8 @@ def find_private_robot_toml() -> Path:
 
 
 def get_testbench2robotframework_toml_dict(toml_path: Path):
+    if not toml_path or not toml_path.is_file():
+        return {}
     try:
         with Path(toml_path).open("rb") as toml_file:
             toml_dict = tomllib.load(toml_file)
