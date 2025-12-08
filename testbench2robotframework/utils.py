@@ -88,7 +88,7 @@ class PathResolver:
             self.tt_catalog[tse.base.uniqueID] = tse
 
     def _file_prefix(self, tse) -> str:
-        prefix_separator = "_" * self._log_suite_numbers
+        prefix_separator = "_" * (not self._log_suite_numbers)
         return f"{self._get_padded_index(tse)}_{prefix_separator}"
 
     def _get_padded_index(self, tse) -> str:
