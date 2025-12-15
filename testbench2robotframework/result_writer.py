@@ -25,6 +25,7 @@ from .model import (
     ExecutionResultForImport,
     KeywordCall,
     KeywordCallExecution,
+    KeywordCallExecution,
     KeywordType,
     KeywordVerdict,
     RichTextForImport,
@@ -160,6 +161,13 @@ class ResultWriter(ResultVisitor):
                 self._set_compound_keyword_execution_verdict(
                     keyword, itb_test_case.testSequence
                 )
+            textual_interactions = list(
+                self._get_interactions_by_type(itb_test_case.interactions, KeywordType.Textual)
+            )
+            for step in textual_interactions:
+                if step.exec is None:
+                    step.exec = KeywordCallExecution.from_dict({})
+                step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
             self._set_itb_testcase_references(itb_test_case, self.test_chain)
