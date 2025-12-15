@@ -117,6 +117,8 @@ class ResultWriter(ResultVisitor):
         self, keywords: list[KeywordCall], keyword_type: KeywordType
     ):
         for keyword in keywords:
+            if not keyword.spec:
+                continue
             if keyword.spec.keywordType == keyword_type:
                 yield keyword
 
@@ -160,12 +162,12 @@ class ResultWriter(ResultVisitor):
                 self._set_compound_keyword_execution_verdict(
                     keyword, itb_test_case.testSequence
                 )
-            textual_interactions = list(
-                self._get_interactions_by_type(itb_test_case.interactions, KeywordType.Textual)
+            textual_steps = list(
+                self._get_keywords_by_type(itb_test_case.testSequence, KeywordType.Textual)
             )
-            for step in textual_interactions:
+            for step in textual_steps:
                 if step.exec is None:
-                    step.exec = KeywordCallExecution.from_dict({})
+                    step.exec =  from_dict(KeywordCallExecution, {})
                 step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
@@ -467,6 +469,8 @@ class ResultWriter(ResultVisitor):
                 child.exec = from_dict(KeywordCallExecution, {})
             if child.spec.keywordType == KeywordType.Compound:
                 self._set_compound_keyword_execution_verdict(child, test_steps)
+            if child.spec.keywordType == KeywordType.Textual:
+                child.exec.verdict = KeywordVerdict.Skipped
             if child.exec.verdict is KeywordVerdict.Fail:
                 compound_keyword.exec.verdict = KeywordVerdict.Fail
                 break
