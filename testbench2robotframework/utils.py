@@ -97,55 +97,22 @@ class PathResolver:
         return index.zfill(max_length)
 
 
-def safe_eval(expr: str, names: dict):
-    tree = ast.parse(expr, mode="eval")
-    allowed_nodes = (
-        ast.Expression,
-        ast.Call,
-        ast.Attribute,
-        ast.Load,
-        ast.Name,
-        ast.ListComp,
-        ast.GeneratorExp,
-        ast.comprehension,
-        ast.List,
-        ast.Tuple,
-        ast.Constant,
-        ast.Subscript,
-        ast.JoinedStr,
-        ast.FormattedValue,
-        ast.BinOp,
-        ast.UnaryOp,
-        ast.Compare,
-        ast.BoolOp,
-        ast.Eq,
-        ast.NotEq,
-        ast.Gt,
-        ast.Lt,
-        ast.GtE,
-        ast.LtE,
-        ast.In,
-        ast.And,
-        ast.Or,
-        ast.Not,
-        ast.Add,
-        ast.Sub,
-        ast.Mult,
-        ast.Div,
-        ast.Mod,
-        ast.Store,
-        ast.keyword,
-    )
-    for node in ast.walk(tree):
-        if not isinstance(node, allowed_nodes):
-            raise ValueError(f"Disallowed expression: {type(node).__name__}")
-        if isinstance(node, ast.Attribute) and node.attr.startswith("_"):
-            raise ValueError(f"Access to private attribute {node.attr} is not allowed")
-        if isinstance(node, ast.Name) and node.id == "__import__":
-            raise ValueError("Use of __import__ is forbidden")
-
-    code = compile(tree, "<safe_eval>", "eval")
-    return eval(code, {"__builtins__": {}}, names)
+# def safe_eval(expr: str, names: dict):
+#     tree = ast.parse(expr, mode="eval")
+#     def resolve(node):
+#         if isinstance(node, ast.Name):
+#             if node.id not in names:
+#                 raise ValueError(f"Unknown name: {node.id}")
+#             return names[node.id]
+#         if isinstance(node, ast.Attribute):
+#             if node.attr.startswith("_"):
+#                 raise ValueError("Private attributes are forbidden")
+#             value = resolve(node.value)
+#             return getattr(value, node.attr)
+#         raise ValueError(f"Disallowed expression: {type(node).__name__}")
+#     if not isinstance(tree.body, (ast.Name, ast.Attribute)):
+#         raise ValueError("Only attribute access is allowed")
+#     return resolve(tree.body)
 
 
 def get_directory(json_report_path: Optional[str]) -> str:

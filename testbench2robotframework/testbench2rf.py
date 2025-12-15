@@ -55,7 +55,7 @@ from .model import (
     UDFType,
     UserDefinedField,
 )
-from .utils import PathResolver
+from .utils import PathResolver, safe_eval
 
 try:
     from robot.parsing.model.blocks import Group
@@ -825,21 +825,23 @@ class RobotSuiteFileBuilder:
         setting_section.body.extend(self._create_rf_resource_imports(subdivisions))
         setting_section.body.extend(self._create_rf_unknown_imports(subdivisions))
         setting_section_meta_data = self.test_case_set.metadata
-        for md_name, md_expression in self.config.metadata.items():
-            from .utils import safe_eval
-            md_expression = re.sub(r"\$tcs", "tcs", md_expression)
-            try:
-                setting_section_meta_data[md_name] = safe_eval(
-                    md_expression, {"tcs": self.test_case_set.details}
-                )
-            except ValueError as ve:
-                logger.warning(
-                    f"Value '{md_expression}' from the custom metadata setting could not be evaluated: {ve}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error while evaluating the custom metadata setting '{md_expression}': {e}"
-                )
+        # for md_name, md_expression in self.config.metadata.items():
+        #     try:
+        #         md_expression = re.sub(r"\$tcs", "tcs", md_expression)
+        #         for match in re.finditer(r"(\{[^}]*\})", md_expression):
+        #             re.sub() = safe_eval(
+        #                 md_expression, {"tcs": self.test_case_set.details}
+        #             )
+        #             print(match.group(1))
+        #         setting_section_meta_data[md_name] = str(md_expression)
+        #     except ValueError as ve:
+        #         logger.warning(
+        #             f"Value '{md_expression}' from the custom metadata setting could not be evaluated: {ve}"
+        #         )
+        #     except Exception as e:
+        #         logger.error(
+        #             f"Error while evaluating the custom metadata setting '{md_expression}': {e}"
+        #         )
         setting_section.body.extend(
             [
                 create_meta_data(metadata_name, metadata_value)
