@@ -1,11 +1,9 @@
-import ast
 import re
 import shutil
 import sys
 from pathlib import Path, PurePath
 from typing import Optional
 from zipfile import ZipFile
-from .log import logger
 
 from testbench2robotframework.model import (
     RootNode,
@@ -17,6 +15,8 @@ from testbench2robotframework.model import (
     UDFType,
     UserDefinedField,
 )
+
+from .log import logger
 
 
 def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:

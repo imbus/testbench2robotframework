@@ -20,17 +20,21 @@ from robot.parsing.model.blocks import (
 from robot.parsing.model.statements import (
     Comment,
     EmptyLine,
-    KeywordCall as RFKeywordCall,
     LibraryImport,
     Metadata,
     ResourceImport,
     SectionHeader,
     Setup,
     Statement,
-    Tags as RFTags,
     Teardown,
     TestCaseName,
     VariablesImport,
+)
+from robot.parsing.model.statements import (
+    KeywordCall as RFKeywordCall,
+)
+from robot.parsing.model.statements import (
+    Tags as RFTags,
 )
 
 from testbench2robotframework.utils import robot_tag_from_udf
@@ -45,6 +49,8 @@ from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
     KeywordCall as TBKeywordCall,
+)
+from .model import (
     KeywordDetails,
     KeywordType,
     ParameterEvaluationType,
@@ -55,7 +61,7 @@ from .model import (
     UDFType,
     UserDefinedField,
 )
-from .utils import PathResolver, safe_eval
+from .utils import PathResolver
 
 try:
     from robot.parsing.model.blocks import Group

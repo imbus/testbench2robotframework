@@ -25,7 +25,6 @@ from .model import (
     ExecutionResultForImport,
     KeywordCall,
     KeywordCallExecution,
-    KeywordCallExecution,
     KeywordType,
     KeywordVerdict,
     RichTextForImport,
