@@ -1,0 +1,6 @@
+python-path = [
+    "atest/robot/libs",
+    "atest/robot/resources"
+]
+[variables]
+ATEST_DIR = "atest"

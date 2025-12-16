@@ -1,0 +1,39 @@
+{
+  "library-root": [
+    "Keywords",
+    "RF-Library"
+  ],
+  "resource-root": [
+    "RF-Resource"
+  ],
+  "fully-qualified": false,
+  "output-directory": "{root}/Generated",
+  "log-suite-numbering": true,
+  "resource-directory": "{root}/Resources",
+  "clean": true,
+  "compound-keyword-logging": "GROUP",
+  "library-mapping": {
+      "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
+      "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
+  },
+  "resource-mapping": {
+    "MyKeywords": "{root}/../MyKeywords.resource",
+    "MyOtherKeywords": "{resourceDirectory}/subdir/MyOtherKeywords.resource"
+  },
+  "forcedImport": {
+    "libraries": [
+    ],
+    "resources":
+    [
+    ],
+    "variables": [
+    ]
+  },
+  "testCaseSplitPathRegEx": "^StopWithRestart\\..*",
+  "console-logging": {
+    "logLevel": "debug"
+  },
+  "file-logging": {
+      "logLevel": "info"
+    }
+}

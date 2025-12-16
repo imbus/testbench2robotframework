@@ -144,7 +144,6 @@ TestBenchExport
 json-report_out
 report_out
 dist
-atest/
 IssueDebugging/
 MyResources/
 log.html
@@ -152,3 +151,18 @@ output.xml
 playwright-log.txt
 results/
 report.html
+ExampleConfiguration/toml_config_minimal.toml
+ExampleConfiguration/toml_new_names.toml
+README_new.md
+report/
+reportt/
+itorx_report/
+config.json
+resources/
+robot.toml
+.robot.toml
+cli-export-config.json
+cli-import-config.json
+robot_tests/
+reports/
+.github/

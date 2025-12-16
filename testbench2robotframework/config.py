@@ -1,17 +1,81 @@
 # pylint: skip-file
 from __future__ import annotations
 
+from enum import Enum, auto
 import json
+import sys
 from dataclasses import dataclass
-from typing import Dict, List, Union
+from pathlib import Path
+from typing import Final
 
-from .model import StrEnum
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
+
+DEFAULT_LIBRARY_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Library\].*"
+DEFAULT_LIBRARY_ROOTS: Final[list[str]] = ["RF", "RF-Library"]
+DEFAULT_RESOURCE_REGEX = r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\].*"
+DEFAULT_RESOURCE_ROOTS: Final[list[str]] = ["RF-Resource"]
+DEFAULT_GENERATION_DIRECTORY = "{root}/Generated"
+DEFAULT_RESOURCE_DIRECTORY_REGEX = r".*\[Robot-Resources\].*"
+
+class StrEnum(str, Enum):
+    def __new__(cls, *args):
+        for arg in args:
+            if not isinstance(arg, (str, auto)):
+                raise TypeError(f"Values of StrEnums must be strings: {arg!r} is a {type(arg)}")
+        return super().__new__(cls, *args)
+
+    def __str__(self):
+        return self.value
+
+    def _generate_next_value_(name, *_):
+        return name
+
+
+def find_pyproject_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        pyproject_path = parent / "pyproject.toml"
+        if pyproject_path.is_file():
+            return pyproject_path
+    return Path()
+
+def find_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        robot_path = parent / "robot.toml"
+        if robot_path.is_file():
+            return robot_path
+    return Path()
+
+def find_private_robot_toml() -> Path:
+    current_dir = Path().cwd()
+    for parent in [current_dir, *list(current_dir.parents)]:
+        private_robot_path = parent / ".robot.toml"
+        if private_robot_path.is_file():
+            return private_robot_path
+    return Path()
+
+
+def get_testbench2robotframework_toml_dict(toml_path: Path):
+    if not toml_path or not toml_path.is_file():
+        return {}
+    try:
+        with Path(toml_path).open("rb") as toml_file:
+            toml_dict = tomllib.load(toml_file)
+    except FileNotFoundError:
+        return {}
+    except PermissionError:
+        return {}
+    return toml_dict.get("tool", {}).get("testbench2robotframework", {})
 
 
 @dataclass
 class SubdivisionsMapping:
-    libraries: Dict
-    resources: Dict
+    libraries: dict
+    resources: dict
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -22,9 +86,9 @@ class SubdivisionsMapping:
 
 @dataclass
 class ForcedImport:
-    libraries: List[str]
-    resources: List[str]
-    variables: List[str]
+    libraries: list[str]
+    resources: list[str]
+    variables: list[str]
 
     @classmethod
     def from_dict(cls, dictionary):
@@ -101,6 +165,12 @@ class LoggingConfig:
         )
 
 
+class CompoundKeywordLogging(StrEnum):
+    GROUP = "GROUP"
+    COMMENT = "COMMENT"
+    NONE = "NONE"
+
+
 class ReferenceBehaviour(StrEnum):
     ATTACHMENT = "ATTACHMENT"
     REFERENCE = "REFERENCE"
@@ -116,65 +186,73 @@ class AttachmentConflictBehaviour(StrEnum):
 
 @dataclass
 class Configuration:
-    rfLibraryRegex: List[str]
-    rfResourceRegex: List[str]
-    rfLibraryRoots: List[str]
-    rfResourceRoots: List[str]
-    fullyQualified: bool
-    subdivisionsMapping: SubdivisionsMapping
-    forcedImport: ForcedImport
-    generationDirectory: str
-    createOutputZip: bool
-    resourceDirectory: str
-    logSuiteNumbering: bool
-    clearGenerationDirectory: bool
+    attachmentConflictBehaviour: AttachmentConflictBehaviour
+    clean: bool
+    compound_keyword_logging: CompoundKeywordLogging
+    forced_import: ForcedImport
+    fully_qualified: bool
+    library_regex: list[str]
+    library_root: list[str]
+    log_suite_numbering: bool
     loggingConfiguration: LoggingConfig
-    logCompoundInteractions: bool
-    testCaseSplitPathRegEx: str
+    metadata: dict[str, str]
+    output_directory: str
     phasePattern: str
     referenceBehaviour: ReferenceBehaviour
-    attachmentConflictBehaviour: AttachmentConflictBehaviour
+    resource_directory: str
+    resource_directory_regex: str
+    resource_regex: list[str]
+    resource_root: list[str]
+    subdivisionsMapping: SubdivisionsMapping
+    testCaseSplitPathRegEx: str
 
     @classmethod
     def from_dict(cls, dictionary) -> Configuration:
         return cls(
-            rfLibraryRegex=dictionary.get(
-                "rfLibraryRegex", [r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Library\].*"]
+            clean=dictionary.get("clean", True),
+            library_regex=dictionary.get(
+                "library-regex", [DEFAULT_LIBRARY_REGEX]
             ),
-            rfResourceRegex=dictionary.get(
-                "rfResourceRegex", [r"(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\].*"]
+            resource_directory_regex=dictionary.get(
+                "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX),
+            resource_regex=dictionary.get(
+                "resource-regex", [DEFAULT_RESOURCE_REGEX]
             ),
-            rfLibraryRoots=dictionary.get("rfLibraryRoots", ["RF", "RF-Library"]),
-            rfResourceRoots=dictionary.get("rfResourceRoots", ["RF-Resource"]),
-            fullyQualified=dictionary.get("fullyQualified", False),
-            subdivisionsMapping=SubdivisionsMapping.from_dict(
-                dictionary.get("subdivisionsMapping", {})
-            ),
-            forcedImport=ForcedImport.from_dict(dictionary.get("forcedImport", {})),
-            generationDirectory=dictionary.get("generationDirectory", "{root}/Generated"),
-            createOutputZip=dictionary.get("createOutputZip", False),
-            logSuiteNumbering=dictionary.get("logSuiteNumbering", False),
-            clearGenerationDirectory=dictionary.get("clearGenerationDirectory", True),
+            library_root=dictionary.get("library-root", DEFAULT_LIBRARY_ROOTS),
+            resource_root=dictionary.get("resource-root", DEFAULT_RESOURCE_ROOTS),
+            fully_qualified=dictionary.get("fully-qualified", False),
+            forced_import=ForcedImport.from_dict(dictionary.get("forced-import", {})),
+            output_directory=dictionary.get("output-directory", DEFAULT_GENERATION_DIRECTORY),
+            log_suite_numbering=dictionary.get("log-suite-numbering", False),
             loggingConfiguration=LoggingConfig.from_dict(
-                dictionary.get("loggingConfiguration", {})
+                {
+                    "console":dictionary.get("console-logging", {}),
+                    "file":dictionary.get("file-logging", {})
+                }
             ),
-            logCompoundInteractions=dictionary.get("logCompoundInteractions", True),
-            resourceDirectory=dictionary.get("resourceDirectory", "{root}/Resources").replace(
-                '\\', '/'
+            metadata=dictionary.get("metadata", {}),
+            compound_keyword_logging=CompoundKeywordLogging(dictionary.get("compound-keyword-logging", "GROUP").upper()),
+            resource_directory=dictionary.get("resource-directory", "").replace(
+                "\\", "/"
             ),
-            testCaseSplitPathRegEx=dictionary.get("testCaseSplitPathRegEx", ".*StopWithRestart.*"),
+            testCaseSplitPathRegEx=dictionary.get("testcase-splitting-regex", ".*StopWithRestart.*"),
             phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
-                dictionary.get("referenceBehaviour", "ATTACHMENT").upper()
+                dictionary.get("reference-behaviour", "ATTACHMENT").upper()
+            ),
+            subdivisionsMapping=SubdivisionsMapping.from_dict(
+                {
+                    "libraries":dictionary.get("library-mapping", {}),
+                    "resources":dictionary.get("resource-mapping", {})
+                }
             ),
             attachmentConflictBehaviour=AttachmentConflictBehaviour(
-                dictionary.get("attachmentConflictBehaviour", "USE_EXISTING").upper()
+                dictionary.get("attachment-conflict-behaviour", "USE_EXISTING").upper()
             ),
         )
 
-
 def write_default_config(config_file):
-    with open(config_file, 'w', encoding='utf-8') as file:
+    with Path(config_file).open("w", encoding="utf-8") as file:
         json.dump(
             Configuration.from_dict({}).__dict__,
             file,
