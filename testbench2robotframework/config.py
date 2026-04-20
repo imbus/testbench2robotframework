@@ -189,6 +189,7 @@ class Configuration:
     attachmentConflictBehaviour: AttachmentConflictBehaviour
     clean: bool
     compound_keyword_logging: CompoundKeywordLogging
+    create_output_zip: bool
     forced_import: ForcedImport
     fully_qualified: bool
     library_regex: list[str]
@@ -210,6 +211,7 @@ class Configuration:
     def from_dict(cls, dictionary) -> Configuration:
         return cls(
             clean=dictionary.get("clean", True),
+            create_output_zip=dictionary.get("create-output-zip", False),
             library_regex=dictionary.get(
                 "library-regex", [DEFAULT_LIBRARY_REGEX]
             ),

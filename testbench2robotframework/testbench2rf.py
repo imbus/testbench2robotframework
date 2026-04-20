@@ -197,7 +197,7 @@ class RfTestCase:
         for pattern in self.lib_pattern_list:
             match = pattern.search(keyword_path)
             if match:
-                return LIBRARY_IMPORT_TYPE, match.group("resourceName").strip()
+                return LIBRARY_IMPORT_TYPE, match.group("libraryName").strip()
         for pattern in self.res_pattern_list:
             match = pattern.search(keyword_path)
             if match:
@@ -205,7 +205,7 @@ class RfTestCase:
         splitted_keyword_path = keyword_path.split(".")
         minimum_length_subdivision_path_length = 2
         if (
-            len(splitted_keyword_path) == minimum_length_subdivision_path_length
+            len(splitted_keyword_path) >= minimum_length_subdivision_path_length
             and splitted_keyword_path[0] in self.config.library_root
         ):
             return LIBRARY_IMPORT_TYPE, splitted_keyword_path[1]
@@ -460,17 +460,25 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
-        for resource_regex in self.config.resource_regex:
-            if not keyword.import_prefix:
-                continue
-            resource_name_match = re.search(
-                resource_regex, keyword.import_prefix, flags=re.IGNORECASE
-            )
-            if resource_name_match:
-                return (
-                    self.config.fully_qualified or False
-                ) * f"{resource_name_match.group('resourceName').strip()}."
-        return ""
+        # FIXME:  hier dieser code scheint zu verhindern, dass fully qualified paths verwendet werden, wenn man nicht über Regex arbeitet.
+        # FIXME:  Ich erkenne keinen Grund für diese komplexität. Bitte fixen. René
+
+        # # for resource_regex in self.config.resource_regex:  # TODO: hier haben wir schon eine liste von compilierten pattern.
+        # for resource_pattern in self.res_pattern_list:
+        #     if not keyword.import_prefix:
+        #         continue
+        #     # resource_name_match = re.search(  # TODO: Siehe oben
+        #     #     resource_regex, keyword.import_prefix, flags=re.IGNORECASE
+        #     # )
+        #     resource_name_match = resource_pattern.search(
+        #         keyword.import_prefix, flags=re.IGNORECASE
+        #     )
+        #     if resource_name_match:
+        #         return (
+        #             self.config.fully_qualified or False
+        #         ) * f"{resource_name_match.group('resourceName').strip()}."
+        # return ""
+        return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
         return (
