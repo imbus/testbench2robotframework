@@ -10,8 +10,8 @@ from .testsuite_write import write_test_suites
 from .utils import PathResolver, extract_to_working_directory, is_zip_file
 
 
-def testbench2robotframework(testbench_report: str, config: dict):
-    configuration = Configuration.from_dict(config)
+def testbench2robotframework(testbench_report: str, config: dict | Configuration):
+    configuration = Configuration.from_dict(config) if isinstance(config, dict) else config
     setup_logger(configuration)
     logger.debug("Configuration loaded.")
     testbench_report = Path(testbench_report)
