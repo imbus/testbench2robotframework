@@ -1,8 +1,7 @@
 import json
 import re
 
-
-with open("testbench2robotframework/model.py", "r", encoding="utf8") as model_py:
+with open("testbench2robotframework/model.py", encoding="utf8") as model_py:
     model_str = model_py.read()
 
 pydantic_model = re.sub(r"(@dataclass\n)(class .*?)(:)", r"\2(BaseModel)\3", model_str)
@@ -19,7 +18,7 @@ with open("pydantic_model.py", "w", encoding="utf8") as pydantic_model_py:
     pydantic_model_py.write(pydantic_model)
 
 from pydantic_model import *
-from yaml import dump, Dumper
+from yaml import Dumper, dump
 
 with open("model.json", "w") as schema:
     schema.write(json.dumps(AllModels.model_json_schema(), indent=2))

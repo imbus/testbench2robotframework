@@ -7,7 +7,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from shutil import copytree
-from typing import Optional
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
 
@@ -67,7 +66,7 @@ class ResultWriter(ResultVisitor):
     def __init__(
         self,
         json_report: str,
-        json_result: Optional[str],
+        json_result: str | None,
         config: Configuration,
         output_xml,
         listener_uid=None,
@@ -78,7 +77,7 @@ class ResultWriter(ResultVisitor):
         self.reference_behaviour = config.referenceBehaviour
         self.attachment_conflict_behaviour = config.attachmentConflictBehaviour
         self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
-        self._test_setup_passed: Optional[bool] = None
+        self._test_setup_passed: bool | None = None
         if json_result is None:
             self.json_result = self.json_dir
             self.json_result_path = self.json_dir
@@ -679,7 +678,7 @@ class TestChain:
         self.length = int(length)
 
 
-def get_test_chain(test_name: str, phase_pattern: str) -> Optional[TestChain]:
+def get_test_chain(test_name: str, phase_pattern: str) -> TestChain | None:
     matcher = re.match(get_test_chain_pattern(phase_pattern), test_name)
     if matcher:
         return TestChain(*matcher.groups())

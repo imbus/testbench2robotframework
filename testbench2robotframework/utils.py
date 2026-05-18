@@ -2,7 +2,6 @@ import re
 import shutil
 import sys
 from pathlib import Path, PurePath
-from typing import Optional
 from zipfile import ZipFile
 
 from testbench2robotframework.model import (
@@ -19,7 +18,7 @@ from testbench2robotframework.model import (
 from .log import logger
 
 
-def robot_tag_from_udf(udf: UserDefinedField) -> Optional[str]:
+def robot_tag_from_udf(udf: UserDefinedField) -> str | None:
     if (udf.udfType == UDFType.Enumeration and udf.value) or (
         udf.udfType == UDFType.String and udf.value
     ):
@@ -115,7 +114,7 @@ class PathResolver:
 #     return resolve(tree.body)
 
 
-def get_directory(json_report_path: Optional[str]) -> str:
+def get_directory(json_report_path: str | None) -> str:
     if json_report_path is None:
         return ""
     if not Path(json_report_path).exists():
@@ -156,14 +155,14 @@ def get_tse_index(tse: TestStructureTreeNode) -> str:
     return tse.base.numbering.rsplit(".", 1)[-1]
 
 
-def directory_to_zip(directory: Path, new_path: Optional[str] = None):
+def directory_to_zip(directory: Path, new_path: str | None = None):
     if new_path:
         shutil.make_archive(str(new_path), "zip", str(directory))
     else:
         shutil.make_archive(str(directory), "zip", str(directory))
 
 
-def get_list_item(lst, index, default: Optional[str]):
+def get_list_item(lst, index, default: str | None):
     try:
         return lst[index]
     except IndexError:

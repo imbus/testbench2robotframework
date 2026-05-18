@@ -1,7 +1,6 @@
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional
 from urllib.parse import unquote
 
 from .config import AttachmentConflictBehaviour, ReferenceBehaviour
@@ -26,9 +25,9 @@ class ExecutionArtifactStorage:
         self.tb_references: list[ReferenceAssignment] = tb_references
         self.output_xml = output_xml
         self.attachment_folder = attachment_folder
-        self._key: Optional[int] = None
+        self._key: int | None = None
 
-    def add_artifact(self, artifact: str) -> Optional[str]:
+    def add_artifact(self, artifact: str) -> str | None:
         """
         Adds an artifact to the storage based on the reference behaviour.
 
@@ -135,7 +134,7 @@ class ExecutionArtifactStorage:
             return self._use_new_attachment(filename, artifact_value, attachment_folder_path)
         return self._dispatch_attachment_copy(filename, artifact_value, attachment_folder_path)
 
-    def _process_artifact(self, artifact: str) -> Optional[str]:
+    def _process_artifact(self, artifact: str) -> str | None:
         artifact_info = ExecutionArtifactInfo(artifact, self.output_xml)
         artifact_value = artifact_info.get_attachment_value()
         if not artifact_value:
@@ -150,7 +149,7 @@ class ExecutionArtifactStorage:
             return None
         return self._copy_attachment(artifact_value)
 
-    def _process_reference(self, artifact: str) -> Optional[str]:
+    def _process_reference(self, artifact: str) -> str | None:
         artifact_info = ExecutionArtifactInfo(artifact, self.output_xml)
         artifact_value = artifact_info.get_reference_value()
         if not artifact_value:
@@ -160,14 +159,14 @@ class ExecutionArtifactStorage:
             return None
         return artifact_value
 
-    def _process_unknown(self, artifact: str) -> Optional[str]:
+    def _process_unknown(self, artifact: str) -> str | None:
         logger.error(
             f"Unknown reference behaviour '{self.reference_behaviour}'."
             f"Cannot add artifact '{artifact}'."
         )
         return None
 
-    def _process_no_references_allowed(self, artifact: str) -> Optional[str]:
+    def _process_no_references_allowed(self, artifact: str) -> str | None:
         logger.warning(
             f"Reference behaviour is set to NONE."
             f"Reference '{artifact}' will not be added to report."
@@ -214,7 +213,7 @@ class ExecutionArtifactInfo:
         self.artifact = unquoted_artifact
         self.output_xml = output_xml
 
-    def get_reference_value(self) -> Optional[str]:
+    def get_reference_value(self) -> str | None:
         unquoted_path = Path(self.artifact)
         if not unquoted_path.exists():
             robot_output_dir = Path(self.output_xml).parent
@@ -230,7 +229,7 @@ class ExecutionArtifactInfo:
                 return None
         return str(unquoted_path)
 
-    def get_attachment_value(self) -> Optional[str]:
+    def get_attachment_value(self) -> str | None:
         unquoted_path = Path(self.artifact)
         if not unquoted_path.exists():
             robot_output_dir = Path(self.output_xml).parent
