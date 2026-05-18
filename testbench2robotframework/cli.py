@@ -198,8 +198,8 @@ def generate_tests(  # noqa: PLR0913
     else:
         configuration["log-suite-numbering"] = configuration.get("log-suite-numbering", False)
     configuration["metadata"] = metadata or configuration.get("metadata", {})
-    configuration["compound-keyword-logging"] = (
-        compound_keyword_logging or configuration.get("compound-keyword-logging", "GROUP")
+    configuration["compound-keyword-logging"] = compound_keyword_logging or configuration.get(
+        "compound-keyword-logging", "GROUP"
     )
     configuration["resource-directory"] = (
         resource_directory.as_posix()

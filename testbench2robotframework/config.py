@@ -198,7 +198,7 @@ class Configuration:
     loggingConfiguration: LoggingConfig
     metadata: dict[str, str]
     output_directory: str
-    phasePattern: str
+    phase_pattern: str
     referenceBehaviour: ReferenceBehaviour
     resource_directory: str
     resource_directory_regex: str
@@ -238,7 +238,7 @@ class Configuration:
                 "\\", "/"
             ),
             testCaseSplitPathRegEx=dictionary.get("testcase-splitting-regex", ".*StopWithRestart.*"),
-            phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
+            phase_pattern=dictionary.get("phase-pattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
                 dictionary.get("reference-behaviour", "ATTACHMENT").upper()
             ),

@@ -43,4 +43,3 @@ data = {
 def create_json_configuration_file(path: Path):
     with path.open("w") as json_file:
         json.dump(data, json_file, indent=2)
-

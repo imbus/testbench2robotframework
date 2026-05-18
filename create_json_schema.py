@@ -7,7 +7,12 @@ with open("testbench2robotframework/model.py", "r", encoding="utf8") as model_py
 
 pydantic_model = re.sub(r"(@dataclass\n)(class .*?)(:)", r"\2(BaseModel)\3", model_str)
 pydantic_model = re.sub(r"( {4}@classmethod.*?)(\nclass|$)", r"\2", pydantic_model, flags=re.DOTALL)
-pydantic_model = re.sub(r"from dataclasses import dataclass", r"from pydantic import BaseModel", pydantic_model, flags=re.DOTALL)
+pydantic_model = re.sub(
+    r"from dataclasses import dataclass",
+    r"from pydantic import BaseModel",
+    pydantic_model,
+    flags=re.DOTALL,
+)
 
 
 with open("pydantic_model.py", "w", encoding="utf8") as pydantic_model_py:

@@ -95,9 +95,18 @@ class ResultWriter(ResultVisitor):
         self.test_suites: dict[str, TestSuite] = {}
         self.keywords: list[Keyword] = []
         self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
-        self.phase_pattern = config.phasePattern
+        self.phase_pattern = config.phase_pattern
         self.test_chain: list[TestCase] = []
-        self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": [], "checkedInTestStructureElements":[], "checkedInTestElements": [], "createdDefects":[], "createdReferences":[]})
+        self.main_protocol = from_dict(
+            ExecutionImportingSuccess,
+            {
+                "testCaseSets": [],
+                "checkedInTestStructureElements": [],
+                "checkedInTestElements": [],
+                "createdDefects": [],
+                "createdReferences": [],
+            },
+        )
 
     def _create_artifact_storage(self):
         return ExecutionArtifactStorage(
@@ -113,9 +122,7 @@ class ResultWriter(ResultVisitor):
             self.test_suites[suite.metadata["uniqueID"]] = suite
         self.protocol_test_cases: list[TestCaseExecutionForImport] = []
 
-    def _get_keywords_by_type(
-        self, keywords: list[KeywordCall], keyword_type: KeywordType
-    ):
+    def _get_keywords_by_type(self, keywords: list[KeywordCall], keyword_type: KeywordType):
         for keyword in keywords:
             if not keyword.spec:
                 continue
@@ -159,15 +166,13 @@ class ResultWriter(ResultVisitor):
             )
             self._set_atomic_keywords_execution_result(atomic_keywords, self.test_chain)
             for keyword in compound_keywords:
-                self._set_compound_keyword_execution_verdict(
-                    keyword, itb_test_case.testSequence
-                )
+                self._set_compound_keyword_execution_verdict(keyword, itb_test_case.testSequence)
             textual_steps = list(
                 self._get_keywords_by_type(itb_test_case.testSequence, KeywordType.Textual)
             )
             for step in textual_steps:
                 if step.exec is None:
-                    step.exec =  from_dict(KeywordCallExecution, {})
+                    step.exec = from_dict(KeywordCallExecution, {})
                 step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
@@ -320,12 +325,8 @@ class ResultWriter(ResultVisitor):
             atomic_keywords, SequencePhase.Teardown
         )
         self._set_keyword_verdicts(setup_keywords, test_chain_setup, SequencePhase.Setup)
-        self._set_keyword_verdicts(
-            test_step_keywords, test_chain_body, SequencePhase.TestStep
-        )
-        self._set_keyword_verdicts(
-            teardown_keywords, test_chain_teardown, SequencePhase.Teardown
-        )
+        self._set_keyword_verdicts(test_step_keywords, test_chain_body, SequencePhase.TestStep)
+        self._set_keyword_verdicts(teardown_keywords, test_chain_teardown, SequencePhase.Teardown)
 
     def _set_keyword_verdicts(
         self,
@@ -385,9 +386,7 @@ class ResultWriter(ResultVisitor):
             },
         )
 
-    def _check_matching_keyword_name(
-        self, rf_keyword: Keyword, tb_keyword: KeywordCall
-    ) -> None:
+    def _check_matching_keyword_name(self, rf_keyword: Keyword, tb_keyword: KeywordCall) -> None:
         if not is_normalized_equal(
             rf_keyword.kwname, tb_keyword.spec.name
         ) and not is_normalized_equal(rf_keyword.kwname.split(".")[-1], tb_keyword.spec.name):
@@ -458,9 +457,7 @@ class ResultWriter(ResultVisitor):
         if compound_keyword.exec is None:
             compound_keyword.exec = from_dict(KeywordCallExecution, {})
         compound_keyword.exec.verdict = KeywordVerdict.Skipped
-        children = list(
-            filter(lambda ts: ts.parentID == compound_keyword.sequenceID, test_steps)
-        )
+        children = list(filter(lambda ts: ts.parentID == compound_keyword.sequenceID, test_steps))
         for child in children:
             if child.exec is None:
                 logger.debug(
@@ -477,9 +474,7 @@ class ResultWriter(ResultVisitor):
             if child.exec.verdict is KeywordVerdict.Pass:
                 compound_keyword.exec.verdict = KeywordVerdict.Pass
 
-        compound_keyword.exec.duration = sum(
-            [keyword.exec.duration for keyword in children]
-        )
+        compound_keyword.exec.duration = sum([keyword.exec.duration for keyword in children])
         compound_keyword.exec.time = children[-1].exec.time
 
     @staticmethod

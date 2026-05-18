@@ -423,7 +423,7 @@ class RfTestCase:
         rf_test_cases: list[TestCase] = []
         multiple_tests = len(rf_keyword_call_lists) > 1
         for index, rf_keywords in enumerate(rf_keyword_call_lists):
-            phase_pattern = self.config.phasePattern
+            phase_pattern = self.config.phase_pattern
             tc_name = (
                 phase_pattern.format(
                     testcase=self.uid,
