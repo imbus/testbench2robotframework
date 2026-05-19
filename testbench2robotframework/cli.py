@@ -123,9 +123,9 @@ def testbench2robotframework_cli():
     "--metadata",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="""Add extra metadata to the settings of the generated Robot Framework test suite. 
-        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value. 
-        Values may also be Python expressions. 
+    help="""Add extra metadata to the settings of the generated Robot Framework test suite.
+        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value.
+        Values may also be Python expressions.
         The special variable '$tcs' gives access to the TestBench Python model of the test case set.""",
 )
 @click.option(

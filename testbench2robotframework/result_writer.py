@@ -29,9 +29,9 @@ from .model import (
     RichTextForImport,
     SequencePhase,
     TestCaseDetails,
-    TestCaseExecutionDetails,
     TestCaseExecutionForImport,
     TestCaseSetExecutionForImport,
+    UserReference,
     VerdictStatus,
 )
 from .utils import directory_to_zip, get_directory
@@ -40,6 +40,17 @@ try:
     from robot.result import Group
 except ImportError:
     Group = None
+
+def _empty_keyword_call_execution() -> KeywordCallExecution:
+    return KeywordCallExecution(
+        verdict=KeywordVerdict.Undefined,
+        duration=0,
+        currentUser=UserReference(key="", name=""),
+        comments="",
+        references=[],
+        defects=[],
+    )
+
 
 BACKGROUND_COLOR = {
     "PASS": "#04AF91",
@@ -149,8 +160,6 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_case: TestCaseExecutionForImport = TestCaseExecutionForImport(
             test_uid, itb_test_case.exec.key, None, None, None
         )
-        if itb_test_case.exec is None:
-            itb_test_case.exec = from_dict(TestCaseExecutionDetails, {})
         if itb_test_case.exec.key in ["", "-1"]:
             logger.warning(
                 f"Test case {itb_test_case.uniqueID} was not exported based on "
@@ -171,7 +180,7 @@ class ResultWriter(ResultVisitor):
             )
             for step in textual_steps:
                 if step.exec is None:
-                    step.exec = from_dict(KeywordCallExecution, {})
+                    step.exec = _empty_keyword_call_execution()
                 step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
@@ -335,7 +344,7 @@ class ResultWriter(ResultVisitor):
     ):
         for index, tb_keyword in enumerate(keyword_list):
             if tb_keyword.exec is None:
-                tb_keyword.exec = from_dict(KeywordCallExecution, {})
+                tb_keyword.exec = _empty_keyword_call_execution()
             if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
                 tb_keyword.exec.verdict = KeywordVerdict.Skipped
                 continue
@@ -454,7 +463,7 @@ class ResultWriter(ResultVisitor):
         self, compound_keyword: KeywordCall, test_steps: list[KeywordCall]
     ):
         if compound_keyword.exec is None:
-            compound_keyword.exec = from_dict(KeywordCallExecution, {})
+            compound_keyword.exec = _empty_keyword_call_execution()
         compound_keyword.exec.verdict = KeywordVerdict.Skipped
         children = list(filter(lambda ts: ts.parentID == compound_keyword.sequenceID, test_steps))
         for child in children:
@@ -462,7 +471,7 @@ class ResultWriter(ResultVisitor):
                 logger.debug(
                     f"Child keyword {child.uniqueID} had no exec details and therefore ignored."
                 )
-                child.exec = from_dict(KeywordCallExecution, {})
+                child.exec = _empty_keyword_call_execution()
             if child.spec.keywordType == KeywordType.Compound:
                 self._set_compound_keyword_execution_verdict(child, test_steps)
             if child.spec.keywordType == KeywordType.Textual:

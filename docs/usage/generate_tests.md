@@ -36,6 +36,7 @@ The `generate-tests` command supports the following options:
 | `--resource-root TEXT` | TestBench root subdivision whose direct children correspond to Robot Framework resources. |
 | `--library-mapping TEXT` | Library import statement to use when a keyword from the specified TestBench subdivision is encountered. |
 | `--resource-mapping TEXT` | Resource import statement to use when a keyword from the specified TestBench subdivision is encountered. |
+| `--metadata TEXT` | Add extra metadata to the settings of the generated Robot Framework test suite. Provide entries as `key:value` pairs. |
 | `--help` | Displays the help message and exits. |
 | `--version` | Writes the TestBench2RobotFramework, Robot Framework and Python version to console. |
 

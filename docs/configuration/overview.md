@@ -58,6 +58,8 @@ When multiple configuration methods are used, settings are applied in the follow
 - `fully-qualified` - Enable/disable fully qualified keyword names in generated test suites
 - `compound-keyword-logging` - Control compound TestBench keyword logging (`GROUP`, `COMMENT`, `NONE`)
 - `log-suite-numbering` - Enable/disable suite numbering in generated file names
+- `testcase-splitting-regex` - Regular expression to split test cases at matching interactions
+- `phase-pattern` - Pattern for naming test case phases when splitting
 
 ### Library & Resource Mapping
 
@@ -67,10 +69,25 @@ When multiple configuration methods are used, settings are applied in the follow
 - `resource-root` - Root subdivision for resources
 - `library-mapping` - Custom library import statements
 - `resource-mapping` - Custom resource import statements
+- `resource-directory` - Directory containing Robot Framework resource files
+- `resource-directory-regex` - Regex to identify the TestBench subdivision corresponding to the resource directory
+
+### Metadata
+
+- `metadata` - Extra metadata key-value pairs added to generated test suite settings
+
+### Forced Imports
+
+- `forced-import` - Force import of specific libraries, resources, or variables in every generated suite
 
 ### Attachment & Reference Handling
 
-- `reference-behaviour` - How to handle references
-- `attachment-conflict-behaviour` - How to handle attachment conflicts
+- `reference-behaviour` - How to handle references (`ATTACHMENT`, `REFERENCE`, `NONE`)
+- `attachment-conflict-behaviour` - How to handle attachment conflicts (`ERROR`, `USE_NEW`, `USE_EXISTING`, `RENAME_NEW`)
+
+### Logging
+
+- `console-logging` - Console output log level and format
+- `file-logging` - File-based log level, format, and file name
 
 

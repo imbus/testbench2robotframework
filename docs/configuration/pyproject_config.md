@@ -34,6 +34,11 @@ resource-directory = "{root}/Resources"
 resource-directory-regex = ".*\\[Robot-Resources\\].*"
 reference-behaviour = "ATTACHMENT"
 attachment-conflict-behaviour = "USE_EXISTING"
+testcase-splitting-regex = ".*StopWithRestart.*"
+phase-pattern = "{testcase} : Phase {index}/{length}"
+
+[tool.testbench2robotframework.metadata]
+# Example: MyKey = "my value"
 
 [tool.testbench2robotframework.library-mapping]
 SeleniumLibrary = "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot"
@@ -71,6 +76,17 @@ clean = true
 fully-qualified = false
 log-suite-numbering = false
 compound-keyword-logging = "GROUP"
+testcase-splitting-regex = ".*StopWithRestart.*"
+phase-pattern = "{testcase} : Phase {index}/{length}"
+```
+
+### Metadata
+
+Add custom metadata to the settings of generated Robot Framework test suites:
+
+```toml
+[tool.testbench2robotframework.metadata]
+MyMetadata = "some value"
 ```
 
 ### Library Mapping
@@ -143,8 +159,7 @@ resource-directory = "{root}/Resources"
 Instead of `pyproject.toml`, you can use `robot.toml` with the same structure:
 
 ```toml
-[testbench2robotframework]
-# Same options as in pyproject.toml, but without the "tool." prefix
+[tool.testbench2robotframework]
 output-directory = "./Generated"
 clean = true
 ```

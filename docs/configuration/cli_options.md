@@ -34,8 +34,7 @@ Options specific to the `generate-tests` subcommand:
 | `--compound-keyword-logging` | Choice | Mode for logging compound keywords. Options: `GROUP`, `COMMENT`, or `NONE`. |
 | `--fully-qualified` | Flag | Calls Robot Framework keywords by their fully qualified names in the generated test suites. |
 | `--log-suite-numbering` | Flag | Enables logging of the test suite numbering. |
-
-
+| `--metadata TEXT` | Text | Add extra metadata to the settings of the generated Robot Framework test suite. Provide entries as `key:value` pairs. |
 
 ### Resource & Library Options
 

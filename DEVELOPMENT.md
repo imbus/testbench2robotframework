@@ -1,25 +1,35 @@
 # Contributing
+
 ## Setting up project for the first time
-1. Write all dependencies into pyproject.toml
-2. Create venv (python -m venv .venv) and activate it (".venv\scripts\activate" or "source .venv/bin/activate")
-3. Update pip (python -m pip install -U pip)
-3. Install pip-tools (pip install pip-tools)
-4. Update/Create `requirements.txt` (when dependencies have been updated in pyproject.toml)
-    - with Development dependencies
-        > pip-compile --extra dev
-    - or only with Runtime dependencies
-        > pip-compile
-5. Install dependencies (pip install -U -r requirements.txt)
-6. Install project into local venv (pip install -e .[dev])
 
-## Creating whl and publish
-1. Install 'setuptools' (pip install setuptools)
-2. Run CreatePipWheel Script
+1. Create venv and activate it:
+    ```bash
+    python -m venv .venv
+    source .venv/bin/activate  # Linux/macOS
+    .venv\scripts\activate     # Windows
+    ```
+2. Install project with dev dependencies:
+    ```bash
+    pip install -e .[dev]
+    ```
 
+## Building and publishing
 
-## Generate documentation in Word format
- [Install Pandoc](https://pandoc.org/installing.html)
-
-```shell
-pandoc -s README.md -M title="imbus TestBench - Robot Code Generator" -M subtitle=Benutzerhandbuch -M toc-title=Inhaltsverzeichnis --toc -o Benutzerhandbuch.docx
+```bash
+check-manifest --update
+python -m build
+twine check dist/*
+twine upload dist/*
 ```
+
+## Updating the data model
+
+`testbench2robotframework/model.py` is generated from the TestBench OpenAPI spec using [datamodel-code-generator](https://github.com/koxudaxi/datamodel-code-generator).
+
+1. Download the OpenAPI YAML from the TestBench Swagger documentation (e.g. `openapi.yml`).
+2. Generate the model (settings are in `pyproject.toml` under `[tool.datamodel-codegen]`):
+    ```bash
+    invoke generate-model --input openapi.yml
+    ```
+   This runs `datamodel-codegen` and injects `__VERSION__` from the spec's `info.version` field into `model.py`.
+3. Review the generated file

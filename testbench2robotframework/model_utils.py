@@ -1,4 +1,5 @@
-from dataclasses import fields, is_dataclass
+import logging
+from dataclasses import MISSING, fields, is_dataclass
 from enum import Enum
 from types import UnionType as TypesUnion
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
@@ -6,13 +7,15 @@ from typing import Union as TypingUnion
 
 T = TypeVar("T")
 
+logger = logging.getLogger(__name__)
+
 ERROR_NOT_A_DATACLASS = "The provided class '{dataclass}' is not a dataclass."
 ERROR_UNKNOWN_TYPE_HINT_ORIGIN = "Unknown type hint origin."
 ERROR_UNION_MISMATCH = "Value does not match any of the union types."
 ERROR_NOT_A_LIST = "Value is not of type list."
 ERROR_LIST_ARGUMENTS_MISMATCH = "List type hint must have exactly one argument, got {args}."
 ERROR_UNION_WITHOUT_ARGUMENTS = "Union type hint must have at least one argument."
-ERROR_TOO_MANY_DATA_FIELDS = "Data dictionary contains more fields than the dataclass has."
+ERROR_MISSING_FIELDS = "Data dictionary for '{dataclass}' is missing mandatory fields: {fields}."
 ERROR_NONETYPE_DATA = "Data cannot be None."
 
 
@@ -36,17 +39,35 @@ def get_origin_from_type_hint(type_hint):
     raise ValueError(ERROR_UNKNOWN_TYPE_HINT_ORIGIN)
 
 
+def _has_default(cls_field) -> bool:
+    return cls_field.default is not MISSING or cls_field.default_factory is not MISSING
+
+
 def from_dict(cls: type[T], data: dict) -> T:
     if not is_dataclass(cls):
         raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
     if data is None:
         raise ValueError(ERROR_NONETYPE_DATA)
-    cls_dict = {}
     class_type_hints = get_type_hints(cls)
     class_fields = fields(cls)
-    if len(class_fields) < len(data):
-        raise ValueError(ERROR_TOO_MANY_DATA_FIELDS)
+    init_field_names = {f.name for f in class_fields if f.init}
+    extra_keys = set(data.keys()) - init_field_names
+    if extra_keys:
+        logger.warning(
+            "%s: ignoring unknown fields: %s", cls.__name__, ", ".join(sorted(extra_keys))
+        )
+    mandatory_fields = {f.name for f in class_fields if f.init and not _has_default(f)}
+    missing_fields = mandatory_fields - set(data.keys())
+    if missing_fields:
+        raise ValueError(
+            ERROR_MISSING_FIELDS.format(
+                dataclass=cls.__name__, fields=", ".join(sorted(missing_fields))
+            )
+        )
+    cls_dict = {}
     for cls_field in class_fields:
+        if not cls_field.init:
+            continue
         if cls_field.name not in data:
             continue
         field_value = data.get(cls_field.name)
