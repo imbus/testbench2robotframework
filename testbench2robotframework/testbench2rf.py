@@ -191,13 +191,11 @@ class RfTestCase:
             )
         )
 
-    def _get_keyword_import(
-        self, test_step: TBKeywordCall, keyword_path: str
-    ) -> tuple[str, str]:
+    def _get_keyword_import(self, test_step: TBKeywordCall, keyword_path: str) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
             match = pattern.search(keyword_path)
             if match:
-                return LIBRARY_IMPORT_TYPE, match.group("libraryName").strip()
+                return LIBRARY_IMPORT_TYPE, match.group("resourceName").strip()
         for pattern in self.res_pattern_list:
             match = pattern.search(keyword_path)
             if match:
@@ -209,6 +207,11 @@ class RfTestCase:
             and splitted_keyword_path[0] in self.config.library_root
         ):
             return LIBRARY_IMPORT_TYPE, splitted_keyword_path[1]
+        if (
+            len(splitted_keyword_path) >= minimum_length_subdivision_path_length
+            and splitted_keyword_path[0] in self.config.resource_root
+        ):
+            return RESOURCE_IMPORT_TYPE, splitted_keyword_path[1]
         return UNKNOWN_IMPORT_TYPE, keyword_path
 
     def _append_compound_ia(
@@ -265,10 +268,7 @@ class RfTestCase:
                     group_stack[-1][0].body.append(compound_keyword_call)
                 else:
                     keyword_lists[tc_index].append(compound_keyword_call)
-                if (
-                    Group
-                    and self.config.compound_keyword_logging == CompoundKeywordLogging.GROUP
-                ):
+                if Group and self.config.compound_keyword_logging == CompoundKeywordLogging.GROUP:
                     group_stack.append((compound_keyword_call, keyword_call.indent))
         return keyword_lists
 
@@ -460,24 +460,6 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
-        # FIXME:  hier dieser code scheint zu verhindern, dass fully qualified paths verwendet werden, wenn man nicht über Regex arbeitet.
-        # FIXME:  Ich erkenne keinen Grund für diese komplexität. Bitte fixen. René
-
-        # # for resource_regex in self.config.resource_regex:  # TODO: hier haben wir schon eine liste von compilierten pattern.
-        # for resource_pattern in self.res_pattern_list:
-        #     if not keyword.import_prefix:
-        #         continue
-        #     # resource_name_match = re.search(  # TODO: Siehe oben
-        #     #     resource_regex, keyword.import_prefix, flags=re.IGNORECASE
-        #     # )
-        #     resource_name_match = resource_pattern.search(
-        #         keyword.import_prefix, flags=re.IGNORECASE
-        #     )
-        #     if resource_name_match:
-        #         return (
-        #             self.config.fully_qualified or False
-        #         ) * f"{resource_name_match.group('resourceName').strip()}."
-        # return ""
         return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
@@ -713,6 +695,8 @@ class RobotSuiteFileBuilder:
             resource_name_match = re.search(resource_regex, resource_path_part, flags=re.IGNORECASE)
             if resource_name_match:
                 return resource_name_match.group("resourceName").strip()
+        if resource_path_part:
+            return resource_path_part.strip()
         return None
 
     def _get_resource_directory_path_index(self, resource: str) -> int | None:
