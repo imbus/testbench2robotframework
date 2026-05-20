@@ -903,6 +903,7 @@ class TestCaseDetailsOrigin(Enum):
 class ReferenceKind(Enum):
     Reference = "Reference"
     Link = "Link"
+    Hyperlink = "Hyperlink"
     Attachment = "Attachment"
 
 
