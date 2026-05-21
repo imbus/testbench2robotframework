@@ -1562,6 +1562,9 @@ class TestStructureTreeNode:
 class RootNode(TestStructureTreeNode):
     base: TestStructureItemBaseInformation
     filters: list[AttachedFilter]
+    spec: TestStructureItemSpecification | None = None
+    aut: TestStructureAutomation | None = None
+    exec: TestStructureItemExecution | None = None
 
 
 @dataclass
