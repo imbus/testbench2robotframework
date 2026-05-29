@@ -1,3 +1,4 @@
+import json
 import re
 import shutil
 import sys
@@ -16,6 +17,54 @@ from testbench2robotframework.model import (
 )
 
 from .log import logger
+
+ALLOWED_SERVER_VERSIONS = ["4.0"]
+ERROR_COULD_NOT_READ_VERSION = (
+    "Could not read TestBench report version. The report must be generated with one of the supported versions: "
+    + ", ".join(ALLOWED_SERVER_VERSIONS)
+)
+ERROR_INCOMPATIBLE_VERSION = (
+    "The version of testbench2robotframework is not compatible with the TestBench report version '{server_version}'. "
+    f"Supported versions are: {', '.join(ALLOWED_SERVER_VERSIONS)}. "
+)
+
+
+def perform_version_check(testbench_report: Path):
+    try:
+        manifest = read_manifest_json_from_testbench_report(testbench_report)
+    except Exception as e:
+        sys.exit(ERROR_COULD_NOT_READ_VERSION)
+    server_version = manifest.get("serverVersions", {}).get("version", None)
+    if not server_version:
+        sys.exit(ERROR_COULD_NOT_READ_VERSION)
+
+    if server_version not in ALLOWED_SERVER_VERSIONS:
+        sys.exit(ERROR_INCOMPATIBLE_VERSION.format(server_version=server_version))
+
+
+def read_manifest_json_from_testbench_report(testbench_report: Path) -> dict:
+    if testbench_report.is_dir():
+        manifest = testbench_report / "manifest.json"
+        if not manifest.exists():
+            raise FileNotFoundError("manifest.json not found")
+        with open(manifest, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    # ZIP archive
+    elif testbench_report.suffix == ".zip":
+        with ZipFile(testbench_report) as zf:
+            try:
+                with zf.open("manifest.json") as f:
+                    return json.load(f)
+            except KeyError:
+                raise FileNotFoundError("manifest.json not found in zip")
+
+    # Direct file
+    elif testbench_report.is_file() and testbench_report.name == "manifest.json":
+        with open(testbench_report, "r", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        raise FileNotFoundError(testbench_report)
 
 
 def robot_tag_from_udf(udf: UserDefinedField) -> str | None:

@@ -7,10 +7,16 @@ from .json_reader import TestBenchJsonReader
 from .log import logger, setup_logger
 from .testbench2rf import create_test_suites
 from .testsuite_write import write_test_suites
-from .utils import PathResolver, extract_to_working_directory, is_zip_file
+from .utils import (
+    PathResolver,
+    extract_to_working_directory,
+    is_zip_file,
+    perform_version_check,
+)
 
 
 def testbench2robotframework(testbench_report: str, config: dict | Configuration):
+    perform_version_check(Path(testbench_report))
     configuration = Configuration.from_dict(config) if isinstance(config, dict) else config
     setup_logger(configuration)
     logger.debug("Configuration loaded.")

@@ -41,6 +41,7 @@ try:
 except ImportError:
     Group = None
 
+
 def _empty_keyword_call_execution() -> KeywordCallExecution:
     return KeywordCallExecution(
         verdict=KeywordVerdict.Undefined,

@@ -21,10 +21,17 @@ from .config import (
 )
 from .json_reader import read_json
 from .testbench2robotframework import testbench2robotframework
+from .utils import ALLOWED_SERVER_VERSIONS
 
-TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION = """TestBench2RobotFramework converts a TestBench JSON-report
+TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION = (
+    """TestBench2RobotFramework converts a TestBench JSON-report
     to Robot Framework test suites and enhances the TestBench Report
-     with the execution results provided by Robot Framework."""
+    with the execution results provided by Robot Framework. The version your TestBench report
+    was generated with must be compatible with the version of testbench2robotframework you are using.
+    Supported versions for this version of testbench2robotframework are: """
+    + ", ".join(ALLOWED_SERVER_VERSIONS)
+    + "."
+)
 GENERATE_HELP = """Command to convert a TestBench JSON-report to Robot Framework test suites."""
 FETCH_HELP = """Command to fetch execution results from a Robot Framework result XML and
 to write the results to a TestBench JSON-report."""
@@ -56,7 +63,8 @@ def parse_subdivision_mapping(
     help="Writes the TestBench2RobotFramework, Robot Framework and Python version to console.",
     message=(
         f"TestBench2RobotFramework {__version__} with "
-        f"Robot Framework {robot.version.get_full_version()}"
+        f"Robot Framework {robot.version.get_full_version()}. "
+        f"Compatible with TestBench server versions: {', '.join(ALLOWED_SERVER_VERSIONS)}."
     ),
 )
 @click.help_option("-h", "--help")
