@@ -16,6 +16,8 @@ certifi==2024.12.14
     # via requests
 charset-normalizer==3.4.0
     # via requests
+click==8.4.1
+    # via testbench2robotframework (pyproject.toml)
 check-manifest==0.50
     # via testbench2robotframework (pyproject.toml)
 colorama==0.4.6
