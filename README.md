@@ -6,13 +6,13 @@ This can be used for automated test execution with Robot Framework, triggered by
 
 ## Documentation
 
-The documentation is available in the [docs](./docs) folder of this repository.
+The documentation is available in the [TestBench Ecosystem Documentation](https://imbus.github.io/testbench-ecosystem-documentation/testbench2robotframework/intro).
 
 ## Releases
 
-Releases are published on GitHub and available via [PyPI](https://pypi.org/project/testbench2robotframework/).
+Releases are published on [GitHub](https://github.com/imbus/testbench2robotframework/releases) and available via [PyPI](https://pypi.org/project/testbench2robotframework/).
 
 ## Requirements
 
 - Python 3.10 or higher
-- TestBench version >= 4
+- TestBench version >= 4.1
