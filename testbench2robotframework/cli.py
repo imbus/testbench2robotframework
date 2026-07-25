@@ -21,10 +21,17 @@ from .config import (
 )
 from .json_reader import read_json
 from .testbench2robotframework import testbench2robotframework
+from .utils import ALLOWED_SERVER_VERSIONS
 
-TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION = """TestBench2RobotFramework converts a TestBench JSON-report
+TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION = (
+    """TestBench2RobotFramework converts a TestBench JSON-report
     to Robot Framework test suites and enhances the TestBench Report
-     with the execution results provided by Robot Framework."""
+    with the execution results provided by Robot Framework. The version your TestBench report
+    was generated with must be compatible with the version of testbench2robotframework you are using.
+    Supported versions for this version of testbench2robotframework are: """
+    + ", ".join(ALLOWED_SERVER_VERSIONS)
+    + "."
+)
 GENERATE_HELP = """Command to convert a TestBench JSON-report to Robot Framework test suites."""
 FETCH_HELP = """Command to fetch execution results from a Robot Framework result XML and
 to write the results to a TestBench JSON-report."""
@@ -56,7 +63,8 @@ def parse_subdivision_mapping(
     help="Writes the TestBench2RobotFramework, Robot Framework and Python version to console.",
     message=(
         f"TestBench2RobotFramework {__version__} with "
-        f"Robot Framework {robot.version.get_full_version()}"
+        f"Robot Framework {robot.version.get_full_version()}. "
+        f"Compatible with TestBench server versions: {', '.join(ALLOWED_SERVER_VERSIONS)}."
     ),
 )
 @click.help_option("-h", "--help")
@@ -123,9 +131,9 @@ def testbench2robotframework_cli():
     "--metadata",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="""Add extra metadata to the settings of the generated Robot Framework test suite. 
-        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value. 
-        Values may also be Python expressions. 
+    help="""Add extra metadata to the settings of the generated Robot Framework test suite.
+        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value.
+        Values may also be Python expressions.
         The special variable '$tcs' gives access to the TestBench Python model of the test case set.""",
 )
 @click.option(
@@ -198,8 +206,8 @@ def generate_tests(  # noqa: PLR0913
     else:
         configuration["log-suite-numbering"] = configuration.get("log-suite-numbering", False)
     configuration["metadata"] = metadata or configuration.get("metadata", {})
-    configuration["compound-keyword-logging"] = (
-        compound_keyword_logging or configuration.get("compound-keyword-logging", "GROUP")
+    configuration["compound-keyword-logging"] = compound_keyword_logging or configuration.get(
+        "compound-keyword-logging", "GROUP"
     )
     configuration["resource-directory"] = (
         resource_directory.as_posix()

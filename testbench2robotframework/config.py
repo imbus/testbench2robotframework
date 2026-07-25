@@ -189,6 +189,7 @@ class Configuration:
     attachmentConflictBehaviour: AttachmentConflictBehaviour
     clean: bool
     compound_keyword_logging: CompoundKeywordLogging
+    create_output_zip: bool
     forced_import: ForcedImport
     fully_qualified: bool
     library_regex: list[str]
@@ -197,7 +198,7 @@ class Configuration:
     loggingConfiguration: LoggingConfig
     metadata: dict[str, str]
     output_directory: str
-    phasePattern: str
+    phase_pattern: str
     referenceBehaviour: ReferenceBehaviour
     resource_directory: str
     resource_directory_regex: str
@@ -210,6 +211,7 @@ class Configuration:
     def from_dict(cls, dictionary) -> Configuration:
         return cls(
             clean=dictionary.get("clean", True),
+            create_output_zip=dictionary.get("create-output-zip", False),
             library_regex=dictionary.get(
                 "library-regex", [DEFAULT_LIBRARY_REGEX]
             ),
@@ -236,7 +238,7 @@ class Configuration:
                 "\\", "/"
             ),
             testCaseSplitPathRegEx=dictionary.get("testcase-splitting-regex", ".*StopWithRestart.*"),
-            phasePattern=dictionary.get("phasePattern", "{testcase} : Phase {index}/{length}"),
+            phase_pattern=dictionary.get("phase-pattern", "{testcase} : Phase {index}/{length}"),
             referenceBehaviour=ReferenceBehaviour(
                 dictionary.get("reference-behaviour", "ATTACHMENT").upper()
             ),

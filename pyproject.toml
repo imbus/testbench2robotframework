@@ -33,6 +33,7 @@ dev = [
   "pytest-cov",
   "pytest-spec",
   "robotframework-tidy",
+  "datamodel-code-generator",
   "ruff",
   "twine",
 ]
@@ -66,7 +67,7 @@ pretty = true
 
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py310"
 line-length = 100
 lint.select = [
   "A",
@@ -146,6 +147,13 @@ disable = '''
 [tool.pylint.REFACTORING]
 max-nested-blocks = 3
 
+
+[tool.datamodel-codegen]
+input-file-type = "openapi"
+output-model-type = "dataclasses.dataclass"
+target-python-version = "3.10"
+output = "testbench2robotframework/model.py"
+formatters = ["ruff-format", "ruff-check"]
 
 [tool.robotidy]
 transform = [

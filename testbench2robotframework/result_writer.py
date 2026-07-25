@@ -7,7 +7,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from shutil import copytree
-from typing import Optional
 
 from robot.result import Keyword, ResultVisitor, TestCase, TestSuite
 
@@ -30,9 +29,9 @@ from .model import (
     RichTextForImport,
     SequencePhase,
     TestCaseDetails,
-    TestCaseExecutionDetails,
     TestCaseExecutionForImport,
     TestCaseSetExecutionForImport,
+    UserReference,
     VerdictStatus,
 )
 from .utils import directory_to_zip, get_directory
@@ -41,6 +40,18 @@ try:
     from robot.result import Group
 except ImportError:
     Group = None
+
+
+def _empty_keyword_call_execution() -> KeywordCallExecution:
+    return KeywordCallExecution(
+        verdict=KeywordVerdict.Undefined,
+        duration=0,
+        currentUser=UserReference(key="", name=""),
+        comments="",
+        references=[],
+        defects=[],
+    )
+
 
 BACKGROUND_COLOR = {
     "PASS": "#04AF91",
@@ -67,7 +78,7 @@ class ResultWriter(ResultVisitor):
     def __init__(
         self,
         json_report: str,
-        json_result: Optional[str],
+        json_result: str | None,
         config: Configuration,
         output_xml,
         listener_uid=None,
@@ -78,7 +89,7 @@ class ResultWriter(ResultVisitor):
         self.reference_behaviour = config.referenceBehaviour
         self.attachment_conflict_behaviour = config.attachmentConflictBehaviour
         self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
-        self._test_setup_passed: Optional[bool] = None
+        self._test_setup_passed: bool | None = None
         if json_result is None:
             self.json_result = self.json_dir
             self.json_result_path = self.json_dir
@@ -95,9 +106,18 @@ class ResultWriter(ResultVisitor):
         self.test_suites: dict[str, TestSuite] = {}
         self.keywords: list[Keyword] = []
         self.itb_test_case_catalog: dict[str, TestCaseDetails] = {}
-        self.phase_pattern = config.phasePattern
+        self.phase_pattern = config.phase_pattern
         self.test_chain: list[TestCase] = []
-        self.main_protocol = from_dict(ExecutionImportingSuccess, {"testCaseSets": [], "checkedInTestStructureElements":[], "checkedInTestElements": [], "createdDefects":[], "createdReferences":[]})
+        self.main_protocol = from_dict(
+            ExecutionImportingSuccess,
+            {
+                "testCaseSets": [],
+                "checkedInTestStructureElements": [],
+                "checkedInTestElements": [],
+                "createdDefects": [],
+                "createdReferences": [],
+            },
+        )
 
     def _create_artifact_storage(self):
         return ExecutionArtifactStorage(
@@ -113,9 +133,7 @@ class ResultWriter(ResultVisitor):
             self.test_suites[suite.metadata["uniqueID"]] = suite
         self.protocol_test_cases: list[TestCaseExecutionForImport] = []
 
-    def _get_keywords_by_type(
-        self, keywords: list[KeywordCall], keyword_type: KeywordType
-    ):
+    def _get_keywords_by_type(self, keywords: list[KeywordCall], keyword_type: KeywordType):
         for keyword in keywords:
             if not keyword.spec:
                 continue
@@ -143,8 +161,6 @@ class ResultWriter(ResultVisitor):
         self.protocol_test_case: TestCaseExecutionForImport = TestCaseExecutionForImport(
             test_uid, itb_test_case.exec.key, None, None, None
         )
-        if itb_test_case.exec is None:
-            itb_test_case.exec = from_dict(TestCaseExecutionDetails, {})
         if itb_test_case.exec.key in ["", "-1"]:
             logger.warning(
                 f"Test case {itb_test_case.uniqueID} was not exported based on "
@@ -159,15 +175,13 @@ class ResultWriter(ResultVisitor):
             )
             self._set_atomic_keywords_execution_result(atomic_keywords, self.test_chain)
             for keyword in compound_keywords:
-                self._set_compound_keyword_execution_verdict(
-                    keyword, itb_test_case.testSequence
-                )
+                self._set_compound_keyword_execution_verdict(keyword, itb_test_case.testSequence)
             textual_steps = list(
                 self._get_keywords_by_type(itb_test_case.testSequence, KeywordType.Textual)
             )
             for step in textual_steps:
                 if step.exec is None:
-                    step.exec =  from_dict(KeywordCallExecution, {})
+                    step.exec = _empty_keyword_call_execution()
                 step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
@@ -320,12 +334,8 @@ class ResultWriter(ResultVisitor):
             atomic_keywords, SequencePhase.Teardown
         )
         self._set_keyword_verdicts(setup_keywords, test_chain_setup, SequencePhase.Setup)
-        self._set_keyword_verdicts(
-            test_step_keywords, test_chain_body, SequencePhase.TestStep
-        )
-        self._set_keyword_verdicts(
-            teardown_keywords, test_chain_teardown, SequencePhase.Teardown
-        )
+        self._set_keyword_verdicts(test_step_keywords, test_chain_body, SequencePhase.TestStep)
+        self._set_keyword_verdicts(teardown_keywords, test_chain_teardown, SequencePhase.Teardown)
 
     def _set_keyword_verdicts(
         self,
@@ -335,7 +345,7 @@ class ResultWriter(ResultVisitor):
     ):
         for index, tb_keyword in enumerate(keyword_list):
             if tb_keyword.exec is None:
-                tb_keyword.exec = from_dict(KeywordCallExecution, {})
+                tb_keyword.exec = _empty_keyword_call_execution()
             if sequence_phase == SequencePhase.TestStep and not self._test_setup_passed:
                 tb_keyword.exec.verdict = KeywordVerdict.Skipped
                 continue
@@ -385,9 +395,7 @@ class ResultWriter(ResultVisitor):
             },
         )
 
-    def _check_matching_keyword_name(
-        self, rf_keyword: Keyword, tb_keyword: KeywordCall
-    ) -> None:
+    def _check_matching_keyword_name(self, rf_keyword: Keyword, tb_keyword: KeywordCall) -> None:
         if not is_normalized_equal(
             rf_keyword.kwname, tb_keyword.spec.name
         ) and not is_normalized_equal(rf_keyword.kwname.split(".")[-1], tb_keyword.spec.name):
@@ -456,17 +464,15 @@ class ResultWriter(ResultVisitor):
         self, compound_keyword: KeywordCall, test_steps: list[KeywordCall]
     ):
         if compound_keyword.exec is None:
-            compound_keyword.exec = from_dict(KeywordCallExecution, {})
+            compound_keyword.exec = _empty_keyword_call_execution()
         compound_keyword.exec.verdict = KeywordVerdict.Skipped
-        children = list(
-            filter(lambda ts: ts.parentID == compound_keyword.sequenceID, test_steps)
-        )
+        children = list(filter(lambda ts: ts.parentID == compound_keyword.sequenceID, test_steps))
         for child in children:
             if child.exec is None:
                 logger.debug(
                     f"Child keyword {child.uniqueID} had no exec details and therefore ignored."
                 )
-                child.exec = from_dict(KeywordCallExecution, {})
+                child.exec = _empty_keyword_call_execution()
             if child.spec.keywordType == KeywordType.Compound:
                 self._set_compound_keyword_execution_verdict(child, test_steps)
             if child.spec.keywordType == KeywordType.Textual:
@@ -477,9 +483,7 @@ class ResultWriter(ResultVisitor):
             if child.exec.verdict is KeywordVerdict.Pass:
                 compound_keyword.exec.verdict = KeywordVerdict.Pass
 
-        compound_keyword.exec.duration = sum(
-            [keyword.exec.duration for keyword in children]
-        )
+        compound_keyword.exec.duration = sum([keyword.exec.duration for keyword in children])
         compound_keyword.exec.time = children[-1].exec.time
 
     @staticmethod
@@ -684,7 +688,7 @@ class TestChain:
         self.length = int(length)
 
 
-def get_test_chain(test_name: str, phase_pattern: str) -> Optional[TestChain]:
+def get_test_chain(test_name: str, phase_pattern: str) -> TestChain | None:
     matcher = re.match(get_test_chain_pattern(phase_pattern), test_name)
     if matcher:
         return TestChain(*matcher.groups())

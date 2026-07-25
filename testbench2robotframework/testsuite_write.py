@@ -17,6 +17,8 @@ def write_test_suites(test_suites: dict[str, File], config: Configuration) -> No
         clear_generation_directory(generation_directory)
     if generation_directory.suffix.lower() != ".zip":
         write_test_suite_files(test_suites, generation_directory)
+        if config.create_output_zip:
+            directory_to_zip(generation_directory)
     else:
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as temp_dir:
             write_test_suite_files(test_suites, Path(temp_dir))

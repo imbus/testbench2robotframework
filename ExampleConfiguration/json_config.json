@@ -10,8 +10,14 @@
   "output-directory": "{root}/Generated",
   "log-suite-numbering": true,
   "resource-directory": "{root}/Resources",
+  "resource-directory-regex": ".*\\[Robot-Resources\\].*",
   "clean": true,
   "compound-keyword-logging": "GROUP",
+  "reference-behaviour": "ATTACHMENT",
+  "attachment-conflict-behaviour": "USE_EXISTING",
+  "testcase-splitting-regex": "^StopWithRestart\\..*",
+  "phase-pattern": "{testcase} : Phase {index}/{length}",
+  "metadata": {},
   "library-mapping": {
       "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
       "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
@@ -20,20 +26,15 @@
     "MyKeywords": "{root}/../MyKeywords.resource",
     "MyOtherKeywords": "{resourceDirectory}/subdir/MyOtherKeywords.resource"
   },
-  "forcedImport": {
-    "libraries": [
-    ],
-    "resources":
-    [
-    ],
-    "variables": [
-    ]
+  "forced-import": {
+    "libraries": [],
+    "resources": [],
+    "variables": []
   },
-  "testCaseSplitPathRegEx": "^StopWithRestart\\..*",
   "console-logging": {
     "logLevel": "debug"
   },
   "file-logging": {
       "logLevel": "info"
-    }
+  }
 }

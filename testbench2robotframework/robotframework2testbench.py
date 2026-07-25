@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
-from typing import Optional
 
 from robot.api import ExecutionResult
+
+from testbench2robotframework.utils import perform_version_check
 
 from .config import Configuration
 from .log import logger, setup_logger
@@ -12,13 +13,15 @@ from .result_writer import ResultWriter
 def robot2testbench(
     json_input_report: str,
     robot_result_xml: str,
-    json_output_result: Optional[str] = None,
-    config: Optional[dict] = None,
+    json_output_result: str | None = None,
+    config: dict | None = None,
 ):
     if not Path(json_input_report).exists():
         sys.exit("Could not find json directory or zip file at the given path.")
     if not Path(robot_result_xml).exists():
         sys.exit("Robot result xml does not exist at the given path.")
+    perform_version_check(Path(json_input_report))
+
     configuration = Configuration.from_dict(config)
     setup_logger(configuration)
     logger.debug("Configuration loaded.")

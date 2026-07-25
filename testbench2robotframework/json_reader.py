@@ -3,7 +3,6 @@ import sys
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path
-from typing import Optional
 
 from .log import logger
 from .model import (
@@ -36,7 +35,7 @@ class TestCaseSet:
 class TestBenchJsonReader:
     def __init__(self, json_dir) -> None:
         self.json_dir = json_dir
-        self._test_theme_tree: Optional[TestStructureTree] = None
+        self._test_theme_tree: TestStructureTree | None = None
         self._test_case_sets: dict[str, TestCaseSetDetails] = {}
         self._test_cases: dict[str, TestCaseDetails] = {}
         if not json_dir:
@@ -116,20 +115,20 @@ class TestBenchJsonReader:
             test_case_set = self.test_case_sets[test_case_set_uid]
         return [tc.uniqueID for tc in test_case_set.testCases]
 
-    def read_test_case_set(self, uid) -> Optional[TestCaseSetDetails]:
+    def read_test_case_set(self, uid) -> TestCaseSetDetails | None:
         tcs_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tcs_dict is None:
             return None
         return from_dict(TestCaseSetDetails, tcs_dict)
 
-    def read_test_case(self, uid) -> Optional[TestCaseDetails]:
+    def read_test_case(self, uid) -> TestCaseDetails | None:
         tc_dict = read_json(str(Path(self.json_dir, f"{uid}.json")))
         if tc_dict is None:
             return None
             # return None  # TODO: wenn nicht da dann Fehler?
         return from_dict(TestCaseDetails, tc_dict)
 
-    def read_test_theme_tree(self, is_tov=False) -> Optional[TestStructureTree]:
+    def read_test_theme_tree(self, is_tov=False) -> TestStructureTree | None:
         test_structure_tree = read_json(str(Path(self.json_dir, TEST_STRUCTURE_TREE_FILE)))
         if test_structure_tree is None:
             return None

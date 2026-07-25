@@ -97,14 +97,56 @@ class RfTestCase:
         self.rf_keyword_call_information: list[RFKeywordCallInformation] = []
         self.used_imports: dict[str, set[str]] = {}
         self.config = config
-        self.lib_pattern_list = [re.compile(pattern) for pattern in config.library_regex]
-        self.res_pattern_list = [re.compile(pattern) for pattern in config.resource_regex]
+
+        # Validate and compile regex patterns
+        for pattern in config.library_regex:
+            self._validate_regex_pattern(pattern, "library")
+        for pattern in config.resource_regex:
+            self._validate_regex_pattern(pattern, "resource")
+
+        self.lib_pattern_list = [
+            re.compile(pattern, re.IGNORECASE) for pattern in config.library_regex
+        ]
+        self.res_pattern_list = [
+            re.compile(pattern, re.IGNORECASE) for pattern in config.resource_regex
+        ]
+
         for keyword in test_case_details.testSequence:
             self._get_keyword_call(keyword)
         self.rf_tags = self._get_tags(test_case_details)
         self.setup_keyword: Keyword | None = None
         self.teardown_keyword: Keyword | None = None
         # TODO description
+
+    @staticmethod
+    def _validate_regex_pattern(pattern: str, pattern_type: str) -> None:
+        """Validate that regex pattern has correct capture groups.
+
+        Args:
+            pattern: The regex pattern to validate
+            pattern_type: Type description for error messages (e.g., "library" or "resource")
+
+        Raises:
+            ValueError: If pattern doesn't meet requirements
+        """
+        try:
+            compiled = re.compile(pattern, re.IGNORECASE)
+        except re.error as e:
+            raise ValueError(f"Invalid {pattern_type} regex pattern '{pattern}': {e}")
+
+        num_groups = compiled.groups
+
+        if num_groups == 0:
+            raise ValueError(
+                f"{pattern_type.capitalize()} regex pattern must contain at least one capture group: '{pattern}'"
+            )
+
+        if num_groups > 1:
+            if "resourceName" not in compiled.groupindex:
+                raise ValueError(
+                    f"{pattern_type.capitalize()} regex pattern with multiple capture groups must have "
+                    f"one named 'resourceName': '{pattern}'"
+                )
 
     @staticmethod
     def _get_tags(test_case_details: TestCaseDetails) -> list[str]:
@@ -191,13 +233,11 @@ class RfTestCase:
             )
         )
 
-    def _get_keyword_import(
-        self, test_step: TBKeywordCall, keyword_path: str
-    ) -> tuple[str, str]:
+    def _get_keyword_import(self, test_step: TBKeywordCall, keyword_path: str) -> tuple[str, str]:
         for pattern in self.lib_pattern_list:
             match = pattern.search(keyword_path)
             if match:
-                return LIBRARY_IMPORT_TYPE, match.group("resourceName").strip()
+                return LIBRARY_IMPORT_TYPE, match.group(1).strip()
         for pattern in self.res_pattern_list:
             match = pattern.search(keyword_path)
             if match:
@@ -205,10 +245,15 @@ class RfTestCase:
         splitted_keyword_path = keyword_path.split(".")
         minimum_length_subdivision_path_length = 2
         if (
-            len(splitted_keyword_path) == minimum_length_subdivision_path_length
+            len(splitted_keyword_path) >= minimum_length_subdivision_path_length
             and splitted_keyword_path[0] in self.config.library_root
         ):
             return LIBRARY_IMPORT_TYPE, splitted_keyword_path[1]
+        if (
+            len(splitted_keyword_path) >= minimum_length_subdivision_path_length
+            and splitted_keyword_path[0] in self.config.resource_root
+        ):
+            return RESOURCE_IMPORT_TYPE, splitted_keyword_path[1]
         return UNKNOWN_IMPORT_TYPE, keyword_path
 
     def _append_compound_ia(
@@ -265,10 +310,7 @@ class RfTestCase:
                     group_stack[-1][0].body.append(compound_keyword_call)
                 else:
                     keyword_lists[tc_index].append(compound_keyword_call)
-                if (
-                    Group
-                    and self.config.compound_keyword_logging == CompoundKeywordLogging.GROUP
-                ):
+                if Group and self.config.compound_keyword_logging == CompoundKeywordLogging.GROUP:
                     group_stack.append((compound_keyword_call, keyword_call.indent))
         return keyword_lists
 
@@ -381,7 +423,7 @@ class RfTestCase:
         rf_test_cases: list[TestCase] = []
         multiple_tests = len(rf_keyword_call_lists) > 1
         for index, rf_keywords in enumerate(rf_keyword_call_lists):
-            phase_pattern = self.config.phasePattern
+            phase_pattern = self.config.phase_pattern
             tc_name = (
                 phase_pattern.format(
                     testcase=self.uid,
@@ -460,17 +502,15 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
-        for resource_regex in self.config.resource_regex:
+        for resource_pattern in self.res_pattern_list:
             if not keyword.import_prefix:
                 continue
-            resource_name_match = re.search(
-                resource_regex, keyword.import_prefix, flags=re.IGNORECASE
-            )
+            resource_name_match = resource_pattern.search(keyword.import_prefix)
             if resource_name_match:
                 return (
                     self.config.fully_qualified or False
-                ) * f"{resource_name_match.group('resourceName').strip()}."
-        return ""
+                ) * f"{resource_name_match.group(1).strip()}."
+        return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
         return (
@@ -704,7 +744,9 @@ class RobotSuiteFileBuilder:
         for resource_regex in self.config.resource_regex:
             resource_name_match = re.search(resource_regex, resource_path_part, flags=re.IGNORECASE)
             if resource_name_match:
-                return resource_name_match.group("resourceName").strip()
+                return resource_name_match.group(1).strip()
+        if resource_path_part:
+            return resource_path_part.strip()
         return None
 
     def _get_resource_directory_path_index(self, resource: str) -> int | None:
