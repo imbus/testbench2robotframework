@@ -1,6 +1,8 @@
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote
 
 from .config import AttachmentConflictBehaviour, ReferenceBehaviour
@@ -43,7 +45,7 @@ class ExecutionArtifactStorage:
         if existing_artifact:
             # if self.reference_behaviour == ReferenceBehaviour.ATTACHMENT:
             #     self._handle_attachment_conflict(existing_artifact, artifact_value)
-            return existing_artifact.key
+            return str(existing_artifact.key)
         return self._add_new_reference(artifact_value, self.reference_behaviour)
 
     @property
@@ -76,7 +78,9 @@ class ExecutionArtifactStorage:
     def _dispatch_attachment_copy(
         self, filename: str, artifact_value: str, attachment_folder_path: Path
     ) -> str:
-        conflict_methods = {
+        conflict_methods: dict[
+            AttachmentConflictBehaviour, tuple[Callable[..., str], list[Any]]
+        ] = {
             AttachmentConflictBehaviour.USE_NEW: (
                 self._use_new_attachment,
                 [filename, artifact_value, attachment_folder_path],
@@ -105,8 +109,8 @@ class ExecutionArtifactStorage:
         unique_path = self._create_unique_attachment_path(attachment_folder_path / filename)
         unique_file = Path(unique_path).name
         logger.info(
-            f"Attachment '{filename}' does already exist. "
-            f"Creating new unique attachment '{unique_file}'."
+            f"Attachment '{filename}' already exists. "
+            f"Creating a new unique attachment '{unique_file}'."
         )
         shutil.copyfile(artifact_value, unique_path, follow_symlinks=True)
         return unique_file
@@ -115,15 +119,17 @@ class ExecutionArtifactStorage:
         return filename
 
     def _log_attachment_error(self, filename: str):
-        logger.error(f"Attachment '{filename}' does already exist.")
+        logger.error(f"Attachment '{filename}' already exists.")
         return filename
 
-    def _invalid_conflict_behaviour(self, filename: str):
+    def _invalid_conflict_behaviour(self) -> str:
+        # Reached through the fallback of 'conflict_methods', which passes no
+        # arguments - so this method must not require any.
         logger.error(
-            f"Attachment conflict behaviour '{self.attachment_conflict_behaviour}' "
-            f"is not valid value. Please consult the documentation."
+            f"'{self.attachmentConflictBehaviour}' is not a valid attachment conflict "
+            f"behaviour. Please consult the documentation."
         )
-        sys.exit()
+        sys.exit(1)
 
     def _copy_attachment(self, artifact_value: str) -> str:
         filename = Path(artifact_value).name
@@ -139,7 +145,7 @@ class ExecutionArtifactStorage:
         artifact_value = artifact_info.get_attachment_value()
         if not artifact_value:
             logger.warning(
-                f"Attachment '{artifact}' does not exist or can not be handled as an attachment."
+                f"Attachment '{artifact}' does not exist or cannot be handled as an attachment."
             )
             return None
         if not has_allowed_size(artifact_value):
@@ -154,22 +160,22 @@ class ExecutionArtifactStorage:
         artifact_value = artifact_info.get_reference_value()
         if not artifact_value:
             logger.warning(
-                f"Reference '{artifact}' does not exist or can not be handled as a reference."
+                f"Reference '{artifact}' does not exist or cannot be handled as a reference."
             )
             return None
         return artifact_value
 
     def _process_unknown(self, artifact: str) -> str | None:
         logger.error(
-            f"Unknown reference behaviour '{self.reference_behaviour}'."
+            f"Unknown reference behaviour '{self.reference_behaviour}'. "
             f"Cannot add artifact '{artifact}'."
         )
         return None
 
     def _process_no_references_allowed(self, artifact: str) -> str | None:
         logger.warning(
-            f"Reference behaviour is set to NONE."
-            f"Reference '{artifact}' will not be added to report."
+            "Reference behaviour is set to NONE. "
+            f"Reference '{artifact}' will not be added to the report."
         )
         return None
 
@@ -183,7 +189,9 @@ class ExecutionArtifactStorage:
             artifact
         )
 
-    def _add_new_reference(self, artifact_value: str, reference_behaviour: ReferenceBehaviour):
+    def _add_new_reference(
+        self, artifact_value: str, reference_behaviour: ReferenceBehaviour
+    ) -> str:
         new_key = str(self.new_key)
         self.tb_references.append(
             ReferenceAssignment(
@@ -194,7 +202,9 @@ class ExecutionArtifactStorage:
         )
         return new_key
 
-    def _get_existing_artifact(self, artifact_value: str, reference_behaviour: ReferenceBehaviour):
+    def _get_existing_artifact(
+        self, artifact_value: str, reference_behaviour: ReferenceBehaviour
+    ) -> ReferenceAssignment | None:
         return next(
             filter(
                 lambda ref: ref.value == artifact_value
@@ -222,8 +232,8 @@ class ExecutionArtifactInfo:
                 unquoted_path = unquoted_path.resolve()
             elif unquoted_path.is_absolute():
                 logger.warning(
-                    f"Referenced file '{unquoted_path}' does not exist."
-                    f"Reference will be attached anyway."
+                    f"Referenced file '{unquoted_path}' does not exist. "
+                    f"The reference will be attached anyway."
                 )
             else:
                 return None

@@ -18,6 +18,8 @@ charset-normalizer==3.4.0
     # via requests
 check-manifest==0.50
     # via testbench2robotframework (pyproject.toml)
+click==8.1.8
+    # via testbench2robotframework (pyproject.toml)
 colorama==0.4.6
     # via
     #   build

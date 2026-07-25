@@ -4,7 +4,7 @@ from __future__ import annotations
 from enum import Enum, auto
 import json
 import sys
-from dataclasses import dataclass
+from dataclasses import KW_ONLY, dataclass
 from pathlib import Path
 from typing import Final
 
@@ -177,6 +177,34 @@ class ReferenceBehaviour(StrEnum):
     NONE = "NONE"
 
 
+class RobotLogLevel(StrEnum):
+    """The message levels of Robot Framework, ordered from chattiest to gravest.
+
+    Used as the threshold for 'keyword-comment-log-level': a message is shown
+    when its level is at or above the configured one - the same semantics as
+    Robot's own log level filtering.
+    """
+
+    TRACE = "TRACE"
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARN = "WARN"
+    ERROR = "ERROR"
+    FAIL = "FAIL"
+
+
+class CleanMode(StrEnum):
+    """What 'clean' removes. Deliberately not exposed on the CLI."""
+
+    GENERATED = "GENERATED"  # only .robot files written by this tool, default
+    ALL = "ALL"  # the whole output directory, like before version 1.2
+
+
+class KeywordCommentStyle(StrEnum):
+    STRUCTURED = "STRUCTURED"
+    FLAT = "FLAT"
+
+
 class AttachmentConflictBehaviour(StrEnum):
     ERROR = "ERROR"
     USE_NEW = "USE_NEW"
@@ -206,6 +234,14 @@ class Configuration:
     resource_root: list[str]
     subdivisionsMapping: SubdivisionsMapping
     testCaseSplitPathRegEx: str
+    _: KW_ONLY
+    include_blocked: bool = False
+    merge_protocol: bool = True
+    clean_mode: CleanMode = CleanMode.GENERATED
+    keyword_comment_style: KeywordCommentStyle = KeywordCommentStyle.STRUCTURED
+    keyword_comment_max_depth: int = 5
+    keyword_comment_max_rows: int = 300
+    keyword_comment_log_level: RobotLogLevel = RobotLogLevel.TRACE
 
     @classmethod
     def from_dict(cls, dictionary) -> Configuration:
@@ -223,6 +259,8 @@ class Configuration:
             library_root=dictionary.get("library-root", DEFAULT_LIBRARY_ROOTS),
             resource_root=dictionary.get("resource-root", DEFAULT_RESOURCE_ROOTS),
             fully_qualified=dictionary.get("fully-qualified", False),
+            include_blocked=dictionary.get("include-blocked", False),
+            clean_mode=CleanMode(dictionary.get("clean-mode", "GENERATED").upper()),
             forced_import=ForcedImport.from_dict(dictionary.get("forced-import", {})),
             output_directory=dictionary.get("output-directory", DEFAULT_GENERATION_DIRECTORY),
             log_suite_numbering=dictionary.get("log-suite-numbering", False),
@@ -231,6 +269,15 @@ class Configuration:
                     "console":dictionary.get("console-logging", {}),
                     "file":dictionary.get("file-logging", {})
                 }
+            ),
+            merge_protocol=dictionary.get("merge-protocol", True),
+            keyword_comment_style=KeywordCommentStyle(
+                dictionary.get("keyword-comment-style", "STRUCTURED").upper()
+            ),
+            keyword_comment_max_depth=dictionary.get("keyword-comment-max-depth", 5),
+            keyword_comment_max_rows=dictionary.get("keyword-comment-max-rows", 300),
+            keyword_comment_log_level=RobotLogLevel(
+                dictionary.get("keyword-comment-log-level", "TRACE").upper()
             ),
             metadata=dictionary.get("metadata", {}),
             compound_keyword_logging=CompoundKeywordLogging(dictionary.get("compound-keyword-logging", "GROUP").upper()),

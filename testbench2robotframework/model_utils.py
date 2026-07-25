@@ -37,7 +37,7 @@ def get_origin_from_type_hint(type_hint):
 
 
 def from_dict(cls: type[T], data: dict) -> T:
-    if not is_dataclass(cls):
+    if not isinstance(cls, type) or not is_dataclass(cls):
         raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
     if data is None:
         raise ValueError(ERROR_NONETYPE_DATA)
@@ -58,7 +58,7 @@ def from_dict(cls: type[T], data: dict) -> T:
 def convert_value_without_origin(value: Any, type_hint: Any) -> Any:
     if value is None:
         return None
-    if is_dataclass(type_hint):
+    if isinstance(type_hint, type) and is_dataclass(type_hint):
         return from_dict(type_hint, value)
     return type_hint(value)
 

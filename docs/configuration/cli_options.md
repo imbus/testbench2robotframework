@@ -2,111 +2,130 @@
 sidebar_position: 2
 ---
 
-# CLI Options Reference
+# Command-Line Usage
 
-Complete reference for all command-line options available in TestBench2RobotFramework.
+This page explains how the command line is structured and how to write option
+values. It does **not** repeat every option — each one, with its accepted values
+and default, lives in the [Configuration Reference](./overview.md).
 
-## Global Options
+## Structure of a command
 
-These options are available for all commands:
+Everything runs through two subcommands:
 
-| Option | Description |
-|--------|-------------|
-| `--help` | Displays the help message and exits. |
-| `--version` | Writes the TestBench2RobotFramework, Robot Framework and Python version to console. |
-| `-c`, `--config PATH` | Path to a configuration file for TestBench2RobotFramework. |
+```bash
+testbench2robotframework generate-tests [OPTIONS] <testbench-report>
+testbench2robotframework fetch-results  [OPTIONS] <robot-output.xml> <testbench-report>
+```
 
-## generate-tests Options
+- `generate-tests` takes one positional argument: the TestBench JSON report
+  (a directory or `.zip`).
+- `fetch-results` takes two: the Robot Framework `output.xml` first, then the
+  TestBench report the suites were generated from.
 
-Options specific to the `generate-tests` subcommand:
+The short entry point `tb2robot` is an alias for `testbench2robotframework`.
 
-### Output Options
+Two options work on the group itself, before the subcommand:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `-d`, `--output-directory PATH` | Path | Directory or ZIP archive containing the generated test suites. |
-| `--clean` | Flag | Deletes all files present in the output-directory before new test suites are created. |
+```bash
+testbench2robotframework --help        # or -h
+testbench2robotframework --version     # or -v — tool, Robot Framework, Python and supported TestBench versions
+```
 
-### Keyword & Logging Options
+Each subcommand also has its own `--help`:
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `--compound-keyword-logging` | Choice | Mode for logging compound keywords. Options: `GROUP`, `COMMENT`, or `NONE`. |
-| `--fully-qualified` | Flag | Calls Robot Framework keywords by their fully qualified names in the generated test suites. |
-| `--log-suite-numbering` | Flag | Enables logging of the test suite numbering. |
-| `--metadata TEXT` | Text | Add extra metadata to the settings of the generated Robot Framework test suite. Provide entries as `key:value` pairs. |
-
-### Resource & Library Options
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `--resource-directory PATH` | Path | Directory containing the Robot Framework resource files. |
-| `--resource-directory-regex TEXT` | Regex | Regex that can be used to identify the TestBench Subdivision that corresponds to the resource-directory. Resources will be imported relative to this subdivision based on the test elements structure in TestBench. |
-| `--library-regex TEXT` | Regex | Regular expression used to identify TestBench subdivisions corresponding to Robot Framework libraries. |
-| `--library-root TEXT` | Text | TestBench root subdivision whose direct children correspond to Robot Framework libraries. |
-| `--resource-regex TEXT` | Regex | Regular expression used to identify TestBench subdivisions corresponding to Robot Framework resources. |
-| `--resource-root TEXT` | Text | TestBench root subdivision whose direct children correspond to Robot Framework resources. |
-| `--library-mapping TEXT` | Text | Library import statement to use when a keyword from the specified TestBench subdivision is encountered. |
-| `--resource-mapping TEXT` | Text | Resource import statement to use when a keyword from the specified TestBench subdivision is encountered. |
-
-## fetch-results Options
-
-Options specific to the `fetch-results` subcommand:
-
-| Option | Type | Description |
-|--------|------|-------------|
-| `-d`, `--output-directory PATH` | Path | Path to the directory or ZIP file where the updated TestBench JSON report (with results) should be saved. |
-
-## Usage Examples
-
-### Display Help
-
-```powershell
-testbench2robotframework --help
+```bash
 testbench2robotframework generate-tests --help
 testbench2robotframework fetch-results --help
 ```
 
-### Check Version
+## Writing option values
 
-```powershell
-testbench2robotframework --version
+The option name on the command line is the same as in a configuration file; only
+the syntax differs. Every option belongs to one of these shapes.
+
+**Text and paths** take a value:
+
+```bash
+--output-directory ./Generated
+--phase-pattern "{testcase} : Phase {index}/{length}"
 ```
 
-### Generate Tests with Multiple Options
+**Simple flags** are either present (true) or absent (false):
 
-```powershell
+```bash
+--fully-qualified --include-blocked --log-suite-numbering
+```
+
+**The clean flag is a pair.** `--clean` and `--no-clean` are two spellings of one
+tri-state option. Give neither and the configuration file decides (default:
+clean); give one to force it:
+
+```bash
+--clean         # remove previously generated suites first
+--no-clean      # keep them and generate additively
+```
+
+**List options are repeatable** — pass the flag once per value:
+
+```bash
+--library-root RF --library-root RF-Library
+--library-regex '(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Library\].*'
+```
+
+**Mapping options take a `name:value` pair** and are also repeatable. The part
+before the first colon is the key; everything after it is the value (so the value
+may itself contain colons):
+
+```bash
+--library-mapping "RoboSAPiens:RoboSAPiens    language=de"
+--metadata "Responsible:Jane Doe" --metadata "Environment:staging"
+```
+
+A value that is not in `name:value` form is rejected with a clear error.
+
+## Choosing an explicit configuration file
+
+`-c` / `--config` points at one TOML **or** JSON file and **replaces** the
+automatic `pyproject.toml` / `robot.toml` / `.robot.toml` lookup — when it is
+given, those project files are ignored:
+
+```bash
+testbench2robotframework generate-tests -c ./my-config.toml my_report.zip
+```
+
+How the automatic files are found and merged, and how a config file is written,
+is covered in [Configuration Files](./pyproject_config.md).
+
+## Precedence
+
+Command-line options sit at the top of the precedence chain: they override the
+configuration files, which override the built-in defaults. The full order is in
+[Precedence](./overview.md#precedence).
+
+## Examples
+
+Generate into a chosen directory, keeping existing suites, with grouped compound
+keywords and qualified keyword names:
+
+```bash
 testbench2robotframework generate-tests \
-  --clean \
   -d ./Generated \
+  --no-clean \
   --compound-keyword-logging GROUP \
   --fully-qualified \
-  --log-suite-numbering \
-  my_report.json
+  my_report.zip
 ```
 
-### Fetch Results with Custom Output
+Write the results of a run back into a new report, overwriting the protocol
+instead of merging:
 
-```powershell
+```bash
 testbench2robotframework fetch-results \
-  -d ./updated_reports \
-  output.xml \
-  testbench_report.json
+  -d ./updated_report.zip \
+  --no-merge-protocol \
+  ./results/output.xml \
+  my_report.zip
 ```
 
-### Using Configuration File
-
-```powershell
-testbench2robotframework generate-tests -c config.toml my_report.json
-```
-
-## Option Priority
-
-When the same option is specified in multiple places, the priority order is:
-
-1. **Command-line options** (highest priority)
-2. **Workspace-local `.robot.toml`**
-3. **Project `robot.toml` or `pyproject.toml`**
-4. **Default values** (lowest priority)
-
-
+For what each option does and its accepted values, see the
+[Configuration Reference](./overview.md).

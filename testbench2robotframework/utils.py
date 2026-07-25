@@ -1,8 +1,12 @@
+import ast
 import json
 import re
 import shutil
 import sys
+from collections.abc import Mapping
+from enum import Enum
 from pathlib import Path, PurePath
+from typing import Any
 from zipfile import ZipFile
 
 from testbench2robotframework.model import (
@@ -10,7 +14,6 @@ from testbench2robotframework.model import (
     TestCaseNode,
     TestCaseSetNode,
     TestStructureTree,
-    TestStructureTreeNode,
     TestThemeNode,
     UDFType,
     UserDefinedField,
@@ -18,36 +21,46 @@ from testbench2robotframework.model import (
 
 from .log import logger
 
-ALLOWED_SERVER_VERSIONS = ["4.0"]
+# Nodes carrying a TestStructureItemBaseInformation, i.e. everything with a
+# 'base.key'. A TestCaseNode has a TestCaseBaseInformation without a key and is
+# registered under its 'spec.key' instead, so it needs a type of its own.
+StructureNode = RootNode | TestThemeNode | TestCaseSetNode
+TreeNode = StructureNode | TestCaseNode
+
+ALLOWED_SERVER_VERSIONS = ["4.1"]
 ERROR_COULD_NOT_READ_VERSION = (
-    "Could not read TestBench report version. The report must be generated with one of the supported versions: "
+    "Could not read TestBench report version. "
+    "The report must be generated with one of the supported versions: "
     + ", ".join(ALLOWED_SERVER_VERSIONS)
 )
-ERROR_INCOMPATIBLE_VERSION = (
-    "The version of testbench2robotframework is not compatible with the TestBench report version '{server_version}'. "
-    f"Supported versions are: {', '.join(ALLOWED_SERVER_VERSIONS)}. "
-)
 
+def _get_error_incompatible_version_message(server_version: str) -> str:
+    return (
+        "The version of testbench2robotframework is not compatible with the "
+        f"TestBench report version '{server_version}'. "
+        f"Supported versions are: {', '.join(ALLOWED_SERVER_VERSIONS)}. "
+    )
 
 def perform_version_check(testbench_report: Path):
     try:
         manifest = read_manifest_json_from_testbench_report(testbench_report)
-    except Exception as e:
+    except Exception:
         sys.exit(ERROR_COULD_NOT_READ_VERSION)
     server_version = manifest.get("serverVersions", {}).get("version", None)
-    if not server_version:
+    if not isinstance(server_version, str) or "." not in server_version:
         sys.exit(ERROR_COULD_NOT_READ_VERSION)
+    minor_version = ".".join(server_version.split(".")[:2])
 
-    if server_version not in ALLOWED_SERVER_VERSIONS:
-        sys.exit(ERROR_INCOMPATIBLE_VERSION.format(server_version=server_version))
+    if minor_version not in ALLOWED_SERVER_VERSIONS:
+        sys.exit(_get_error_incompatible_version_message(server_version))
 
 
-def read_manifest_json_from_testbench_report(testbench_report: Path) -> dict:
+def read_manifest_json_from_testbench_report(testbench_report: Path) -> Any:
     if testbench_report.is_dir():
         manifest = testbench_report / "manifest.json"
         if not manifest.exists():
             raise FileNotFoundError("manifest.json not found")
-        with open(manifest, "r", encoding="utf-8") as f:
+        with manifest.open(encoding="utf-8") as f:
             return json.load(f)
 
     # ZIP archive
@@ -56,12 +69,12 @@ def read_manifest_json_from_testbench_report(testbench_report: Path) -> dict:
             try:
                 with zf.open("manifest.json") as f:
                     return json.load(f)
-            except KeyError:
-                raise FileNotFoundError("manifest.json not found in zip")
+            except KeyError as e:
+                raise FileNotFoundError("manifest.json not found in zip") from e
 
     # Direct file
     elif testbench_report.is_file() and testbench_report.name == "manifest.json":
-        with open(testbench_report, "r", encoding="utf-8") as f:
+        with testbench_report.open(encoding="utf-8") as f:
             return json.load(f)
     else:
         raise FileNotFoundError(testbench_report)
@@ -84,9 +97,9 @@ class PathResolver:
         uids_of_existing_tcs: tuple[str, ...],
         log_suite_numbers: bool,
     ):
-        self.tcs_catalog: dict[str, TestStructureTreeNode] = {}
-        self.tt_catalog: dict[str, TestStructureTreeNode] = {}
-        self.tree_dict: dict[str, TestStructureTreeNode] = {}
+        self.tcs_catalog: dict[str, StructureNode] = {}
+        self.tt_catalog: dict[str, TestThemeNode] = {}
+        self.tree_dict: dict[str, TreeNode] = {}
         self._last_child_indices: dict[str, int] = {}
         self._log_suite_numbers = log_suite_numbers
         self._uids_of_existing_tcs = uids_of_existing_tcs
@@ -98,12 +111,15 @@ class PathResolver:
         if not test_theme_tree.root:
             logger.warning("Test Structure Tree contains no root node.")
             return
-        self.tree_dict[test_theme_tree.root.base.key] = test_theme_tree.root
-        self._add_existing_tcs_to_catalog(test_theme_tree.root)
+        root = test_theme_tree.root
+        if not isinstance(root, TestCaseNode):
+            self.tree_dict[root.base.key] = root
+        self._add_existing_tcs_to_catalog(root)
         for tse in test_theme_tree.nodes:
             self._add_existing_tcs_to_catalog(tse)
             if isinstance(tse, TestCaseNode):
-                self.tree_dict[f"tc_{tse.spec.key}"] = tse
+                if tse.spec:
+                    self.tree_dict[f"tc_{tse.spec.key}"] = tse
             else:
                 self.tree_dict[tse.base.key] = tse
             self._store_highest_child_index(tse)
@@ -118,10 +134,10 @@ class PathResolver:
         if isinstance(tse, TestCaseSetNode) and tse.base.uniqueID in self._uids_of_existing_tcs:
             self.tcs_catalog[tse.base.uniqueID] = tse
 
-    def _get_paths(self, tse_catalog: dict[str, TestStructureTreeNode]) -> dict[str, PurePath]:
+    def _get_paths(self, tse_catalog: Mapping[str, TreeNode]) -> dict[str, PurePath]:
         return {uid: self._resolve_tse_path(tse) for uid, tse in tse_catalog.items()}
 
-    def _resolve_tse_path(self, tse: TestStructureTreeNode) -> PurePath:
+    def _resolve_tse_path(self, tse: TreeNode) -> PurePath:
         self._add_tt_to_tt_catalog(tse)
         if isinstance(tse, RootNode):
             return PurePath()
@@ -145,22 +161,59 @@ class PathResolver:
         return index.zfill(max_length)
 
 
-# def safe_eval(expr: str, names: dict):
-#     tree = ast.parse(expr, mode="eval")
-#     def resolve(node):
-#         if isinstance(node, ast.Name):
-#             if node.id not in names:
-#                 raise ValueError(f"Unknown name: {node.id}")
-#             return names[node.id]
-#         if isinstance(node, ast.Attribute):
-#             if node.attr.startswith("_"):
-#                 raise ValueError("Private attributes are forbidden")
-#             value = resolve(node.value)
-#             return getattr(value, node.attr)
-#         raise ValueError(f"Disallowed expression: {type(node).__name__}")
-#     if not isinstance(tree.body, (ast.Name, ast.Attribute)):
-#         raise ValueError("Only attribute access is allowed")
-#     return resolve(tree.body)
+def safe_eval(expression: str, names: dict) -> object:
+    """Evaluates an attribute/subscript path over the given names - nothing else.
+
+    Deliberately narrower than a full expression evaluator: no calls, no
+    operators, no comprehensions. Enough for '$tcs.spec.responsible.name' or
+    '$tcs.spec.udfs[0].value', and safe to feed with configuration input.
+    """
+    tree = ast.parse(expression, mode="eval")
+
+    def resolve(node: ast.AST) -> object:
+        if isinstance(node, ast.Name):
+            if node.id not in names:
+                raise ValueError(f"Unknown name: {node.id}")
+            return names[node.id]
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith("_"):
+                raise ValueError("Private attributes are forbidden")
+            return getattr(resolve(node.value), node.attr)
+        if isinstance(node, ast.Subscript):
+            index = node.slice
+            if not isinstance(index, ast.Constant):
+                raise ValueError("Only constant subscripts are allowed")
+            container = resolve(node.value)
+            return container[index.value]  # type: ignore[index]
+        raise ValueError(f"Disallowed expression: {type(node).__name__}")
+
+    return resolve(tree.body)
+
+
+METADATA_PLACEHOLDER = re.compile(r"\{\s*\$(\w+)([^}]*)\}")
+
+
+def interpolate_metadata_value(value: str, names: dict) -> str:
+    """Replaces '{$tcs...}' placeholders in a metadata value.
+
+    Everything outside a placeholder stays literal, so plain values pass
+    through unchanged. A placeholder that cannot be evaluated is left as it is
+    and reported - the metadata entry itself survives.
+    """
+
+    def replace(match: re.Match) -> str:
+        name, path = match.group(1), match.group(2)
+        try:
+            result = safe_eval(f"{name}{path}", names)
+            # An enum like SpecStatus.NotPlanned should read 'NotPlanned'.
+            return str(result.value) if isinstance(result, Enum) else str(result)
+        except (ValueError, AttributeError, KeyError, IndexError, SyntaxError) as error:
+            logger.warning(
+                f"Metadata placeholder '{match.group(0)}' could not be evaluated: {error}"
+            )
+            return str(match.group(0))
+
+    return str(METADATA_PLACEHOLDER.sub(replace, value))
 
 
 def get_directory(json_report_path: str | None) -> str:
@@ -200,8 +253,8 @@ def replace_invalid_characters(name: str) -> str:
     return re.sub(r'[<>:"/\\|?* ]', "_", name)
 
 
-def get_tse_index(tse: TestStructureTreeNode) -> str:
-    return tse.base.numbering.rsplit(".", 1)[-1]
+def get_tse_index(tse) -> str:
+    return str(tse.base.numbering).rsplit(".", 1)[-1]
 
 
 def directory_to_zip(directory: Path, new_path: str | None = None):

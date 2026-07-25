@@ -19,7 +19,7 @@
   "phase-pattern": "{testcase} : Phase {index}/{length}",
   "metadata": {},
   "library-mapping": {
-      "SeleniumLibrary": "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot",
+      "Browser": "Browser    timeout=10s    run_on_failure=Take Screenshot",
       "SuperRemoteLibrary": "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
   },
   "resource-mapping": {

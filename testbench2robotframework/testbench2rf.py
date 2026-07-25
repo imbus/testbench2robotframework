@@ -4,9 +4,9 @@ import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePath
+from typing import Final
 from uuid import uuid4
 
-from robot import version as robot_version
 from robot.parsing.lexer.tokens import Token
 from robot.parsing.model.blocks import (
     End,
@@ -36,8 +36,9 @@ from robot.parsing.model.statements import (
 from robot.parsing.model.statements import (
     Tags as RFTags,
 )
+from robot.version import get_full_version
 
-from testbench2robotframework.utils import robot_tag_from_udf
+from testbench2robotframework.utils import interpolate_metadata_value, robot_tag_from_udf
 
 try:
     from robot.parsing.model.statements import TestTags
@@ -56,7 +57,6 @@ from .model import (
     ParameterEvaluationType,
     SequencePhase,
     TestCaseDetails,
-    TestStructureTreeNode,
     TestThemeNode,
     UDFType,
     UserDefinedField,
@@ -70,6 +70,10 @@ except ImportError:
     Group = None
 
 SEPARATOR = "    "
+# Named groups a 'library-regex' or 'resource-regex' may use to mark the part of
+# a TestBench subdivision path that is the library or resource name. Checked in
+# this order, so the first one present in a pattern wins.
+SUPPORTED_NAME_GROUPS: Final[tuple[str, ...]] = ("resourceName", "libraryName", "name")
 ROBOT_PATH_SEPARATOR = "/"
 RELATIVE_RESOURCE_INDICATOR = r"^{root}"
 SECTION_SEPARATOR = [EmptyLine.from_params()] * 2
@@ -79,13 +83,39 @@ LIBRARY_IMPORT_TYPE = str(uuid4())
 RESOURCE_IMPORT_TYPE = str(uuid4())
 
 
+def escape_consecutive_spaces(name: str) -> str:
+    """Makes a name with consecutive spaces survive Robot Framework parsing.
+
+    Two adjacent spaces act as a cell separator, so 'Expand  Panel' as a GROUP
+    name parses as two arguments and fails at runtime (issue #17). In a run of
+    spaces every space after the first is written as the Robot escape sequence
+    backslash-space, which resolves back to a plain space when the suite runs:
+    'Login  admin' becomes 'Login \\ admin' and displays as 'Login  admin'.
+    """
+    return re.sub(" ( +)", lambda match: " " + "\\ " * len(match.group(1)), name)
+
+
+def get_matched_name(match: re.Match) -> str:
+    """The library or resource name a subdivision pattern matched.
+
+    A named group out of 'SUPPORTED_NAME_GROUPS' always wins - that is the
+    explicit way to say which part is the name, and it works with any number of
+    capture groups. Without such a group the pattern has exactly one capture
+    group (enforced by '_validate_regex_pattern'), so group 1 is the name.
+    """
+    for group_name in SUPPORTED_NAME_GROUPS:
+        if group_name in match.re.groupindex and match.group(group_name) is not None:
+            return str(match.group(group_name)).strip()
+    return str(match.group(1)).strip()
+
+
 @dataclass
 class RFKeywordCallInformation:
     name: str
     cbv_parameters: dict[str, str]
     cbr_parameters: dict[str, str]
     indent: int
-    sequence_phase: str
+    sequence_phase: SequencePhase
     is_atomic: bool
     import_prefix: str | None = None
 
@@ -103,6 +133,7 @@ class RfTestCase:
             self._validate_regex_pattern(pattern, "library")
         for pattern in config.resource_regex:
             self._validate_regex_pattern(pattern, "resource")
+        self._validate_marker_pattern(config.resource_directory_regex, "resource-directory-regex")
 
         self.lib_pattern_list = [
             re.compile(pattern, re.IGNORECASE) for pattern in config.library_regex
@@ -120,7 +151,10 @@ class RfTestCase:
 
     @staticmethod
     def _validate_regex_pattern(pattern: str, pattern_type: str) -> None:
-        """Validate that regex pattern has correct capture groups.
+        """Validates that a subdivision pattern says which part is the name.
+
+        See 'SUPPORTED_NAME_GROUPS' and 'get_matched_name' for the two accepted
+        ways of doing that.
 
         Args:
             pattern: The regex pattern to validate
@@ -132,31 +166,38 @@ class RfTestCase:
         try:
             compiled = re.compile(pattern, re.IGNORECASE)
         except re.error as e:
-            raise ValueError(f"Invalid {pattern_type} regex pattern '{pattern}': {e}")
+            raise ValueError(f"Invalid {pattern_type} regex pattern '{pattern}': {e}") from e
 
-        num_groups = compiled.groups
+        if set(compiled.groupindex) & set(SUPPORTED_NAME_GROUPS):
+            return
+        if compiled.groups == 1:
+            return
+        raise ValueError(
+            f"{pattern_type.capitalize()} regex pattern '{pattern}' does not tell which part is "
+            f"the name. Use a named group - one of {', '.join(SUPPORTED_NAME_GROUPS)} - "
+            f"e.g. '(?P<{SUPPORTED_NAME_GROUPS[0]}>...)', or exactly one capture group. "
+            f"The pattern has {compiled.groups} capture groups and none of the supported names."
+        )
 
-        if num_groups == 0:
-            raise ValueError(
-                f"{pattern_type.capitalize()} regex pattern must contain at least one capture group: '{pattern}'"
-            )
+    @staticmethod
+    def _validate_marker_pattern(pattern: str, option_name: str) -> None:
+        """Validates a pure marker pattern such as 'resource-directory-regex'.
 
-        if num_groups > 1:
-            if "resourceName" not in compiled.groupindex:
-                raise ValueError(
-                    f"{pattern_type.capitalize()} regex pattern with multiple capture groups must have "
-                    f"one named 'resourceName': '{pattern}'"
-                )
+        Marker patterns only locate a path segment - they need no capture
+        groups, so the only requirement is that the expression compiles. A
+        broken pattern would otherwise surface as a raw re.error in the middle
+        of the generation.
+        """
+        try:
+            re.compile(pattern, re.IGNORECASE)
+        except re.error as e:
+            raise ValueError(f"Invalid regex in '{option_name}': '{pattern}': {e}") from e
 
     @staticmethod
     def _get_tags(test_case_details: TestCaseDetails) -> list[str]:
         tags = [tag.name for tag in test_case_details.spec.tags]
         tags.extend(
-            [
-                robot_tag_from_udf(udf)
-                for udf in test_case_details.spec.udfs
-                if robot_tag_from_udf(udf)
-            ]
+            [tag for udf in test_case_details.spec.udfs if (tag := robot_tag_from_udf(udf))]
         )
         return tags
 
@@ -194,15 +235,16 @@ class RfTestCase:
         if test_step.spec.keywordType == KeywordType.Compound:
             self._append_compound_ia(cbr_params, cbv_params, indent, test_step)
         elif test_step.spec.keywordType == KeywordType.Atomic:
-            keyword_details: KeywordDetails = next(
+            keyword_details: KeywordDetails | None = next(
                 filter(
                     lambda keyword: keyword.key == test_step.spec.keywordKey,
                     self.test_case_details.keywords,
                 ),
                 None,
             )
-            if keyword_details:
-                keyword_path = keyword_details.path
+            # Without a matching keyword there is no path; the name still is the
+            # best guess for the import, and it must not stay unbound.
+            keyword_path = keyword_details.path if keyword_details else test_step.spec.name
             self._append_atomic_ia(
                 cbr_params, cbv_params, indent, test_step, keyword_path
             )  # TODO: Else für textuelle Interaktionen
@@ -237,7 +279,7 @@ class RfTestCase:
         for pattern in self.lib_pattern_list:
             match = pattern.search(keyword_path)
             if match:
-                return LIBRARY_IMPORT_TYPE, match.group(1).strip()
+                return LIBRARY_IMPORT_TYPE, get_matched_name(match)
         for pattern in self.res_pattern_list:
             match = pattern.search(keyword_path)
             if match:
@@ -280,7 +322,7 @@ class RfTestCase:
         keyword_lists: list[list[Statement]] = [[]]
         tc_index = 0
         is_first_atomic = True
-        group_stack = []
+        group_stack: list[tuple[Group, int]] = []
         for keyword_call in keyword_calls:
             if keyword_call.is_atomic:
                 if (
@@ -327,7 +369,7 @@ class RfTestCase:
     def _create_rf_setup_call(self, setup_keyword: RFKeywordCallInformation) -> Setup:
         cbr_parameters = self._create_cbr_parameters(setup_keyword)
         if cbr_parameters:
-            logger.error("No variable assignment in [setup] possible.")
+            logger.error("Variable assignment is not possible in [Setup].")
         import_prefix = self._get_keyword_import_prefix(setup_keyword)
         keyword_indent = self._get_keyword_indent(setup_keyword)
         cbv_parameters = self._create_cbv_parameters(setup_keyword)
@@ -343,7 +385,7 @@ class RfTestCase:
     ) -> Teardown:
         cbr_parameters = self._create_cbr_parameters(teardown_keyword)
         if cbr_parameters:
-            logger.error("No variable assignment in [teardown] possible.")
+            logger.error("Variable assignment is not possible in [Teardown].")
         import_prefix = self._get_keyword_import_prefix(teardown_keyword)
         keyword_indent = self._get_keyword_indent(teardown_keyword)
         cbv_parameters = self._create_cbv_parameters(teardown_keyword)
@@ -494,7 +536,7 @@ class RfTestCase:
         for index, parameter in enumerate(cbr_parameters):
             if not parameter:
                 logger.warning(
-                    f"Keyword {keyword.name} has undefined CallByReference parameter value."
+                    f"Keyword '{keyword.name}' has an undefined call-by-reference parameter value."
                 )
                 continue
             if not parameter.startswith("${"):
@@ -509,7 +551,7 @@ class RfTestCase:
             if resource_name_match:
                 return (
                     self.config.fully_qualified or False
-                ) * f"{resource_name_match.group(1).strip()}."
+                ) * f"{get_matched_name(resource_name_match)}."
         return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
@@ -540,7 +582,9 @@ class RfTestCase:
         keyword_indent = " " * (keyword.indent * 4)
         if Group and compound_keyword_type == CompoundKeywordLogging.GROUP:
             return Group(
-                GroupHeader.from_params(keyword.name, indent=keyword_indent),
+                GroupHeader.from_params(
+                    escape_consecutive_spaces(keyword.name), indent=keyword_indent
+                ),
                 end=End.from_params(keyword_indent),
             )
 
@@ -578,7 +622,7 @@ class RfTestCase:
         test_step: TBKeywordCall, *param_use_types: ParameterEvaluationType
     ) -> dict[str, str]:
         return {
-            parameter.name: parameter.value
+            parameter.name: parameter.value or ""
             for parameter in test_step.spec.callParameters
             if parameter.evaluationType in param_use_types
         }
@@ -592,14 +636,14 @@ def create_test_suites(
     if not Group:
         if config.compound_keyword_logging == CompoundKeywordLogging.GROUP:
             logger.warning(
-                f"You're using Robot Framework {robot_version.get_full_version()} "
+                f"You're using Robot Framework {get_full_version()} "
                 "which does not support 'Robot Framework Groups'. "
-                "Compound keywords are logged as 'COMMENT'. To hide the warning "
-                "set the configuration '--logCompoundKeywords' to 'COMMENT' or 'NONE'."
+                "Compound keywords are logged as 'COMMENT'. To hide this warning, "
+                "set '--compound-keyword-logging' to 'COMMENT' or 'NONE'."
             )
         else:
             logger.debug(
-                f"You're using Robot Framework {robot_version.get_full_version()} "
+                f"You're using Robot Framework {get_full_version()} "
                 "which does not support 'Robot Framework Groups'. Consider updating to "
                 "newer Robot Framework version to get enhanced logging for compound keywords."
             )
@@ -620,11 +664,11 @@ def create_test_suites(
 class RobotInitFileBuilder:
     def __init__(
         self,
-        test_theme: TestStructureTreeNode,
+        test_theme: TestThemeNode,
         tt_path: PurePath,
         config: Configuration,
     ) -> None:
-        self.test_theme: TestThemeNode = test_theme
+        self.test_theme = test_theme
         self.tt_path = PurePath(tt_path)
         self.config = config
 
@@ -740,11 +784,11 @@ class RobotSuiteFileBuilder:
         return [ResourceImport.from_params(res) for res in sorted(resource_paths)]
 
     def _get_resource_name(self, resource: str) -> str | None:
-        resource_path_part = resource.split(".")[-1]
+        resource_path_part = resource.rsplit(".", maxsplit=1)[-1]
         for resource_regex in self.config.resource_regex:
             resource_name_match = re.search(resource_regex, resource_path_part, flags=re.IGNORECASE)
             if resource_name_match:
-                return resource_name_match.group(1).strip()
+                return get_matched_name(resource_name_match)
         if resource_path_part:
             return resource_path_part.strip()
         return None
@@ -752,7 +796,10 @@ class RobotSuiteFileBuilder:
     def _get_resource_directory_path_index(self, resource: str) -> int | None:
         splitted_keyword_path = resource.split(".")
         for index, part in enumerate(splitted_keyword_path):
-            resource_directory_match = re.match(
+            # search, not match: the pattern may hit anywhere in the segment, so
+            # a plain marker like '\[Robot-Resources\]' works without a '.*'
+            # prefix - consistent with how library-regex/resource-regex behave.
+            resource_directory_match = re.search(
                 self.config.resource_directory_regex, part, flags=re.IGNORECASE
             )
             if resource_directory_match:
@@ -854,9 +901,9 @@ class RobotSuiteFileBuilder:
         if unknown_imports:
             logger.warning(
                 f"{self.test_case_set.details.uniqueID} has unknown imports. "
-                "TestBench Subdivisions which correspond to Libraries or Resources "
-                "must be mapped via on of the following config options: 'rfLibraryRegex', "
-                "'rfResourceRegex', 'rfLibraryRoots', 'rfResourceRoots'. "
+                "TestBench subdivisions that correspond to libraries or resources "
+                "must be mapped via one of the following options: 'library-regex', "
+                "'resource-regex', 'library-root', 'resource-root'. "
                 "The following subdivisions could not be identified "
                 f"as library or resource: {list(unknown_imports)}."
             )
@@ -873,23 +920,19 @@ class RobotSuiteFileBuilder:
         setting_section.body.extend(self._create_rf_resource_imports(subdivisions))
         setting_section.body.extend(self._create_rf_unknown_imports(subdivisions))
         setting_section_meta_data = self.test_case_set.metadata
-        # for md_name, md_expression in self.config.metadata.items():
-        #     try:
-        #         md_expression = re.sub(r"\$tcs", "tcs", md_expression)
-        #         for match in re.finditer(r"(\{[^}]*\})", md_expression):
-        #             re.sub() = safe_eval(
-        #                 md_expression, {"tcs": self.test_case_set.details}
-        #             )
-        #             print(match.group(1))
-        #         setting_section_meta_data[md_name] = str(md_expression)
-        #     except ValueError as ve:
-        #         logger.warning(
-        #             f"Value '{md_expression}' from the custom metadata setting could not be evaluated: {ve}"
-        #         )
-        #     except Exception as e:
-        #         logger.error(
-        #             f"Error while evaluating the custom metadata setting '{md_expression}': {e}"
-        #         )
+        for metadata_name, metadata_value in self.config.metadata.items():
+            if metadata_name in setting_section_meta_data:
+                # UniqueID, Name and Numbering are written by the generator and
+                # used by fetch-results to match the suite back to TestBench -
+                # they must not be overridden by configured metadata.
+                logger.warning(
+                    f"Configured metadata '{metadata_name}' is ignored: the name is "
+                    f"reserved for the generated suite metadata."
+                )
+                continue
+            setting_section_meta_data[metadata_name] = interpolate_metadata_value(
+                str(metadata_value), {"tcs": self.test_case_set.details}
+            )
         setting_section.body.extend(
             [
                 create_meta_data(metadata_name, metadata_value)
