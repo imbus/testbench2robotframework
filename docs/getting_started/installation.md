@@ -9,6 +9,7 @@ sidebar_position: 1
 Before installing TestBench2RobotFramework, ensure you have:
 
 - **Python 3.10 or higher** installed on your system
+- **Robot Framework 6.1 or higher** (installed automatically as a dependency)
 - **pip** package manager (usually comes with Python)
 
 ## Install via pip
@@ -27,5 +28,10 @@ After installation, verify that the tool is correctly installed by checking the 
 testbench2robotframework --version
 ```
 
-This command will display the TestBench2RobotFramework, Robot Framework, and Python versions.
+This command will display the TestBench2RobotFramework, Robot Framework, and Python
+versions, plus the supported TestBench server versions.
+
+:::note
+`pip` also installs the shorter alias `tb2robot` for the same command.
+:::
 

@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import click
-import robot
+import robot.version
 
 from testbench2robotframework import __version__
 from testbench2robotframework.robotframework2testbench import robot2testbench
@@ -24,22 +24,22 @@ from .testbench2robotframework import testbench2robotframework
 from .utils import ALLOWED_SERVER_VERSIONS
 
 TESTBENCH2ROBOTFRAMEWORK_DESCRIPTION = (
-    """TestBench2RobotFramework converts a TestBench JSON-report
-    to Robot Framework test suites and enhances the TestBench Report
-    with the execution results provided by Robot Framework. The version your TestBench report
-    was generated with must be compatible with the version of testbench2robotframework you are using.
-    Supported versions for this version of testbench2robotframework are: """
+    """TestBench2RobotFramework converts a TestBench JSON report into Robot Framework
+    test suites and writes the execution results provided by Robot Framework back into
+    the TestBench report. The TestBench version your report was generated with must be
+    compatible with the version of testbench2robotframework you are using.
+    This version supports TestBench """
     + ", ".join(ALLOWED_SERVER_VERSIONS)
     + "."
 )
-GENERATE_HELP = """Command to convert a TestBench JSON-report to Robot Framework test suites."""
-FETCH_HELP = """Command to fetch execution results from a Robot Framework result XML and
-to write the results to a TestBench JSON-report."""
+GENERATE_HELP = """Converts a TestBench JSON report into Robot Framework test suites."""
+FETCH_HELP = """Reads execution results from a Robot Framework result XML and writes
+them into a TestBench JSON report."""
 CONFIG_OPTION_HELP = """Path to a configuration file for TestBench2RobotFramework.
     """
-ROBOT_RESULT_HELP = """Path to an XML file containing the robot results."""
-ROBOT_OUTPUT_HELP = """Path to the directory or ZIP File the TestBench JSON-report
-    with result should be saved to."""
+ROBOT_RESULT_HELP = """Path to the XML file containing the Robot Framework results."""
+ROBOT_OUTPUT_HELP = """Directory or ZIP file the TestBench JSON report with the
+    results is written to."""
 
 
 def parse_subdivision_mapping(
@@ -51,7 +51,7 @@ def parse_subdivision_mapping(
             subdivision, import_value = value.split(":", 1)
             subdivision_mapping[subdivision] = import_value
         except ValueError as err:
-            raise click.BadParameter("Each mapping must be in 'name:value' format.") from err
+            raise click.BadParameter(f"Mapping '{value}' is not in 'name:value' format.") from err
     return subdivision_mapping
 
 
@@ -60,7 +60,7 @@ def parse_subdivision_mapping(
     __version__,
     "-v",
     "--version",
-    help="Writes the TestBench2RobotFramework, Robot Framework and Python version to console.",
+    help="Prints the TestBench2RobotFramework, Robot Framework and Python version.",
     message=(
         f"TestBench2RobotFramework {__version__} with "
         f"Robot Framework {robot.version.get_full_version()}. "
@@ -75,16 +75,24 @@ def testbench2robotframework_cli():
 @testbench2robotframework_cli.command(short_help=GENERATE_HELP)
 @click.option("-c", "--config", type=click.Path(path_type=Path), help=CONFIG_OPTION_HELP)
 @click.option(
-    "--clean",
-    is_flag=True,
-    help="""Deletes all files present in the output-directory
-    before new test suites are created.""",
+    "--clean/--no-clean",
+    default=None,
+    help="""Whether previously generated suites are removed before generating.
+    Without either flag the configuration decides (default: clean). Use
+    --no-clean to generate additively.""",
 )
 @click.option(
     "--fully-qualified",
     is_flag=True,
     help="""Calls Robot Framework keywords by their fully
     qualified names in the generated test suites.""",
+)
+@click.option(
+    "--include-blocked",
+    is_flag=True,
+    help="""Also generates test elements whose TestBench execution status
+    is 'blocked'. By default blocked test cases, test case sets and
+    test themes are skipped.""",
 )
 @click.option(
     "-d",
@@ -108,68 +116,68 @@ def testbench2robotframework_cli():
 @click.option(
     "--resource-directory-regex",
     type=str,
-    help="""Regex that can be used to identify the TestBench
-    Subdivision that corresponds to the <resource-directory>.
-    Resources will be imported relative to this Subdivision
-    based on the test elements structure in TestBench.""",
+    help="""Regular expression identifying the TestBench subdivision that
+    corresponds to the <resource-directory>. Resources are imported relative
+    to that subdivision, following the test element structure in TestBench.""",
 )
 @click.option(
     "--library-regex",
     multiple=True,
     type=str,
-    help="""Regular expression used to identify TestBench subdivisions
-    corresponding to Robot Framework libraries.""",
+    help="""Regular expression identifying TestBench subdivisions that correspond
+    to Robot Framework libraries. The name to import must be marked by a named group
+    ('resourceName', 'libraryName' or 'name') or by exactly one capture group.""",
 )
 @click.option(
     "--library-root",
     multiple=True,
     type=str,
-    help="""TestBench root subdivision which's direct
-         children correspond to Robot Framework libraries.""",
+    help="""TestBench root subdivision whose direct children
+         correspond to Robot Framework libraries.""",
 )
 @click.option(
     "--metadata",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="""Add extra metadata to the settings of the generated Robot Framework test suite.
-        Provide entries as key:value pairs, where *key* is the metadata name and *value* is the corresponding value.
-        Values may also be Python expressions.
-        The special variable '$tcs' gives access to the TestBench Python model of the test case set.""",
+    help="""Add extra metadata to the settings of every generated Robot Framework
+        test suite. Provide entries as 'key:value' pairs. The names 'UniqueID',
+        'Name' and 'Numbering' are reserved for the generated suite metadata.""",
 )
 @click.option(
     "--resource-regex",
     multiple=True,
     type=str,
-    help="""Regular expression used to identify TestBench subdivisions
-    corresponding to Robot Framework resources.""",
+    help="""Regular expression identifying TestBench subdivisions that correspond
+    to Robot Framework resources. Same rules as for --library-regex.""",
 )
 @click.option(
     "--resource-root",
     multiple=True,
     type=str,
-    help="""TestBench root subdivision which's direct children
+    help="""TestBench root subdivision whose direct children
         correspond to Robot Framework resources.""",
 )
 @click.option(
     "--library-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="""Library import statement to use when a keyword from the
-    specified TestBench subdivision is encountered.""",
+    help="""Library import statement to use for keywords from the given
+    TestBench subdivision. Provide entries as 'subdivision:import' pairs.""",
 )
 @click.option(
     "--resource-mapping",
     multiple=True,
     callback=parse_subdivision_mapping,
-    help="""Resource import statement to use when a keyword from the
-    specified TestBench subdivision is encountered.""",
+    help="""Resource import statement to use for keywords from the given
+    TestBench subdivision. Provide entries as 'subdivision:import' pairs.""",
 )
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
-    clean: bool,
+    clean: bool | None,
     compound_keyword_logging: str,
     config: Path,
     fully_qualified: bool,
+    include_blocked: bool,
     library_regex: tuple[str],
     resource_directory_regex: str,
     library_root: tuple[str],
@@ -187,14 +195,16 @@ def generate_tests(  # noqa: PLR0913
     Generates Robot Framework Testsuites from a <TestBench Report>.
     """
     configuration = get_tb2robot_file_configuration(config)
-    if clean:
-        configuration["clean"] = True
-    else:
-        configuration["clean"] = configuration.get("clean", False)
+    if clean is not None:
+        configuration["clean"] = clean
     if fully_qualified:
         configuration["fully-qualified"] = True
     else:
         configuration["fully-qualified"] = configuration.get("fully-qualified", False)
+    if include_blocked:
+        configuration["include-blocked"] = True
+    else:
+        configuration["include-blocked"] = configuration.get("include-blocked", False)
     configuration["output-directory"] = (
         output_directory.as_posix()
         if output_directory
@@ -212,7 +222,9 @@ def generate_tests(  # noqa: PLR0913
     configuration["resource-directory"] = (
         resource_directory.as_posix()
         if resource_directory
-        else configuration.get("resource-directory", "resources")
+        # No CLI-side default: Configuration.from_dict decides (empty string),
+        # so the CLI and the library entry point generate identical suites.
+        else configuration.get("resource-directory", "")
     )
     configuration["resource-directory-regex"] = resource_directory_regex or configuration.get(
         "resource-directory-regex", DEFAULT_RESOURCE_DIRECTORY_REGEX
@@ -238,17 +250,33 @@ def generate_tests(  # noqa: PLR0913
 @testbench2robotframework_cli.command(short_help=FETCH_HELP)
 @click.option("-c", "--config", type=click.Path(path_type=Path), help=CONFIG_OPTION_HELP)
 @click.option("-d", "--output-directory", type=click.Path(path_type=Path), help=ROBOT_OUTPUT_HELP)
+@click.option(
+    "--no-merge-protocol",
+    is_flag=True,
+    help="""Overwrite the main protocol instead of merging the Robot Framework results
+    into the protocol.json that is already part of the TestBench report.""",
+)
 @click.argument("robot-result", type=click.Path(path_type=Path))
 @click.argument("testbench-report", type=click.Path(path_type=Path))
-def fetch_results(config: Path, robot_result: Path, output_directory: Path, testbench_report: Path):
+def fetch_results(
+    config: Path,
+    robot_result: Path,
+    output_directory: Path,
+    testbench_report: Path,
+    no_merge_protocol: bool,
+):
     """
     Fetch Robot Framework execution results from <output XML> and save to a <TestBench Report>.
     """
     configuration = get_tb2robot_file_configuration(config)
+    if no_merge_protocol:
+        configuration["merge-protocol"] = False
+    else:
+        configuration["merge-protocol"] = configuration.get("merge-protocol", True)
     robot2testbench(testbench_report, robot_result, output_directory, configuration)
 
 
-def get_tb2robot_file_configuration(config: Path) -> dict:
+def get_tb2robot_file_configuration(config: Path | None) -> Any:
     if not config:
         pyproject_toml = find_pyproject_toml()
         robot_toml = find_robot_toml()

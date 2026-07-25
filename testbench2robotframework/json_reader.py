@@ -9,6 +9,7 @@ from .model import (
     ReferenceAssignment,
     TestCaseDetails,
     TestCaseSetDetails,
+    TestCaseSetExecutionForImport,
     TestCaseSetNode,
     TestStructureTree,
 )
@@ -16,6 +17,7 @@ from .model_utils import from_dict
 
 TEST_STRUCTURE_TREE_FILE = "cycle_structure.json"
 TEST_STRUCTURE_TREE_TOV_FILE = "tov_structure.json"
+MAIN_PROTOCOL_FILE = "protocol.json"
 
 
 @dataclass
@@ -39,7 +41,7 @@ class TestBenchJsonReader:
         self._test_case_sets: dict[str, TestCaseSetDetails] = {}
         self._test_cases: dict[str, TestCaseDetails] = {}
         if not json_dir:
-            logger.warning("No jsonReport path given.")
+            logger.warning("No path to a JSON report was given.")
             sys.exit()
 
     def get_structure_tree_path(self) -> Path:
@@ -140,8 +142,25 @@ class TestBenchJsonReader:
             return []
         return [from_dict(ReferenceAssignment, ref) for ref in references]
 
+    def read_main_protocol(self) -> list[TestCaseSetExecutionForImport]:
+        protocol_path = Path(self.json_dir, MAIN_PROTOCOL_FILE)
+        if not protocol_path.is_file():
+            logger.debug(f"No '{MAIN_PROTOCOL_FILE}' found in '{self.json_dir}'.")
+            return []
+        protocol = read_json(str(protocol_path), silent=False)
+        if not isinstance(protocol, list):
+            logger.error(f"'{MAIN_PROTOCOL_FILE}' must contain a list of test case set executions.")
+            sys.exit(1)
+        try:
+            entries = [from_dict(TestCaseSetExecutionForImport, entry) for entry in protocol]
+        except (TypeError, ValueError, KeyError) as error:
+            logger.error(f"Could not read '{MAIN_PROTOCOL_FILE}': {error}")
+            sys.exit(1)
+        logger.info(f"{len(entries)} test case set executions loaded from existing protocol.")
+        return entries
 
-def read_json(filepath: str, silent=True):
+
+def read_json(filepath: str | Path, silent=True):
     try:
         with Path(filepath).open(encoding="utf-8") as json_file:
             return json.load(json_file)
@@ -153,7 +172,7 @@ def read_json(filepath: str, silent=True):
         return None
     except JSONDecodeError:  # pylint: disable=broad-except
         if not silent:
-            logger.error(f"File '{filepath}' cannot be decoded.")
+            logger.error(f"File '{filepath}' is not valid JSON.")
             sys.exit(1)
-        logger.warning(f"File '{filepath}' cannot be decoded.")
+        logger.warning(f"File '{filepath}' is not valid JSON.")
         return None

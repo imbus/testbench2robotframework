@@ -17,7 +17,9 @@ license = {text = "Apache 2.0 License"}
 dynamic = ["version"]
 dependencies = [
   "click >= 8.0",
-  "robotframework >= 5.0",
+  # 6.1 is the floor: 'start_time'/'end_time' on result objects do not exist in
+  # 6.0 and earlier, and result_writer relies on them.
+  "robotframework >= 6.1",
   "tomli; python_version < '3.11'",
 ]
 

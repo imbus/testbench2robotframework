@@ -11,10 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""PyInstaller entry point for the standalone testbench2robotframework binary."""
 
-"""A Python package for converting TestBench reports to Robot Framework test
-suites and enhancing the TestBench report with execution results from Robot Framework."""
+from testbench2robotframework.cli import testbench2robotframework_cli
 
-from .testbench2robotframework import testbench2robotframework  # noqa: F401
 
-__version__ = "2.0.0"
+def main() -> None:
+    testbench2robotframework_cli.main(prog_name="testbench2robotframework")
+
+
+if __name__ == "__main__":
+    main()

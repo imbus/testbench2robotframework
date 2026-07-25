@@ -1,4 +1,11 @@
 [tool.testbench2robotframework]
+# 'library-regex' and 'resource-regex' say which TestBench subdivisions are
+# Robot Framework libraries or resources, and which part of the subdivision path
+# is the name to import. Mark that part in one of two ways:
+#   1. a named group - 'resourceName', 'libraryName' or 'name' (checked in that
+#      order). It wins no matter where it sits or how many groups the pattern has.
+#   2. or exactly one capture group, which is then taken as the name.
+# A pattern with several groups and none of those names is rejected on startup.
 library-regex = ['(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Library\].*']
 resource-regex = ['(?:.*\.)?(?P<resourceName>[^.]+?)\s*\[Robot-Resource\].*']
 library-root = ["RF", "RF-Library"]
@@ -16,7 +23,7 @@ reference-behaviour = "ATTACHMENT"
 attachment-conflict-behaviour = "USE_EXISTING"
 
 [tool.testbench2robotframework.library-mapping]
-SeleniumLibrary = "SeleniumLibrary    timeout=10    implicit_wait=1    run_on_failure=Capture Page Screenshot"
+Browser = "Browser    timeout=10s    run_on_failure=Take Screenshot"
 SuperRemoteLibrary = "Remote    http://127.0.0.1:8270       WITH NAME    SuperRemoteLibrary"
 
 [tool.testbench2robotframework.resource-mapping]

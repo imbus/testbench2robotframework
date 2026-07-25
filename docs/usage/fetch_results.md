@@ -4,74 +4,161 @@ sidebar_position: 2
 
 # Fetching Results
 
-Learn how to save Robot Framework execution results back to TestBench reports.
+`fetch-results` writes the results of a Robot Framework run back into the
+TestBench report the suites were generated from.
 
-## Overview
+## How it works
 
-After executing your Robot Framework tests, you can write the results back to the TestBench report. This requires:
-
-1. A Robot Framework output XML file (typically `output.xml`)
-2. The original TestBench report from which the test suites were generated
-
-## Basic Command
-
-Use the `fetch-results` subcommand:
-
-```powershell
-testbench2robotframework fetch-results ROBOT_RESULT TESTBENCH_REPORT
+```
+   ┌────────────────────────┐        ┌────────────────────────────┐
+   │  TestBench JSON        │        │  Robot Framework           │
+   │  report (in)           │   +    │  output.xml                │
+   │  (directory or .zip)   │        │  (the executed results)    │
+   └───────────┬────────────┘        └─────────────┬──────────────┘
+               └────────────────┬──────────────────┘   ┌────────────────────────┐
+                                │                      │  Configuration         │
+                                ▼                      │  / TOML / CLI options  │
+                     ┌─────────────────────┐           └─────────────┬──────────┘
+                     │   fetch-results     │─────────────────────────┘
+                     └──────────┬──────────┘
+                                ▼
+                ┌───────────────────────────────┐
+                │  TestBench JSON report (out)  │
+                │  with results:                │
+                │    verdicts + execution       │
+                │    comments, protocol.json,   │
+                │    references, attachments    │
+                └───────────────────────────────┘
 ```
 
-## Command-Line Options
 
-The `fetch-results` command supports the following options:
 
-| Option | Description |
-|--------|-------------|
-| `-c`, `--config PATH` | Path to a configuration file for TestBench2RobotFramework. |
-| `-d`, `--output-directory PATH` | Path to the directory or ZIP file where the updated TestBench JSON report (with results) should be saved. |
-| `--help` | Displays the help message and exits. |
+- **In:** the original TestBench report (the same directory or ZIP file the suites
+  were generated from) **and** the Robot Framework `output.xml` of the run.
+- **Out:** an updated TestBench JSON report you can import back into TestBench.
+  With `-d` it is written to a new location; without it, the input report is
+  updated in place.
 
-## Examples
+![Robot Framework log.html](../media/robot-suite-log.png)<br />
+**Img-1:** Robot Framework `log.html` of a test run
 
-### Basic Result Fetch
+This Robot Framework execution result is written back into the TestBench report
+and can be imported back into TestBench and viewed in details in the Web iTORX.
 
-```powershell
-testbench2robotframework fetch-results output.xml my_testbench_report.zip
+![Test Case Set Execution in iTORX](../media/itorx-exec-overview.png)<br />
+**Img-2:** Test Case Set Execution in iTORX
+
+![Keyword Execution Log in iTORX](../media/itorx-exec.png)<br />
+**Img-3:** Keyword Execution Log in iTORX (with failed keyword)
+
+The level of detail in the execution comment is controlled by the `keyword-comment-*` options —
+[`keyword-comment-style`](../configuration/overview.md#keyword-comment-style),
+[`keyword-comment-max-depth`](../configuration/overview.md#keyword-comment-max-depth),
+[`keyword-comment-max-rows`](../configuration/overview.md#keyword-comment-max-rows)
+and
+[`keyword-comment-log-level`](../configuration/overview.md#keyword-comment-log-level).
+If you do not need the whole technical details, you can reduce the depth and number of rows to keep the comment compact.
+
+In TestBench, the execution is shown also on test case set level with execution time,
+error message and verdict.
+
+![Execution Comment in TestBench](../media/tcs-exec-in-TB.png)<br />
+**Img-4:** Execution Comment in TestBench (with failed test case)
+
+Robot suites and tests are matched to TestBench elements by the `UniqueID`
+metadata that `generate-tests` wrote into every suite — so **both files must come
+from the same generation**.
+
+```bash
+testbench2robotframework fetch-results -d ./updated_report.zip output.xml my_report.zip
 ```
 
-### With Custom Output Directory
+How the command line is structured is explained in
+[Command-Line Usage](../configuration/cli_options.md); every option and its
+values is described in the [Configuration Reference](../configuration/overview.md).
 
-```powershell
-testbench2robotframework fetch-results -d ./results output.xml my_testbench_report.zip
-```
+### What is written back
 
-### With Configuration File
+- The **verdict and status** of every keyword, test case and test case set, plus
+  HTML **execution comments**.
+- The verdicts in the **test structure tree** (`cycle_structure.json`), aggregated
+  upwards: test case → test case set → test theme, using the TestBench verdict
+  priority (`Blocked` outranks `Fail`, `Fail` outranks `Undefined`, …).
+- The main **protocol** (`protocol.json`) and `references.json`.
+- **Attachments** referenced from test messages.
 
-```powershell
-testbench2robotframework fetch-results -c config.toml output.xml my_testbench_report.zip
-```
+---
 
-## Workflow Example
+## Merging results into the protocol
 
-Here's a complete workflow from test generation to result fetching:
+By default the results are **merged** into the `protocol.json` already contained
+in the report instead of overwriting it:
 
-```powershell
-# 1. Generate test suites from TestBench report
-testbench2robotframework generate-tests -d ./Generated testbench_report.zip
+- Executions the Robot run covers are replaced by the new result.
+- Executions the run does not cover are kept unchanged.
+- The verdict of a test case set (and its parent themes) is recomputed over **all**
+  its test cases — the preserved ones and the newly executed ones. A set whose
+  preserved test case failed therefore stays `Fail`, even when every test of the
+  current run passed.
 
-# 2. Execute the generated Robot Framework tests
+This lets you execute and report a cycle in several partial runs. Turn it off with
+[`merge-protocol` / `--no-merge-protocol`](../configuration/overview.md#merge-protocol)
+to write only the current run's results.
+
+:::caution
+Merging always starts from the protocol in the **input report**. Running
+`fetch-results` twice with the same input report does not accumulate results — the
+second run starts over. To combine several Robot runs, merge the output XMLs first
+(`rebot --merge output1.xml output2.xml`) and call `fetch-results` once.
+:::
+
+---
+
+## Execution comments
+
+The execution comment of a keyword shows the **structure** of the Robot Framework
+user keyword behind it — its sub keywords, control structures and loop iterations,
+each with its own log messages in the order Robot recorded them. A keyword not
+executed because an earlier one failed shows as `NOT RUN`. Test case and test case
+set comments lead with a status pill and a compact summary.
+
+The comment is deliberately plain HTML (one flat table, no nested tables, no CSS
+classes) so it survives a PDF export, a paste into Word, and the WYSIWYG editor of
+the TestBench client.
+
+How much of that structure is shown, and which log levels, is controlled by the
+`keyword-comment-*` options —
+[`keyword-comment-style`](../configuration/overview.md#keyword-comment-style),
+[`keyword-comment-max-depth`](../configuration/overview.md#keyword-comment-max-depth),
+[`keyword-comment-max-rows`](../configuration/overview.md#keyword-comment-max-rows)
+and
+[`keyword-comment-log-level`](../configuration/overview.md#keyword-comment-log-level).
+
+---
+
+## References and attachments
+
+Files referenced from a test message via an `itb-reference:` marker are written
+into the report. Whether such a file is attached, stored as a reference, or ignored
+is controlled by
+[`reference-behaviour`](../configuration/overview.md#reference-behaviour);
+[`attachment-conflict-behaviour`](../configuration/overview.md#attachment-conflict-behaviour)
+decides what happens when an attachment of the same name already exists. Files
+larger than 10 MB are skipped with an error message.
+
+---
+
+## The full round trip
+
+```bash
+# 1. Generate suites from the TestBench report
+testbench2robotframework generate-tests -d ./Generated my_report.zip
+
+# 2. Execute them with Robot Framework
 robot --outputdir ./results ./Generated
 
-# 3. Save the results back to TestBench
-testbench2robotframework fetch-results -d ./updated_report ./results/output.xml testbench_report.zip
+# 3. Write the results back into a new report
+testbench2robotframework fetch-results -d ./updated_report.zip ./results/output.xml my_report.zip
 ```
 
-## Result Synchronization
-
-The tool automatically maps the Robot Framework test results to the corresponding TestBench test cases based on the test structure. This includes:
-
-- ✅ Test execution status (PASS/FAIL)
-- ✅ Execution timestamps
-- ✅ Error messages and logs
-
-
+The updated report (`updated_report.zip`) can then be imported into TestBench.
