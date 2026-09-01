@@ -544,15 +544,15 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
+        if not self.config.fully_qualified or not keyword.import_prefix:
+            return ""
         for resource_pattern in self.res_pattern_list:
-            if not keyword.import_prefix:
-                continue
             resource_name_match = resource_pattern.search(keyword.import_prefix)
             if resource_name_match:
                 return (
                     self.config.fully_qualified or False
                 ) * f"{get_matched_name(resource_name_match)}."
-        return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
+        return f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
         return (
