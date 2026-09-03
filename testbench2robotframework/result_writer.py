@@ -163,19 +163,51 @@ def render_log_level(level: str) -> str:
     return ROBOT_COLOR_BY_LEVEL.get(level, RobotLogColor.DEFAULT).style
 
 
+COMMENT_MESSAGE_REGEX = re.compile(r"<pre[^>]*>(.*?)</pre>", re.DOTALL)
+
+
+def preserved_message(comment_html: str) -> str:
+    """The plain message of a rendered test case comment, without its markup.
+
+    Lets a preserved failed execution show its failure reason in the comment
+    table of the test case set, the same way a test case of the current run
+    does. A test case split into phases contributes one message per failed
+    phase. Returns an empty string for a comment without a message.
+    """
+    return "\n".join(COMMENT_MESSAGE_REGEX.findall(comment_html)).strip()
+
+
+def format_execution_timestamp(timestamp: str) -> str:
+    """An execution time the way the comment table shows it: local, milliseconds.
+
+    Execution times of the import model are ISO 8601 UTC ('...Z'), while the
+    table shows local time, just like the rows of the current Robot run do.
+    """
+    try:
+        parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+    except ValueError:
+        return timestamp
+    return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
 def preserved_table_row(test_case: TestCaseExecutionForImport) -> TestCaseRow:
     """Row for a test case execution the current Robot run did not cover.
 
     The status is the single verdict iTORX displays, computed from the three
     execution dimensions - a canceled and blocked execution shows as BLOCKED
-    instead of the bare 'Undefined' of its verdict field.
+    instead of the bare 'Undefined' of its verdict field. The message is the
+    execution time, except for a failed execution, which shows the message its
+    comment carries - and its time when the comment carries no message.
     """
     verdict = display_verdict_of(test_case.result)
-    message = ""
-    if test_case.comments and test_case.comments.html:
-        message = test_case.comments.html
-    elif test_case.result and test_case.result.timestamp:
-        message = test_case.result.timestamp
+    timestamp = (
+        format_execution_timestamp(test_case.result.timestamp)
+        if test_case.result and test_case.result.timestamp
+        else ""
+    )
+    message = timestamp
+    if verdict is Verdict.Fail and test_case.comments and test_case.comments.html:
+        message = preserved_message(test_case.comments.html) or timestamp
     return TestCaseRow(
         unique_id=test_case.uniqueID,
         name=test_case.uniqueID,
@@ -388,9 +420,7 @@ class ResultWriter(ResultVisitor):
                 else html.escape(message)
             )
             test_chain_obj = get_test_chain(test.name, self.phase_pattern)
-            phase = (
-                f"{test_chain_obj.index}/{test_chain_obj.length}" if test_chain_obj else ""
-            )
+            phase = f"{test_chain_obj.index}/{test_chain_obj.length}" if test_chain_obj else ""
             exec_comments.append(
                 render_test_case_comment(
                     PhaseExecution(
@@ -736,10 +766,12 @@ class ResultWriter(ResultVisitor):
                 testcase.exec.execStatus = current_itb_test_case.exec.execStatus
                 testcase.exec.comments = current_itb_test_case.exec.comments
         base_entry = self.base_protocol_by_key.get(test_case_set.key)
-        merged_test_cases = (
-            merge_test_case_executions(base_entry.testCases, self.protocol_test_cases)
-            if base_entry
-            else self.protocol_test_cases
+        base_test_cases = base_entry.testCases if base_entry else []
+        known_unique_ids = {test_case.uniqueID for test_case in base_test_cases}
+        known_unique_ids.update(test_case.uniqueID for test_case in self.protocol_test_cases)
+        reported_test_cases = self._reported_test_case_executions(test_case_set, known_unique_ids)
+        merged_test_cases = merge_test_case_executions(
+            [*base_test_cases, *reported_test_cases], self.protocol_test_cases
         )
         children = self._test_case_set_children(test_case_set, merged_test_cases)
         self.merged_verdicts[test_case_set.uniqueID] = self._merged_test_case_set_verdict(
@@ -775,6 +807,52 @@ class ResultWriter(ResultVisitor):
         )
         if self.listener_uid:
             self.write_listener_mode_protocols()
+
+    def _reported_test_case_executions(
+        self, test_case_set, known_unique_ids: set[str]
+    ) -> list[TestCaseExecutionForImport]:
+        """Protocol entries for the executions the report itself already carries.
+
+        TestBench exports the results of earlier executions in the test structure
+        element files, not in a 'protocol.json'. Without these entries a test case
+        this Robot run did not cover would be uploaded without its verdict, its
+        time and its comment, and the import would drop what TestBench already
+        had. Test cases that are merely planned carry no execution to preserve.
+        """
+        entries: list[TestCaseExecutionForImport] = []
+        for test_case in test_case_set.testCases:
+            execution = test_case.exec
+            if test_case.uniqueID in known_unique_ids or execution is None:
+                continue
+            if execution.status is ActivityStatus.Planned or execution.key in ["", "-1"]:
+                continue
+            details = self.json_reader.read_test_case(test_case.uniqueID)
+            execution_details = details.exec if details else None
+            entries.append(
+                TestCaseExecutionForImport(
+                    uniqueID=test_case.uniqueID,
+                    testCaseExecutionKey=execution.key,
+                    result=ExecutionResultForImport(
+                        status=execution.status,
+                        execStatus=execution.execStatus,
+                        verdict=execution.verdict,
+                        timestamp=execution_details.time if execution_details else None,
+                    ),
+                    durationMillis=execution_details.actualDuration if execution_details else 0,
+                    testerKey=execution.tester.key if execution.tester else None,
+                    comments=RichTextForImport(html=execution.comments)
+                    if execution.comments
+                    else None,
+                    defects=execution.defects,
+                )
+            )
+        if entries:
+            logger.info(
+                f"{len(entries)} test case executions of test case set "
+                f"{test_case_set.uniqueID} were not part of this Robot Framework run "
+                f"and are kept as exported."
+            )
+        return entries
 
     def _assemble_main_protocol(self) -> list[TestCaseSetExecutionForImport]:
         """Executed test case sets plus every pre-existing entry this run did not touch."""
