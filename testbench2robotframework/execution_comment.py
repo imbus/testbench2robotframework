@@ -42,6 +42,12 @@ META = f"color: {LABEL_COLOR}; font-size: 12px;"
 SET_TABLE_HEADERS = ("Test Case", "Phase", "Status", "Message")
 # 'YYYY-MM-DD HH:MM:SS.mmm' - what tb2rf writes as the message of a passing test.
 TIMESTAMP_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+")
+# The message of a comment tb2rf rendered, found by its anchor - see 'parse_messages'.
+MESSAGE_PATTERN = re.compile(
+    r"<pre[^>]*data-tb-role=['\"]message['\"][^>]*>(.*?)</pre>", re.DOTALL
+)
+# The same message in a comment written before 'message_box' anchored its <pre>.
+UNANCHORED_MESSAGE_PATTERN = re.compile(r"<pre[^>]*>(.*?)</pre>", re.DOTALL)
 
 
 def message_box(message: str) -> str:
@@ -53,9 +59,24 @@ def message_box(message: str) -> str:
     return (
         f"<div style='border-left: 3px solid {GROUP_LINE_COLOR}; "
         f"background-color: {BOX_BACKGROUND}; padding: 6px 10px;'>"
-        f"<pre style='{MONOSPACE} font-size: 12px; margin: 0; white-space: pre-wrap; "
-        f"overflow-wrap: anywhere;'>{message}</pre></div>"
+        f"<pre data-tb-role='message' style='{MONOSPACE} font-size: 12px; margin: 0; "
+        f"white-space: pre-wrap; overflow-wrap: anywhere;'>{message}</pre></div>"
     )
+
+
+def parse_messages(comment_html: str) -> list[str]:
+    """The messages of a rendered test case comment - the reverse of 'message_box'.
+
+    One entry per message the comment carries, so a test case split into phases
+    contributes one per failed phase. Reading the 'data-tb-role' anchor instead
+    of the formatting keeps this working when the markup of the box changes.
+    Comments written before the box carried that anchor are read by their <pre>
+    alone, which is why an unmarked one still counts as a message.
+    """
+    messages = MESSAGE_PATTERN.findall(comment_html)
+    if messages:
+        return messages
+    return UNANCHORED_MESSAGE_PATTERN.findall(comment_html)
 
 
 @dataclass

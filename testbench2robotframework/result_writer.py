@@ -19,6 +19,7 @@ from .execution_artifacts import ExecutionArtifactStorage
 from .execution_comment import (
     PhaseExecution,
     TestCaseRow,
+    parse_messages,
     render_test_case_comment,
     render_test_case_set_table,
 )
@@ -165,9 +166,6 @@ def render_log_level(level: str) -> str:
     return ROBOT_COLOR_BY_LEVEL.get(level, RobotLogColor.DEFAULT).style
 
 
-COMMENT_MESSAGE_REGEX = re.compile(r"<pre[^>]*>(.*?)</pre>", re.DOTALL)
-
-
 def preserved_message(comment_html: str) -> str:
     """The plain message of a rendered test case comment, without its markup.
 
@@ -176,7 +174,7 @@ def preserved_message(comment_html: str) -> str:
     does. A test case split into phases contributes one message per failed
     phase. Returns an empty string for a comment without a message.
     """
-    return "\n".join(COMMENT_MESSAGE_REGEX.findall(comment_html)).strip()
+    return "\n".join(parse_messages(comment_html)).strip()
 
 
 def format_execution_timestamp(timestamp: str) -> str:
@@ -828,7 +826,11 @@ class ResultWriter(ResultVisitor):
         base_test_cases = base_entry.testCases if base_entry else []
         known_unique_ids = {test_case.uniqueID for test_case in base_test_cases}
         known_unique_ids.update(test_case.uniqueID for test_case in self.protocol_test_cases)
-        reported_test_cases = self._reported_test_case_executions(test_case_set, known_unique_ids)
+        reported_test_cases = (
+            self._reported_test_case_executions(test_case_set, known_unique_ids)
+            if self.merge_protocol
+            else []
+        )
         merged_test_cases = merge_test_case_executions(
             [*base_test_cases, *reported_test_cases], self.protocol_test_cases
         )
