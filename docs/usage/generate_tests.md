@@ -267,7 +267,7 @@ A parameter whose representative is a file attached in TestBench arrives in the
 generated keyword call as a path into the report's attachments:
 
 ```robotframework
-${message}    Envelope.Load Message    ${ITB_ATTACHMENTS_DIR}/representatives/DT-6917529030000126275/Vorlage_pain.001.001.09.xml
+${message}    Get File    ${ITB_ATTACHMENTS_DIR}/representatives/DT-6917529030000126275/file.xml
 ```
 
 TestBench exports such files to `attachments/representatives/DT-<data type key>/`
