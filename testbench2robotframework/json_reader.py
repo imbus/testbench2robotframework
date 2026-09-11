@@ -1,9 +1,8 @@
-import json
 import sys
 from dataclasses import dataclass
-from json import JSONDecodeError
 from pathlib import Path
 
+from .json_codec import JSONDecodeError, read_json_file
 from .log import logger
 from .model import (
     ReferenceAssignment,
@@ -162,8 +161,7 @@ class TestBenchJsonReader:
 
 def read_json(filepath: str | Path, silent=True):
     try:
-        with Path(filepath).open(encoding="utf-8") as json_file:
-            return json.load(json_file)
+        return read_json_file(filepath)
     except FileNotFoundError:
         if not silent:
             logger.error(f"File '{filepath}' does not exist.")

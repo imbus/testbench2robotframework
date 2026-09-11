@@ -1,9 +1,9 @@
 import json
 from dataclasses import asdict
-from enum import Enum
 from pathlib import Path
 
 from .config import Configuration
+from .json_codec import write_json
 from .log import logger
 from .model import (
     ReferenceAssignment,
@@ -41,36 +41,17 @@ def write_test_structure_element(
     else:
         filepath = Path(json_dir) / Path(f"{test_structure_element.uniqueID}.json")
         content = asdict(test_structure_element)
-    with Path(filepath).open("w+", encoding="utf8") as output_file:
-        json.dump(
-            content,
-            output_file,
-            indent=2,
-            default=lambda o: o.value if isinstance(o, Enum) else str(o),
-        )
+    write_json(filepath, content)
 
 
 def write_main_protocol(json_dir: str, main_protocol: list[TestCaseSetExecutionForImport]) -> None:
-    protocol = [asdict(tcs) for tcs in main_protocol]
-    filepath = Path(json_dir) / Path("protocol.json")
-    with Path(filepath).open("w+", encoding="utf8") as output_file:
-        json.dump(
-            protocol,
-            output_file,
-            indent=2,
-            default=lambda o: o.value if isinstance(o, Enum) else str(o),
-        )
+    write_json(Path(json_dir) / "protocol.json", [asdict(tcs) for tcs in main_protocol])
 
 
 def write_references(json_dir: str, references: list[ReferenceAssignment]) -> None:
-    filepath = Path(json_dir) / Path("references.json")
-    with Path(filepath).open("w+", encoding="utf8") as output_file:
-        json.dump(
-            [asdict(ref) for ref in references],
-            output_file,
-            indent=2,
-            default=lambda o: o.value if isinstance(o, Enum) else str(o),
-        )
+    write_json(Path(json_dir) / "references.json", [asdict(ref) for ref in references])
+
+
 
 
 def write_default_config(config_file):

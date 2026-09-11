@@ -24,6 +24,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Faster reading and writing of large reports; used automatically when installed.
+fast = ["orjson"]
 dev = [
   "build",
   "check-manifest",

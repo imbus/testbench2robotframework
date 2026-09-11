@@ -1,5 +1,6 @@
 from dataclasses import fields, is_dataclass
 from enum import Enum
+from functools import cache
 from types import UnionType as TypesUnion
 from typing import Any, TypeVar, get_args, get_origin, get_type_hints
 from typing import Union as TypingUnion
@@ -36,14 +37,25 @@ def get_origin_from_type_hint(type_hint):
     raise ValueError(ERROR_UNKNOWN_TYPE_HINT_ORIGIN)
 
 
+@cache
+def _type_hints_and_fields(cls: type) -> tuple[dict[str, Any], tuple]:
+    """Resolved annotations and fields of a dataclass, computed once per class.
+
+    'get_type_hints' evaluates every annotation anew on each call - with lazy
+    annotations (Python 3.14) that means compiling the forward references again.
+    A report holds hundreds of thousands of model objects, so this dominated the
+    whole read time before it was cached.
+    """
+    return get_type_hints(cls), fields(cls)
+
+
 def from_dict(cls: type[T], data: dict) -> T:
     if not isinstance(cls, type) or not is_dataclass(cls):
         raise ValueError(ERROR_NOT_A_DATACLASS.format(dataclass=cls.__name__))
     if data is None:
         raise ValueError(ERROR_NONETYPE_DATA)
     cls_dict = {}
-    class_type_hints = get_type_hints(cls)
-    class_fields = fields(cls)
+    class_type_hints, class_fields = _type_hints_and_fields(cls)
     if len(class_fields) < len(data):
         raise ValueError(ERROR_TOO_MANY_DATA_FIELDS)
     for cls_field in class_fields:
