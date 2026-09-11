@@ -85,6 +85,9 @@ file. This is noted per option below.
 | [`resource-mapping`](#library-mapping--resource-mapping) | `--resource-mapping` | ✅ | G | mapping (`{}`) |
 | [`forced-import`](#forced-import) | — | ✅ | G | table of lists (`{}`) |
 | [`metadata`](#metadata) | `--metadata` | ✅ | G | mapping (`{}`) |
+| [`attachments-directory`](#attachments-directory) | `--attachments-directory` | ✅ | G | path (empty) |
+| [`attachments-variable`](#attachments-variable) | — | ✅ | G | variable name (`ITB_ATTACHMENTS_DIR`) |
+| [`keep-extracted-report`](#keep-extracted-report) | — | ✅ | G · F | bool (`false`) |
 | [`merge-protocol`](#merge-protocol) | `--no-merge-protocol` | ✅ | F | bool (`true`) |
 | [`keyword-comment-style`](#keyword-comment-style) | — | ✅ | F | `STRUCTURED` \| `FLAT` (`STRUCTURED`) |
 | [`keyword-comment-max-depth`](#keyword-comment-max-depth) | — | ✅ | F | int (`5`) |
@@ -115,6 +118,94 @@ testbench2robotframework generate-tests -d ./suites.zip my_report.zip
 ```
 ```toml
 output-directory = "{root}/Generated"
+```
+
+#### `output-directory` with `fetch-results`
+
+For `fetch-results` the option names the updated report. The input report is only
+read when `-d` is given; **without `-d` the input report itself is updated** and
+the original, unexecuted report is gone afterwards.
+
+| Input report | `-d` | Result |
+|---|---|---|
+| `report.zip` | `result.zip` | `result.zip` is created; `report.zip` is unchanged. |
+| `report.zip` | `result/` | `result/` is created (or merged into) as a directory; `report.zip` is unchanged. |
+| `report/` | `result.zip` | `result.zip` is created; `report/` is unchanged. |
+| `report/` | `result/` | `result/` is created (or merged into); `report/` is unchanged. |
+| `report.zip` | *none* | `report.zip` is **overwritten** with the updated report. |
+| `report/` | *none* | The files in `report/` are **updated in place**; no ZIP is created. |
+
+Keep the original report if you need it for a second run — for example to merge
+another execution with [`merge-protocol`](#merge-protocol) — or always pass `-d`.
+
+### `keep-extracted-report`
+
+Where a `.zip` report is extracted to while a command reads it. By default that is
+a temporary directory in the working directory, removed when the command is done.
+With `true` the report is extracted to a directory of the same name next to the
+ZIP (`report.zip` → `report/`), replacing that directory if it exists, and left
+there afterwards — for example to look at the report's attachments. Has no effect
+when the report is given as a directory. **Configuration file only.**
+
+- **Values:** `true` / `false`. Default: `false`.
+
+```toml
+keep-extracted-report = true
+```
+
+:::note
+Up to version 2.0 `fetch-results` always left the extracted report next to the
+ZIP. Set `keep-extracted-report = true` to keep that behaviour.
+:::
+
+### `attachments-directory`
+
+Where `generate-tests` copies the report's `attachments/` folder to — every
+attachment: representatives of reference data types (`representatives/DT-<key>/`),
+files attached to test case sets and test cases, and whatever else is in there.
+Empty (the default) exports nothing. The target is emptied before copying.
+
+- **Values:** a path, empty, or a path starting with `{root}`. Default: empty.
+- **CLI:** `--attachments-directory`.
+
+How the path is given decides how the generated suites refer to it:
+
+| Value | Copied to | Value of the [attachments variable](#attachments-variable) in every suite |
+|---|---|---|
+| relative, e.g. `attachments` | `<output-directory>/attachments` | `${CURDIR}/../attachments` — relative to the suite (`..` per directory level), so the output directory can be moved as a whole |
+| absolute, e.g. `/data/run1/attachments` | exactly there | `/data/run1/attachments` |
+| `{root}/…` | the absolute path it resolves to | that absolute path |
+
+With a `.zip` `output-directory`, a relative attachments directory ends up inside
+the archive.
+
+```bash
+testbench2robotframework generate-tests --attachments-directory attachments my_report.zip
+robot ./Generated                                   # finds the attachments by itself
+```
+```toml
+attachments-directory = "attachments"
+```
+
+### `attachments-variable`
+
+The Robot Framework variable through which generated keyword calls address
+attachments, for example
+`${ITB_ATTACHMENTS_DIR}/representatives/DT-6917529030000126275/Vorlage.xml`.
+When [`attachments-directory`](#attachments-directory) is set, every suite whose
+keyword calls refer to the variable gets a `*** Variables ***` section defining it
+(see the table above) — suites without attachments and `__init__.robot` files stay
+as they are. A `--variable` on the `robot` command line still overrides that
+default. Without `attachments-directory` no section is written and the variable
+has to be passed to `robot`. **Configuration file only.**
+
+- **Values:** a variable name without `${}`, or empty. Default: `ITB_ATTACHMENTS_DIR`.
+- **Empty:** attachments are written as paths relative to the report's
+  `attachments` folder (`representatives/DT-…/Vorlage.xml`) and no section is
+  generated — for runs started from inside that folder.
+
+```toml
+attachments-variable = "ITB_ATTACHMENTS_DIR"
 ```
 
 ### `create-output-zip`

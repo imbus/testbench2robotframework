@@ -52,7 +52,7 @@ from .protocol_merge import (
     index_by_test_case_set_key,
     merge_test_case_executions,
 )
-from .utils import directory_to_zip, get_directory
+from .utils import directory_to_zip, open_report
 
 try:
     from robot.result import Group
@@ -210,19 +210,29 @@ class ResultWriter(ResultVisitor):
         listener_uid=None,
     ) -> None:
         self.listener_uid = listener_uid
-        self.json_dir = get_directory(str(json_report))
+        # The source stays open for the whole run: in listener mode every suite
+        # reads 'project.json' from it again, so it is released in 'end_result'.
+        self.report = open_report(Path(json_report), config.keep_extracted_report)
+        self.json_dir = str(self.report.directory)
         self.output_xml = output_xml
         self.reference_behaviour = config.referenceBehaviour
         self.attachment_conflict_behaviour = config.attachmentConflictBehaviour
-        self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
+        self.tempdir: tempfile.TemporaryDirectory | None = None
         self._test_setup_passed: bool | None = None
         if json_result is None:
+            # In place: the result replaces the input. The extracted report is
+            # updated and, for a ZIP input, packed back to the ZIP's path.
             self.json_result = self.json_dir
-            self.json_result_path = self.json_dir
             self.create_zip = bool(Path(json_report).suffix == ".zip")
+            self.json_result_path = (
+                str(Path(json_report).parent / Path(json_report).stem)
+                if self.create_zip
+                else self.json_dir
+            )
         else:
             self.create_zip = bool(Path(json_result).suffix == ".zip")
             self.json_result_path = str(Path(json_result).parent / Path(json_result).stem)
+            self.tempdir = tempfile.TemporaryDirectory(dir=os.curdir)
             self.json_result = self.tempdir.name
             if self.create_zip:
                 copytree(self.json_dir, self.json_result, dirs_exist_ok=True)
@@ -394,9 +404,7 @@ class ResultWriter(ResultVisitor):
                 else html.escape(message)
             )
             test_chain_obj = get_test_chain(test.name, self.phase_pattern)
-            phase = (
-                f"{test_chain_obj.index}/{test_chain_obj.length}" if test_chain_obj else ""
-            )
+            phase = f"{test_chain_obj.index}/{test_chain_obj.length}" if test_chain_obj else ""
             exec_comments.append(
                 render_test_case_comment(
                     PhaseExecution(
@@ -816,23 +824,31 @@ class ResultWriter(ResultVisitor):
         shutil.rmtree(Path(self.json_result_path))
 
     def end_result(self, result):
+        try:
+            self._write_result()
+        finally:
+            if self.tempdir is not None:
+                self.tempdir.cleanup()
+            self.report.close()
+
+    def _write_result(self):
         tt_tree = self.json_reader.read_test_theme_tree()
-        if tt_tree:
-            test_suite_counter = self._update_tree_verdicts(tt_tree)
-            write_test_structure_element(self.json_result, tt_tree)
-            write_main_protocol(self.json_result, self._assemble_main_protocol())
-            write_references(self.json_result, self.artifact_storage.tb_references)
-            if test_suite_counter and self.itb_test_case_catalog:
-                logger.info(f"Successfully read {test_suite_counter} test suites.")
-            else:
-                logger.warning("No test suites with execution information found.")
-            if self.create_zip:
-                directory_to_zip(Path(self.json_result), self.json_result_path)
-            elif self.json_result != self.json_result_path:
-                # if not self.create_zip:
-                copytree(self.json_dir, self.json_result_path, dirs_exist_ok=True)
-                copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
-            self.tempdir.cleanup()
+        if not tt_tree:
+            logger.warning("No test structure tree found in the report; nothing was written.")
+            return
+        test_suite_counter = self._update_tree_verdicts(tt_tree)
+        write_test_structure_element(self.json_result, tt_tree)
+        write_main_protocol(self.json_result, self._assemble_main_protocol())
+        write_references(self.json_result, self.artifact_storage.tb_references)
+        if test_suite_counter and self.itb_test_case_catalog:
+            logger.info(f"Successfully read {test_suite_counter} test suites.")
+        else:
+            logger.warning("No test suites with execution information found.")
+        if self.create_zip:
+            directory_to_zip(Path(self.json_result), self.json_result_path)
+        elif self.json_result != self.json_result_path:
+            copytree(self.json_dir, self.json_result_path, dirs_exist_ok=True)
+            copytree(self.json_result, self.json_result_path, dirs_exist_ok=True)
         logger.info(
             f"Successfully wrote the Robot Framework execution results to the TestBench report: "
             f"'{Path(self.json_result_path).absolute()}{self.create_zip * '.zip'}'"

@@ -260,3 +260,38 @@ Higher-level (compound) TestBench keywords can be rendered as a Robot Framework
 Extra `Metadata` entries — including values pulled from the test case set model
 via `{$tcs...}` placeholders — can be added to every suite with
 [`metadata`](../configuration/overview.md#metadata).
+
+### Use attachments as parameter values
+
+A parameter whose representative is a file attached in TestBench arrives in the
+generated keyword call as a path into the report's attachments:
+
+```robotframework
+${message}    Envelope.Load Message    ${ITB_ATTACHMENTS_DIR}/representatives/DT-6917529030000126275/Vorlage_pain.001.001.09.xml
+```
+
+TestBench exports such files to `attachments/representatives/DT-<data type key>/`
+inside the report. Two ways to make them available at execution time:
+
+- Let `generate-tests` copy them next to the suites with
+  [`attachments-directory`](../configuration/overview.md#attachments-directory).
+  Every suite that uses attachments then defines `${ITB_ATTACHMENTS_DIR}`
+  relative to itself and the output directory runs as it is:
+
+  ```bash
+  testbench2robotframework generate-tests --attachments-directory attachments my_report.zip
+  robot ./Generated
+  ```
+
+- Or keep the report where it is and point the variable to its `attachments`
+  directory when running:
+
+  ```bash
+  robot --variable ITB_ATTACHMENTS_DIR:/path/to/my_report/attachments ./Generated
+  ```
+
+The variable's name is set by
+[`attachments-variable`](../configuration/overview.md#attachments-variable).
+Inside compound keywords the data type is taken from the outermost call the value
+was passed down from. If no data type can be found, the file name is written as is
+and a warning is logged.

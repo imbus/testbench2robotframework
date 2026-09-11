@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import ast
 import json
 import re
 import shutil
 import sys
+import tempfile
 from collections.abc import Mapping
 from enum import Enum
 from pathlib import Path, PurePath
@@ -34,12 +37,14 @@ ERROR_COULD_NOT_READ_VERSION = (
     + ", ".join(ALLOWED_SERVER_VERSIONS)
 )
 
+
 def _get_error_incompatible_version_message(server_version: str) -> str:
     return (
         "The version of testbench2robotframework is not compatible with the "
         f"TestBench report version '{server_version}'. "
         f"Supported versions are: {', '.join(ALLOWED_SERVER_VERSIONS)}. "
     )
+
 
 def perform_version_check(testbench_report: Path):
     try:
@@ -216,28 +221,69 @@ def interpolate_metadata_value(value: str, names: dict) -> str:
     return str(METADATA_PLACEHOLDER.sub(replace, value))
 
 
-def get_directory(json_report_path: str | None) -> str:
-    if json_report_path is None:
-        return ""
-    if not Path(json_report_path).exists():
-        sys.exit("Error opening " + json_report_path + ". Path does not exist.")
-    if Path(json_report_path).is_dir():
-        return str(Path(json_report_path).resolve())
-    ext = Path(json_report_path).suffix
-    filename = str(Path(json_report_path).parent / Path(json_report_path).stem)
-    if ext.lower() == ".zip":
-        with ZipFile(json_report_path, "r") as zip_ref:
-            zip_ref.extractall(filename)
-        return str(Path(filename).resolve())
-    sys.exit("Error opening " + json_report_path + ". File is not a ZIP file.")
+class ReportSource:
+    """A TestBench report opened for reading.
+
+    'directory' holds the report's files. It is the report itself when a directory
+    was given, otherwise the place the ZIP was extracted to. 'close()' removes a
+    temporary extraction; a kept one (see 'open_report') and a directory input are
+    left alone.
+    """
+
+    def __init__(self, directory: Path, extraction: tempfile.TemporaryDirectory | None) -> None:
+        self.directory = directory
+        self._extraction = extraction
+
+    def close(self) -> None:
+        if self._extraction is not None:
+            self._extraction.cleanup()
+            self._extraction = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.close()
 
 
-def extract_to_working_directory(zip_file: Path, working_dir: Path) -> None:
-    ext = zip_file.suffix
-    if ext.lower() != ".zip":
-        sys.exit(f"Error opening '{zip_file.as_posix()}'. File is not a ZIP file.")
-    with ZipFile(zip_file, "r") as zip_ref:
-        zip_ref.extractall(working_dir)
+def open_report(report: Path, keep_extracted: bool = False) -> ReportSource:
+    """Opens a TestBench report given as a directory or a ZIP file.
+
+    A ZIP is extracted to a temporary directory that 'ReportSource.close()' removes.
+    With 'keep_extracted' it is extracted to a directory of the same name next to
+    the ZIP instead ('report.zip' -> 'report/'), replacing what is there, and stays.
+    """
+    report = Path(report)
+    if report.is_dir():
+        return ReportSource(report.resolve(), None)
+    if not report.exists():
+        sys.exit(f"Error opening '{report.as_posix()}'. Path does not exist.")
+    if not is_zip_file(report):
+        sys.exit(f"Error opening '{report.as_posix()}'. File is not a ZIP file.")
+    if keep_extracted:
+        target = report.parent / report.stem
+        if target.exists():
+            shutil.rmtree(target)
+        with ZipFile(report, "r") as archive:
+            archive.extractall(target)
+        return ReportSource(target.resolve(), None)
+    # In the working directory, like the result directories, so that large reports
+    # do not depend on the size of the system's temp location.
+    extraction = tempfile.TemporaryDirectory(dir=Path.cwd())
+    with ZipFile(report, "r") as archive:
+        archive.extractall(extraction.name)
+    return ReportSource(Path(extraction.name).resolve(), extraction)
+
+
+def resolve_root_placeholder(path: str) -> str:
+    """Replaces a leading '{root}' with the absolute path of the working directory."""
+    return re.sub(r"^{root}", str(Path.cwd()).replace("\\", "\\\\"), path, flags=re.IGNORECASE)
+
+
+def get_generation_directory(generation_directory: str) -> Path:
+    if not generation_directory:
+        return Path.cwd() / "Generated"
+    return Path(resolve_root_placeholder(generation_directory))
 
 
 def is_zip_file(path: Path) -> bool:

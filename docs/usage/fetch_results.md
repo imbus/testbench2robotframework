@@ -36,8 +36,10 @@ TestBench report the suites were generated from.
 - **In:** the original TestBench report (the same directory or ZIP file the suites
   were generated from) **and** the Robot Framework `output.xml` of the run.
 - **Out:** an updated TestBench JSON report you can import back into TestBench.
-  With `-d` it is written to a new location; without it, the input report is
-  updated in place.
+  With `-d` it is written to a new location and the input report stays untouched;
+  **without `-d` the input report is overwritten**. All six input/output
+  combinations are listed under
+  [`output-directory` with `fetch-results`](../configuration/overview.md#output-directory-with-fetch-results).
 
 ![Robot Framework log.html](../media/robot-suite-log.png)<br />
 **Img-1:** Robot Framework `log.html` of a test run

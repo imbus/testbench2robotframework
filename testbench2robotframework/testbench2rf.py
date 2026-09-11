@@ -16,6 +16,7 @@ from robot.parsing.model.blocks import (
     SettingSection,
     TestCase,
     TestCaseSection,
+    VariableSection,
 )
 from robot.parsing.model.statements import (
     Comment,
@@ -28,6 +29,7 @@ from robot.parsing.model.statements import (
     Statement,
     Teardown,
     TestCaseName,
+    Variable,
     VariablesImport,
 )
 from robot.parsing.model.statements import (
@@ -45,21 +47,25 @@ try:
 except ImportError:
     from robot.parsing.model.statements import ForceTags as TestTags
 
+from .attachments import attachments_export, variable_value
 from .config import CompoundKeywordLogging, Configuration
 from .json_reader import TestCaseSet
 from .log import logger
 from .model import (
-    KeywordCall as TBKeywordCall,
-)
-from .model import (
+    DataTypeSummary,
     KeywordDetails,
     KeywordType,
     ParameterEvaluationType,
+    ParameterSummary,
+    RepresentativeType,
     SequencePhase,
     TestCaseDetails,
     TestThemeNode,
     UDFType,
     UserDefinedField,
+)
+from .model import (
+    KeywordCall as TBKeywordCall,
 )
 from .utils import PathResolver
 
@@ -78,6 +84,11 @@ ROBOT_PATH_SEPARATOR = "/"
 RELATIVE_RESOURCE_INDICATOR = r"^{root}"
 SECTION_SEPARATOR = [EmptyLine.from_params()] * 2
 LINE_SEPARATOR = [EmptyLine.from_params()]
+# Attachment representatives are exported to 'attachments/representatives/DT-<key>/'
+# of the report. The generated call addresses them through the variable named by
+# 'attachments-variable', which has to point to the report's attachments directory
+# when the suites are run - see 'attachments.py' for how that is arranged.
+REPRESENTATIVES_DIR = "representatives"
 UNKNOWN_IMPORT_TYPE = str(uuid4())
 LIBRARY_IMPORT_TYPE = str(uuid4())
 RESOURCE_IMPORT_TYPE = str(uuid4())
@@ -142,12 +153,32 @@ class RfTestCase:
             re.compile(pattern, re.IGNORECASE) for pattern in config.resource_regex
         ]
 
+        self.steps_by_id: dict[str, TBKeywordCall] = {
+            step.sequenceID: step for step in test_case_details.testSequence
+        }
         for keyword in test_case_details.testSequence:
             self._get_keyword_call(keyword)
         self.rf_tags = self._get_tags(test_case_details)
         self.setup_keyword: Keyword | None = None
         self.teardown_keyword: Keyword | None = None
         # TODO description
+
+    @property
+    def uses_attachments_variable(self) -> bool:
+        """Whether a keyword call of this test case refers to the attachments variable.
+
+        True for attachment representatives resolved by 'parameter_value', and for
+        values that name the variable themselves - the platform's XmlGenerator, for
+        one, injects calls with '${ITB_ATTACHMENTS_DIR}/advancedContent/...'.
+        """
+        if not self.config.attachments_variable:
+            return False
+        marker = f"${{{self.config.attachments_variable}}}"
+        return any(
+            marker in value
+            for call in self.rf_keyword_call_information
+            for value in (*call.cbv_parameters.values(), *call.cbr_parameters.values())
+        )
 
     @staticmethod
     def _validate_regex_pattern(pattern: str, pattern_type: str) -> None:
@@ -617,15 +648,99 @@ class RfTestCase:
             cmd.append(cbv_params)
         return f"# {SEPARATOR.join(cmd)}"
 
-    @staticmethod
     def _get_params_by_use_type(
-        test_step: TBKeywordCall, *param_use_types: ParameterEvaluationType
+        self, test_step: TBKeywordCall, *param_use_types: ParameterEvaluationType
     ) -> dict[str, str]:
         return {
-            parameter.name: parameter.value or ""
+            parameter.name: parameter_value(
+                parameter, test_step, self.steps_by_id, self.config.attachments_variable
+            )
             for parameter in test_step.spec.callParameters
             if parameter.evaluationType in param_use_types
         }
+
+
+def parameter_value(
+    parameter: ParameterSummary,
+    test_step: TBKeywordCall,
+    steps_by_id: dict[str, TBKeywordCall],
+    attachments_variable: str = "ITB_ATTACHMENTS_DIR",
+) -> str:
+    """The value a call parameter contributes to the generated keyword call.
+
+    An attachment becomes a path below the attachments variable, or - with an
+    empty variable name - a path relative to the report's attachments directory.
+    """
+    if not parameter.value:
+        return ""
+    if parameter.valueType != RepresentativeType.Attachment:
+        return parameter.value
+    data_type = attachment_data_type(parameter, test_step, steps_by_id)
+    if data_type is None:
+        logger.warning(
+            f"Attachment '{parameter.value}' of parameter '{parameter.name}' in "
+            f"'{test_step.spec.name}' has no data type, so its location in the report is "
+            "unknown. The file name is used as is."
+        )
+        return parameter.value
+    parts = [REPRESENTATIVES_DIR, f"DT-{data_type.key}", parameter.value]
+    if attachments_variable:
+        parts.insert(0, f"${{{attachments_variable}}}")
+    return "/".join(parts)
+
+
+def attachments_variable_section(
+    config: Configuration, suite_directory: PurePath, uses_variable: bool
+) -> VariableSection | None:
+    """The '*** Variables ***' section pointing a suite to the exported attachments.
+
+    Only for a suite that refers to the variable ('uses_variable'), and only when
+    attachments are exported ('attachments-directory') and addressed through a
+    variable ('attachments-variable'). A '--variable' on the Robot command line
+    still wins over this default.
+    """
+    if not uses_variable:
+        return None
+    export = attachments_export(config)
+    if export is None or not config.attachments_variable:
+        return None
+    section = VariableSection(header=SectionHeader.from_params(Token.VARIABLE_HEADER))
+    section.body.append(
+        Variable.from_params(
+            f"${{{config.attachments_variable}}}", variable_value(export, suite_directory)
+        )
+    )
+    section.body.extend(SECTION_SEPARATOR)
+    return section
+
+
+def attachment_data_type(
+    parameter: ParameterSummary, test_step: TBKeywordCall, steps_by_id: dict[str, TBKeywordCall]
+) -> DataTypeSummary | None:
+    """The data type that owns an attachment representative.
+
+    Inside a compound keyword the value is passed down through parameter aliases:
+    'parameterValue.key' names the parameter of the calling keyword the value came
+    from. Only the outermost parameter carries the data type, so follow the chain up.
+    """
+    while parameter.dataType is None:
+        if parameter.parameterValue is None or test_step.parentID is None:
+            return None
+        parent_step = steps_by_id.get(test_step.parentID)
+        if parent_step is None:
+            return None
+        parent_parameter = next(
+            (
+                candidate
+                for candidate in parent_step.spec.callParameters
+                if candidate.key == parameter.parameterValue.key
+            ),
+            None,
+        )
+        if parent_parameter is None:
+            return None
+        parameter, test_step = parent_parameter, parent_step
+    return parameter.dataType
 
 
 def create_test_suites(
@@ -724,7 +839,15 @@ class RobotSuiteFileBuilder:
         self.teardown_keywords: list[Keyword] = []
 
     def create_test_suite_file(self) -> File:
-        sections = [self._create_setting_section(), self._create_test_case_section()]
+        sections = [self._create_setting_section()]
+        variable_section = attachments_variable_section(
+            self.config,
+            self.tcs_path.parent,
+            any(test_case.uses_attachments_variable for test_case in self._rf_test_cases),
+        )
+        if variable_section:
+            sections.append(variable_section)
+        sections.append(self._create_test_case_section())
         keyword_section = self._create_keywords_section()
         if keyword_section:
             sections[-1].body.extend(SECTION_SEPARATOR)

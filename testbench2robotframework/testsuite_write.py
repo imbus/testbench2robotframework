@@ -6,12 +6,15 @@ from pathlib import Path
 
 from robot.parsing.model.blocks import File
 
+from .attachments import attachments_export, copy_attachments
 from .config import CleanMode, Configuration
 from .log import logger
-from .utils import directory_to_zip
+from .utils import directory_to_zip, get_generation_directory
 
 
-def write_test_suites(test_suites: dict[str, File], config: Configuration) -> None:
+def write_test_suites(
+    test_suites: dict[str, File], config: Configuration, report_directory: Path | None = None
+) -> None:
     generation_directory = get_generation_directory(config.output_directory)
     if config.clean:
         if config.clean_mode is CleanMode.ALL:
@@ -20,11 +23,13 @@ def write_test_suites(test_suites: dict[str, File], config: Configuration) -> No
             clear_generation_directory(generation_directory)
     if generation_directory.suffix.lower() != ".zip":
         write_test_suite_files(test_suites, generation_directory)
+        export_attachments(config, report_directory, generation_directory)
         if config.create_output_zip:
             directory_to_zip(generation_directory)
     else:
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as temp_dir:
             write_test_suite_files(test_suites, Path(temp_dir))
+            export_attachments(config, report_directory, Path(temp_dir))
             directory_to_zip(Path(temp_dir), str(generation_directory.with_suffix("")))
     logger.info(
         f"Successfully generated {len(test_suites)} Robot Framework test suites "
@@ -32,18 +37,24 @@ def write_test_suites(test_suites: dict[str, File], config: Configuration) -> No
     )
 
 
-def get_generation_directory(generation_directory: str) -> Path:
-    root_path = Path(os.curdir).absolute()
-    if not generation_directory:
-        return root_path / "Generated"
-    return Path(
-        re.sub(
-            r"^{root}",
-            str(root_path).replace("\\", "\\\\"),
-            generation_directory,
-            flags=re.IGNORECASE,
-        )
+def export_attachments(
+    config: Configuration, report_directory: Path | None, written_to: Path
+) -> None:
+    """Copies the report's attachments where 'attachments-directory' says.
+
+    'written_to' is the directory the suites were just written to - the output
+    directory, or the temporary one that becomes a ZIP - so that a relative
+    attachments directory ends up next to the suites in either case.
+    """
+    export = attachments_export(config)
+    if export is None or report_directory is None:
+        return
+    target = (
+        export.target
+        if export.relative_to_output is None
+        else written_to / export.relative_to_output
     )
+    copy_attachments(report_directory, target)
 
 
 def wipe_generation_directory(generation_dir: Path) -> None:

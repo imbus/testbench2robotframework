@@ -237,6 +237,9 @@ class Configuration:
     _: KW_ONLY
     include_blocked: bool = False
     merge_protocol: bool = True
+    keep_extracted_report: bool = False
+    attachments_directory: str = ""
+    attachments_variable: str = "ITB_ATTACHMENTS_DIR"
     clean_mode: CleanMode = CleanMode.GENERATED
     keyword_comment_style: KeywordCommentStyle = KeywordCommentStyle.STRUCTURED
     keyword_comment_max_depth: int = 5
@@ -271,6 +274,9 @@ class Configuration:
                 }
             ),
             merge_protocol=dictionary.get("merge-protocol", True),
+            keep_extracted_report=dictionary.get("keep-extracted-report", False),
+            attachments_directory=dictionary.get("attachments-directory", "").replace("\\", "/"),
+            attachments_variable=dictionary.get("attachments-variable", "ITB_ATTACHMENTS_DIR"),
             keyword_comment_style=KeywordCommentStyle(
                 dictionary.get("keyword-comment-style", "STRUCTURED").upper()
             ),

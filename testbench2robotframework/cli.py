@@ -101,6 +101,13 @@ def testbench2robotframework_cli():
     help="Directory or ZIP archive containing the generated test suites.",
 )
 @click.option(
+    "--attachments-directory",
+    type=str,
+    help="""Copies the report's attachments there. A relative path lies inside the
+    output directory and the suites address it relative to themselves; an absolute
+    path is used as given. Without it, attachments are not exported.""",
+)
+@click.option(
     "--compound-keyword-logging",
     type=click.Choice(["GROUP", "COMMENT", "NONE"], case_sensitive=False),
     help="Mode for logging compound keywords.",
@@ -173,6 +180,7 @@ def testbench2robotframework_cli():
 )
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def generate_tests(  # noqa: PLR0913
+    attachments_directory: str | None,
     clean: bool | None,
     compound_keyword_logging: str,
     config: Path,
@@ -243,6 +251,9 @@ def generate_tests(  # noqa: PLR0913
     )
     configuration["resource-root"] = list(resource_root) or configuration.get(
         "resource-root", DEFAULT_RESOURCE_ROOTS
+    )
+    configuration["attachments-directory"] = attachments_directory or configuration.get(
+        "attachments-directory", ""
     )
     testbench2robotframework(testbench_report, configuration)
 
