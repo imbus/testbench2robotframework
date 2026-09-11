@@ -71,7 +71,8 @@ def is_generated_suite(robot_file: Path) -> bool:
     'Metadata    UniqueID    <uid>', so reading the head of the file suffices.
     """
     try:
-        head = robot_file.open(encoding="utf-8", errors="ignore").read(4096)
+        with robot_file.open(encoding="utf-8", errors="ignore") as handle:
+            head = handle.read(4096)
     except OSError:
         return False
     return bool(GENERATED_SUITE_MARKER.search(head))

@@ -9,6 +9,10 @@ from .config import AttachmentConflictBehaviour, ReferenceBehaviour
 from .log import logger
 from .model import ReferenceAssignment, ReferenceKind
 
+# A 'file:' URI is always absolute (RFC 8089): 'file:///x.zip' is '/x.zip', the
+# file system root. Files in the Robot output directory are referenced by a
+# relative value without scheme, which 'ExecutionArtifactInfo' resolves against
+# the directory of the output.xml. See docs/usage/fetch_results.md.
 FILE_URI_SCHEME = "file://"
 MEGABYTE = 1000 * 1000
 
@@ -137,8 +141,12 @@ class ExecutionArtifactStorage:
         if not attachment_folder_path.exists():
             attachment_folder_path.mkdir(parents=True, exist_ok=True)
         if not (attachment_folder_path / filename).exists():
-            return self._use_new_attachment(filename, artifact_value, attachment_folder_path)
-        return self._dispatch_attachment_copy(filename, artifact_value, attachment_folder_path)
+            stored_file = self._use_new_attachment(filename, artifact_value, attachment_folder_path)
+        else:
+            stored_file = self._dispatch_attachment_copy(
+                filename, artifact_value, attachment_folder_path
+            )
+        return f"{attachment_folder_path.name}/{stored_file}"
 
     def _process_artifact(self, artifact: str) -> str | None:
         artifact_info = ExecutionArtifactInfo(artifact, self.output_xml)

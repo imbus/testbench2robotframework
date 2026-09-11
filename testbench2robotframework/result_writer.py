@@ -360,8 +360,14 @@ class ResultWriter(ResultVisitor):
             reference_values = self._get_itb_reference_values(test.message)
             for reference_value in reference_values:
                 reference_key = self.artifact_storage.add_artifact(reference_value)
-                if reference_key and reference_key not in itb_test_case.exec.references:
+                if not reference_key:
+                    continue
+                if reference_key not in itb_test_case.exec.references:
                     itb_test_case.exec.references.append(reference_key)
+                if self.protocol_test_case.references is None:
+                    self.protocol_test_case.references = []
+                if reference_key not in self.protocol_test_case.references:
+                    self.protocol_test_case.references.append(reference_key)
 
     def _get_itb_reference_values(self, test_message: str) -> list[str]:
         return re.findall(f".*{TB_ARTIFACT_REGEX}.*", test_message)

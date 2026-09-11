@@ -112,6 +112,10 @@ exclude = [
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra --spec"
+# Test classes end in 'Tests'. The default 'Test*' would also match the TestBench
+# model classes (TestCaseSet, TestStructureTree, ...) imported into test modules
+# and flood the run with PytestCollectionWarnings.
+python_classes = "*Tests"
 testpaths = [
     "tests",
 ]

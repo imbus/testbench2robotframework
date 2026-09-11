@@ -7,7 +7,6 @@ __pycache__/
 *.so
 ignore/
 .ruff_cache/
-tests/
 
 # Distribution / packaging
 .Python

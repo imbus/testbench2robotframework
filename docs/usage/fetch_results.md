@@ -146,6 +146,34 @@ is controlled by
 decides what happens when an attachment of the same name already exists. Files
 larger than 10 MB are skipped with an error message.
 
+### The `itb-reference:` marker
+
+A marker is the word `itb-reference:` followed by one value without whitespace.
+The marker is removed from the message before it becomes the execution comment;
+a message may carry several markers.
+
+```robotframework
+Set Test Message    Screenshot taken.\n\nitb-reference: screenshot.png    append=True
+```
+
+The value is resolved like a URI reference:
+
+| Value | Meaning |
+|---|---|
+| `screenshot.png`, `results/run.zip` | **Relative** to the directory of the `output.xml` — the Robot output directory. |
+| `file:///var/log/run.zip`, `file:///C:/log/run.zip` | **Absolute** path. A `file:` URI is always absolute ([RFC 8089](https://www.rfc-editor.org/rfc/rfc8089)); `file:///run.zip` is the file `run.zip` in the file system root, *not* in the output directory. |
+| `my%20file.png` | Percent-encoding is decoded. |
+
+A relative value is the right choice for files Robot wrote into its output
+directory, and the only form that resolves to the same file both here and in a
+browser showing `log.html`. Use an absolute `file:` URI for files outside the
+output directory. Both are looked up first as given (relative to the current
+working directory), then relative to the `output.xml`.
+
+A file that cannot be found is skipped with a warning; with
+`reference-behaviour = "REFERENCE"` an absolute path is stored even if it does
+not exist on the machine running `fetch-results`.
+
 ---
 
 ## The full round trip
