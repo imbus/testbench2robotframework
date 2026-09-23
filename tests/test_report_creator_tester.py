@@ -7,11 +7,13 @@ in 'protocol.json' ('testerKey') as well as in their test case file ('exec.teste
 
 import json
 import logging
+from types import SimpleNamespace
 
 import pytest
 from robot.result import TestCase
 from test_fetch_results_output import make_report_dir
 
+from testbench2robotframework import robotframework2testbench
 from testbench2robotframework.config import Configuration
 from testbench2robotframework.log import logger
 from testbench2robotframework.model import (
@@ -200,3 +202,33 @@ class ResultWriterOptionTests:
 
         assert writer.report_creator is None
         assert not [record for record in warnings if "manifest.json" in record.getMessage()]
+
+
+class Robot2TestbenchConfigurationTests:
+    """Library callers may pass a Configuration instead of a config file dictionary.
+
+    'dataclasses.asdict' of a Configuration uses field names, which 'from_dict' does
+    not read - converting it back to a dictionary would silently drop every option.
+    """
+
+    def test_configuration_instance_is_used_as_is(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        report = make_report_dir(tmp_path / "report")
+        (report / "manifest.json").write_text(json.dumps(MANIFEST))
+        (tmp_path / "output.xml").write_text("<robot/>")
+        used = {}
+        monkeypatch.setattr(robotframework2testbench, "perform_version_check", lambda _: None)
+        monkeypatch.setattr(robotframework2testbench, "setup_logger", lambda _: None)
+        monkeypatch.setattr(
+            robotframework2testbench,
+            "ResultWriter",
+            lambda _report, _result, configuration, _xml: used.setdefault("config", configuration),
+        )
+        monkeypatch.setattr(
+            robotframework2testbench, "ExecutionResult", lambda _: SimpleNamespace(visit=lambda _: None)
+        )
+        configuration = Configuration.from_dict({"set-tester-from-report-creator": True})
+
+        robotframework2testbench.robot2testbench(report, tmp_path / "output.xml", None, configuration)
+
+        assert used["config"] is configuration
