@@ -1,4 +1,5 @@
 import html
+import json
 import os
 import re
 import shutil
@@ -40,6 +41,7 @@ from .model import (
     TestCaseNode,
     TestCaseSetExecutionForImport,
     TestCaseSetNode,
+    UserInfo,
     UserReference,
     VerdictStatus,
 )
@@ -52,7 +54,7 @@ from .protocol_merge import (
     index_by_test_case_set_key,
     merge_test_case_executions,
 )
-from .utils import directory_to_zip, open_report
+from .utils import directory_to_zip, open_report, read_manifest_json_from_testbench_report
 
 try:
     from robot.result import Group
@@ -200,6 +202,32 @@ def unexecuted_table_row(unique_id: str, verdict) -> TestCaseRow:
     )
 
 
+def read_report_creator(json_dir: str | Path) -> UserInfo | None:
+    """The user who created the report, as named in its 'manifest.json'.
+
+    Returns None, and warns, when the manifest is missing, unreadable or names no creator.
+    """
+    try:
+        manifest = read_manifest_json_from_testbench_report(Path(json_dir))
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        logger.warning(f"Could not read the report's manifest.json, no tester is set: {e}")
+        return None
+    report_creation = manifest.get("reportCreation") if isinstance(manifest, dict) else None
+    creator = (report_creation or {}).get("creator") or {}
+    user_key = creator.get("userKey")
+    if user_key in (None, ""):
+        logger.warning(
+            "The report's manifest.json names no creator (reportCreation.creator.userKey), "
+            "no tester is set."
+        )
+        return None
+    return UserInfo(
+        userKey=str(user_key),
+        userLogin=creator.get("userLogin", ""),
+        userName=creator.get("userName", ""),
+    )
+
+
 class ResultWriter(ResultVisitor):
     def __init__(
         self,
@@ -243,6 +271,9 @@ class ResultWriter(ResultVisitor):
         )
         self.base_protocol_by_key = index_by_test_case_set_key(self.base_protocol)
         self.merged_verdicts: dict[str, Verdict] = {}
+        self.report_creator: UserInfo | None = (
+            read_report_creator(self.json_dir) if config.set_tester_from_report_creator else None
+        )
         self.keyword_comment_style = config.keyword_comment_style
         self.keyword_comment_renderer = KeywordCommentRenderer(
             max_depth=config.keyword_comment_max_depth,
@@ -319,6 +350,7 @@ class ResultWriter(ResultVisitor):
                     step.exec = _empty_keyword_call_execution()
                 step.exec.verdict = KeywordVerdict.Skipped
             self._set_itb_testcase_execution_result(itb_test_case, self.test_chain)
+            self._set_itb_testcase_tester(itb_test_case)
             self._set_itb_testcase_execution_comment(itb_test_case, self.test_chain)
             self._set_itb_testcase_references(itb_test_case, self.test_chain)
         except TypeError as e:
@@ -444,6 +476,17 @@ class ResultWriter(ResultVisitor):
         else:
             protocol_result = self._set_itb_test_case_status(itb_test_case, "undef")
             self.protocol_test_case.result = protocol_result
+
+    def _set_itb_testcase_tester(self, itb_test_case: TestCaseDetails):
+        """Makes the report's creator the tester of a test case this run performed."""
+        if self.report_creator is None or not itb_test_case.exec:
+            return
+        if self.protocol_test_case.result.status != ActivityStatus.Performed:
+            return
+        self.protocol_test_case.testerKey = self.report_creator.userKey
+        itb_test_case.exec.tester = UserReference(
+            key=self.report_creator.userKey, name=self.report_creator.userName
+        )
 
     def _get_test_phase_body(self, test_phase: TestCase) -> list[Keyword]:
         return self._get_keywords_from_rf_body(test_phase)

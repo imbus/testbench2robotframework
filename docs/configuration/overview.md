@@ -89,6 +89,7 @@ file. This is noted per option below.
 | [`attachments-variable`](#attachments-variable) | — | ✅ | G | variable name (`ITB_ATTACHMENTS_DIR`) |
 | [`keep-extracted-report`](#keep-extracted-report) | — | ✅ | G · F | bool (`false`) |
 | [`merge-protocol`](#merge-protocol) | `--no-merge-protocol` | ✅ | F | bool (`true`) |
+| [`set-tester-from-report-creator`](#set-tester-from-report-creator) | `--set-tester-from-report-creator` | ✅ | F | bool (`false`) |
 | [`keyword-comment-style`](#keyword-comment-style) | — | ✅ | F | `STRUCTURED` \| `FLAT` (`STRUCTURED`) |
 | [`keyword-comment-max-depth`](#keyword-comment-max-depth) | — | ✅ | F | int (`5`) |
 | [`keyword-comment-max-rows`](#keyword-comment-max-rows) | — | ✅ | F | int, `0` = no limit (`300`) |
@@ -533,6 +534,29 @@ testbench2robotframework fetch-results --no-merge-protocol output.xml my_report.
 ```
 ```toml
 merge-protocol = true
+```
+
+### `set-tester-from-report-creator`
+
+Sets the user who created the TestBench report as **tester** of the test cases the
+current Robot run executed. The user is read from `reportCreation.creator` in the
+report's `manifest.json`: its `userKey` becomes the `testerKey` of the test case in
+`protocol.json`, and its `userKey` and `userName` become `exec.tester` in the test
+case's JSON file. An existing tester is overwritten.
+
+Only test cases with the verdict `Pass` or `Fail` get a tester. Skipped and not run
+tests, and executions kept from the input protocol when merging, stay unchanged. If
+`manifest.json` is missing or names no creator, a warning is logged and no tester is
+set.
+
+- **Values:** `true` / `false`. Default: `false`.
+- **CLI:** `--set-tester-from-report-creator` (turns it on).
+
+```bash
+testbench2robotframework fetch-results --set-tester-from-report-creator output.xml my_report.zip
+```
+```toml
+set-tester-from-report-creator = true
 ```
 
 ### `keyword-comment-style`

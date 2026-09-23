@@ -267,6 +267,12 @@ def generate_tests(  # noqa: PLR0913
     help="""Overwrite the main protocol instead of merging the Robot Framework results
     into the protocol.json that is already part of the TestBench report.""",
 )
+@click.option(
+    "--set-tester-from-report-creator",
+    is_flag=True,
+    help="""Set the user who created the TestBench report (manifest.json) as tester of
+    every test case that this run executed with the verdict Pass or Fail.""",
+)
 @click.argument("robot-result", type=click.Path(path_type=Path))
 @click.argument("testbench-report", type=click.Path(path_type=Path))
 def fetch_results(
@@ -275,6 +281,7 @@ def fetch_results(
     output_directory: Path,
     testbench_report: Path,
     no_merge_protocol: bool,
+    set_tester_from_report_creator: bool,
 ):
     """
     Fetch Robot Framework execution results from <output XML> and save to a <TestBench Report>.
@@ -284,6 +291,8 @@ def fetch_results(
         configuration["merge-protocol"] = False
     else:
         configuration["merge-protocol"] = configuration.get("merge-protocol", True)
+    if set_tester_from_report_creator:
+        configuration["set-tester-from-report-creator"] = True
     robot2testbench(testbench_report, robot_result, output_directory, configuration)
 
 

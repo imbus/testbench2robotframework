@@ -237,6 +237,7 @@ class Configuration:
     _: KW_ONLY
     include_blocked: bool = False
     merge_protocol: bool = True
+    set_tester_from_report_creator: bool = False
     keep_extracted_report: bool = False
     attachments_directory: str = ""
     attachments_variable: str = "ITB_ATTACHMENTS_DIR"
@@ -274,6 +275,9 @@ class Configuration:
                 }
             ),
             merge_protocol=dictionary.get("merge-protocol", True),
+            set_tester_from_report_creator=dictionary.get(
+                "set-tester-from-report-creator", False
+            ),
             keep_extracted_report=dictionary.get("keep-extracted-report", False),
             attachments_directory=dictionary.get("attachments-directory", "").replace("\\", "/"),
             attachments_variable=dictionary.get("attachments-variable", "ITB_ATTACHMENTS_DIR"),
