@@ -11,7 +11,9 @@ from .utils import PathResolver, open_report, perform_version_check
 
 def testbench2robotframework(testbench_report: str | Path, config: dict | Configuration):
     perform_version_check(Path(testbench_report))
-    configuration = Configuration.from_dict(config) if isinstance(config, dict) else config
+    configuration = (
+        config if isinstance(config, Configuration) else Configuration.from_dict(config or {})
+    )
     setup_logger(configuration)
     logger.debug("Configuration loaded.")
     with open_report(Path(testbench_report), configuration.keep_extracted_report) as report:

@@ -14,7 +14,7 @@ def robot2testbench(
     json_input_report: str | Path,
     robot_result_xml: str | Path,
     json_output_result: str | Path | None = None,
-    config: dict | None = None,
+    config: dict | Configuration | None = None,
 ):
     if not Path(json_input_report).exists():
         sys.exit("No TestBench report found at the given path: expected a directory or a ZIP file.")
@@ -22,7 +22,9 @@ def robot2testbench(
         sys.exit("The Robot Framework result XML does not exist at the given path.")
     perform_version_check(Path(json_input_report))
 
-    configuration = Configuration.from_dict(config)
+    configuration = (
+        config if isinstance(config, Configuration) else Configuration.from_dict(config or {})
+    )
     setup_logger(configuration)
     logger.debug("Configuration loaded.")
     result = ExecutionResult(robot_result_xml)

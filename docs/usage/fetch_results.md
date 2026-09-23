@@ -114,6 +114,13 @@ second run starts over. To combine several Robot runs, merge the output XMLs fir
 (`rebot --merge output1.xml output2.xml`) and call `fetch-results` once.
 :::
 
+## Tester
+
+The results do not name a tester by default. With
+[`set-tester-from-report-creator` / `--set-tester-from-report-creator`](../configuration/overview.md#set-tester-from-report-creator)
+the user who created the TestBench report becomes the tester of every test case the
+run executed with the verdict `Pass` or `Fail`.
+
 ---
 
 ## Execution comments
