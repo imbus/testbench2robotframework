@@ -30,7 +30,7 @@ from .log import logger
 StructureNode = RootNode | TestThemeNode | TestCaseSetNode
 TreeNode = StructureNode | TestCaseNode
 
-ALLOWED_SERVER_VERSIONS = ["4.1"]
+ALLOWED_SERVER_VERSIONS = ["4.1", "4.2"]
 ERROR_COULD_NOT_READ_VERSION = (
     "Could not read TestBench report version. "
     "The report must be generated with one of the supported versions: "
