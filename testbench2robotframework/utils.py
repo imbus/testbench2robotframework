@@ -27,32 +27,31 @@ from .log import logger
 StructureNode = RootNode | TestThemeNode | TestCaseSetNode
 TreeNode = StructureNode | TestCaseNode
 
-ALLOWED_SERVER_VERSIONS = ["4.1"]
+REPORT_FORMAT_VERSION = "1.0"
 ERROR_COULD_NOT_READ_VERSION = (
-    "Could not read TestBench report version. "
-    "The report must be generated with one of the supported versions: "
-    + ", ".join(ALLOWED_SERVER_VERSIONS)
+    "Could not read the format version of the TestBench report. "
+    f"The report must have the format version {REPORT_FORMAT_VERSION}."
 )
 
-def _get_error_incompatible_version_message(server_version: str) -> str:
+
+def _get_error_incompatible_version_message(format_version: str) -> str:
     return (
         "The version of testbench2robotframework is not compatible with the "
-        f"TestBench report version '{server_version}'. "
-        f"Supported versions are: {', '.join(ALLOWED_SERVER_VERSIONS)}. "
+        f"TestBench report format version '{format_version}'. "
+        f"Supported format version is: {REPORT_FORMAT_VERSION}."
     )
+
 
 def perform_version_check(testbench_report: Path):
     try:
         manifest = read_manifest_json_from_testbench_report(testbench_report)
     except Exception:
         sys.exit(ERROR_COULD_NOT_READ_VERSION)
-    server_version = manifest.get("serverVersions", {}).get("version", None)
-    if not isinstance(server_version, str) or "." not in server_version:
+    format_version = manifest.get("formatVersion")
+    if not isinstance(format_version, str):
         sys.exit(ERROR_COULD_NOT_READ_VERSION)
-    minor_version = ".".join(server_version.split(".")[:2])
-
-    if minor_version not in ALLOWED_SERVER_VERSIONS:
-        sys.exit(_get_error_incompatible_version_message(server_version))
+    if format_version != REPORT_FORMAT_VERSION:
+        sys.exit(_get_error_incompatible_version_message(format_version))
 
 
 def read_manifest_json_from_testbench_report(testbench_report: Path) -> Any:

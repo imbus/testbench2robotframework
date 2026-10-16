@@ -63,8 +63,8 @@ Test Setup and Teardown keywords are generated separately per test case. (**Img-
 ![Generated Robot Framework Test Case](../media/robot-setup-teardown.png)<br />
 **Img-5:** Test Setup and Teardown Keywords
 
-The report must be exported from TestBench 4.1 — the version recorded in its
-`manifest.json` is checked before anything is generated.
+The report must have the report format version `1.0` — the `formatVersion`
+recorded in its `manifest.json` is checked before anything is generated.
 
 ```bash
 testbench2robotframework generate-tests -d ./Generated my_report.zip
