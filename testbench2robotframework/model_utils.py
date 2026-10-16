@@ -13,7 +13,6 @@ ERROR_UNION_MISMATCH = "Value does not match any of the union types."
 ERROR_NOT_A_LIST = "Value is not of type list."
 ERROR_LIST_ARGUMENTS_MISMATCH = "List type hint must have exactly one argument, got {args}."
 ERROR_UNION_WITHOUT_ARGUMENTS = "Union type hint must have at least one argument."
-ERROR_TOO_MANY_DATA_FIELDS = "Data dictionary contains more fields than the dataclass has."
 ERROR_NONETYPE_DATA = "Data cannot be None."
 
 
@@ -56,8 +55,6 @@ def from_dict(cls: type[T], data: dict) -> T:
         raise ValueError(ERROR_NONETYPE_DATA)
     cls_dict = {}
     class_type_hints, class_fields = _type_hints_and_fields(cls)
-    if len(class_fields) < len(data):
-        raise ValueError(ERROR_TOO_MANY_DATA_FIELDS)
     for cls_field in class_fields:
         if cls_field.name not in data:
             continue
