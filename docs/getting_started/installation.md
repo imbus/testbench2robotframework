@@ -29,7 +29,7 @@ testbench2robotframework --version
 ```
 
 This command will display the TestBench2RobotFramework, Robot Framework, and Python
-versions, plus the supported TestBench server versions.
+versions, plus the supported TestBench report format version.
 
 :::note
 `pip` also installs the shorter alias `tb2robot` for the same command.
