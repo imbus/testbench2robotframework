@@ -23,7 +23,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from enum import Enum
 
-from robot.result import Keyword, Message
+from robot.result import ForIteration, Keyword, Message
 
 INDENT = "&nbsp;" * 4
 LINE_COLOR = "#e4e9ec"
@@ -187,7 +187,9 @@ def structure_title(item) -> str:
     if isinstance(item, Keyword):
         return keyword_title(item)
     if is_iteration(item):
-        assignments = ", ".join(f"{name} = {value}" for name, value in item.assign.items())
+        # Only FOR iterations assign values; WHILE iterations have none.
+        assign = getattr(item, "assign", {}) if isinstance(item, ForIteration) else {}
+        assignments = ", ".join(f"{name} = {value}" for name, value in assign.items())
         return f"<b>{assignments}</b>" if assignments else f"<b>{item.type}</b>"
     text = str(item).strip()
     if not text or "object at 0x" in text:
