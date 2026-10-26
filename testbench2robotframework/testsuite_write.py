@@ -119,7 +119,15 @@ def clear_generation_directory(generation_dir: Path) -> None:
 
 
 def write_test_suite_files(test_suites: dict[str, File], generation_directory: Path) -> None:
+    written_paths = set()
     for test_suite_file in test_suites.values():
         test_suite_file.source = Path(generation_directory / f"{test_suite_file.source}.robot")
+        suite_path = os.path.normcase(test_suite_file.source)
+        if suite_path in written_paths:
+            logger.warning(
+                f"Multiple test suites are written to {test_suite_file.source}, "
+                "earlier ones are overwritten."
+            )
+        written_paths.add(suite_path)
         test_suite_file.save()
         logger.debug(f"File written to {os.path.relpath(test_suite_file.source)}")
