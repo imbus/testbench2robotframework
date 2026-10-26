@@ -23,6 +23,7 @@ class Origin(Enum):
 
 
 PRIMITIVE_TYPES = (int, float, str, bool)
+DISCRIMINATOR_FIELD = "elementType"
 
 
 def get_origin_from_type_hint(type_hint):
@@ -80,6 +81,10 @@ def convert_value_with_union_type(value: Any, type_hint: Any) -> Any:
         raise TypeError(ERROR_UNION_MISMATCH)
     if len(args) == 0:
         raise TypeError(ERROR_UNION_WITHOUT_ARGUMENTS)
+    if isinstance(value, dict):
+        dataclass_args = [arg for arg in args if isinstance(arg, type) and is_dataclass(arg)]
+        if dataclass_args:
+            return _convert_dict_to_union_member(value, dataclass_args)
     primitive_args = []
     for arg in args:
         if arg in PRIMITIVE_TYPES:
@@ -95,6 +100,34 @@ def convert_value_with_union_type(value: Any, type_hint: Any) -> Any:
         except (TypeError, ValueError):
             continue
     raise TypeError(ERROR_UNION_MISMATCH)
+
+
+def _convert_dict_to_union_member(value: dict, dataclass_args: list[type]) -> Any:
+    """Pick the union member a dict belongs to.
+
+    Unknown fields are ignored, so several members may accept the same dict.
+    The 'elementType' discriminator decides if present, otherwise the member
+    that leaves the fewest keys unused wins.
+    """
+    element_type = value.get(DISCRIMINATOR_FIELD)
+    for arg in dataclass_args:
+        if arg.__name__ == element_type:
+            return from_dict(arg, value)
+    best_match, fewest_unused_keys = None, None
+    for arg in dataclass_args:
+        try:
+            candidate = from_dict(arg, value)
+        except (TypeError, ValueError):
+            continue
+        field_names = {cls_field.name for cls_field in _type_hints_and_fields(arg)[1]}
+        unused_keys = len(value.keys() - field_names)
+        if fewest_unused_keys is None or unused_keys < fewest_unused_keys:
+            best_match, fewest_unused_keys = candidate, unused_keys
+        if unused_keys == 0:
+            break
+    if best_match is None:
+        raise TypeError(ERROR_UNION_MISMATCH)
+    return best_match
 
 
 def convert_value_with_list_type(value: Any, type_hint: Any) -> Any:
