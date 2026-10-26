@@ -7,6 +7,7 @@ the parent of every element at the end of the file.
 
 import json
 
+from testbench2robotframework.json_codec import dumps
 from testbench2robotframework.json_writer import tree_as_dict, write_test_structure_element
 from testbench2robotframework.model import (
     ActivityStatus,
@@ -21,6 +22,7 @@ from testbench2robotframework.model import (
     TestStructureTree,
     VerdictStatus,
 )
+from testbench2robotframework.model_utils import from_dict
 
 SET_UID = "itb-TC-136238"
 TC_UID = "itb-TC-136238-PC-422506"
@@ -94,3 +96,20 @@ def test_tree_without_root_still_serializes():
 
     assert list(written) == ["root", "nodes"]
     assert written["root"] is None
+
+
+def test_data_of_newer_testbench_versions_is_written_back(tmp_path):
+    data = json.loads(dumps(tree_as_dict(build_tree())))
+    data["root"]["exec"]["futureField"] = "kept"
+    data["nodes"][0]["exec"]["verdict"] = "FutureVerdict"
+    future_node = {"elementType": "FutureNode", "base": {"key": "9", "parentKey": "-1"}}
+    data["nodes"].append(future_node)
+
+    tree = from_dict(TestStructureTree, data)
+    write_test_structure_element(str(tmp_path), tree)
+
+    content = json.loads((tmp_path / "cycle_structure.json").read_text(encoding="utf-8"))
+    assert [type(node) for node in tree.nodes] == [TestCaseNode]
+    assert content["root"]["exec"]["futureField"] == "kept"
+    assert content["nodes"][0]["exec"]["verdict"] == "FutureVerdict"
+    assert content["nodes"][1] == future_node
