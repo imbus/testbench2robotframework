@@ -205,3 +205,19 @@ def test_message_column_takes_the_rest_and_breaks_long_words():
     assert "overflow-wrap: anywhere" in step
     assert "word-wrap: break-word" in step  # legacy alias for old renderers
     assert "nowrap" not in step
+
+
+def test_while_and_for_iterations_are_titled():
+    keyword = make_keyword("Loop Keyword")
+    while_loop = keyword.body.create_while(condition="True")
+    while_loop.body.create_iteration()
+    for_loop = keyword.body.create_for(assign=("${item}",), values=("a",))
+    iteration = for_loop.body.create_iteration()
+    if ROBOT_7:
+        iteration.assign = {"${item}": "a"}
+
+    texts = [text.strip() for _, _, text, *_ in cells_of(KeywordCommentRenderer().render(keyword))]
+
+    assert "ITERATION" in texts
+    if ROBOT_7:
+        assert "${item} = a" in texts

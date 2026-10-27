@@ -143,17 +143,6 @@ ROBOT_COLOR_BY_LEVEL = {
 MEGABYTE = 1000 * 1000
 TB_ARTIFACT_REGEX = r"itb-reference:\s*(\S*)"
 
-# Labels and colours of the TestBench web clients, so that the comment table
-# reads like the test theme tree in iTORX.
-STATUS_BY_VERDICT = {
-    Verdict.Pass: "PASS",
-    Verdict.Fail: "FAIL",
-    Verdict.ToVerify: "TO VERIFY",
-    Verdict.Skipped: "SKIPPED",
-    Verdict.Undefined: "UNDEFINED",
-    Verdict.Blocked: "BLOCKED",
-}
-
 
 def render_status(status: str) -> str:
     """Colours a status for TestBench, no matter whether Robot or TestBench named it."""
@@ -163,43 +152,6 @@ def render_status(status: str) -> str:
 def render_log_level(level: str) -> str:
     """Colours a log message of a test step the way the Robot Framework log does."""
     return ROBOT_COLOR_BY_LEVEL.get(level, RobotLogColor.DEFAULT).style
-
-
-def preserved_table_row(test_case: TestCaseExecutionForImport) -> TestCaseRow:
-    """Row for a test case execution the current Robot run did not cover.
-
-    The status is the single verdict iTORX displays, computed from the three
-    execution dimensions - a canceled and blocked execution shows as BLOCKED
-    instead of the bare 'Undefined' of its verdict field.
-    """
-    verdict = display_verdict_of(test_case.result)
-    message = ""
-    if test_case.comments and test_case.comments.html:
-        message = test_case.comments.html
-    elif test_case.result and test_case.result.timestamp:
-        message = test_case.result.timestamp
-    return TestCaseRow(
-        unique_id=test_case.uniqueID,
-        name=test_case.uniqueID,
-        phase="",
-        status=STATUS_BY_VERDICT[verdict] if verdict else "UNDEFINED",
-        message=message,
-    )
-
-
-def unexecuted_table_row(unique_id: str, verdict) -> TestCaseRow:
-    """Row for a test case without any execution result.
-
-    Blocked, canceled and not yet executed test cases end up here. They are part
-    of the table so that the status of the test case set stays comprehensible.
-    """
-    return TestCaseRow(
-        unique_id=unique_id,
-        name=unique_id,
-        phase="",
-        status=STATUS_BY_VERDICT[verdict] if verdict else "UNDEFINED",
-        message="",
-    )
 
 
 def read_report_creator(json_dir: str | Path) -> UserInfo | None:
@@ -803,14 +755,8 @@ class ResultWriter(ResultVisitor):
             suite, children
         )
         suite_start_time, suite_end_time, robot_rows = self._render_robot_rows(suite)
-        table_rows: list[TestCaseRow] = []
-        for unique_id, verdict, protocol_entry in children:
-            if unique_id in robot_rows:
-                table_rows.extend(robot_rows[unique_id])
-            elif protocol_entry is not None:
-                table_rows.append(preserved_table_row(protocol_entry))
-            else:
-                table_rows.append(unexecuted_table_row(unique_id, verdict))
+        # Only the test cases executed in this run - earlier and unexecuted ones are left out.
+        table_rows = [row for unique_id, _, _ in children for row in robot_rows.get(unique_id, [])]
 
         test_case_set.exec.comments = render_test_case_set_table(
             table_rows,

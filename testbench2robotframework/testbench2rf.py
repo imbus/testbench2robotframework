@@ -575,15 +575,15 @@ class RfTestCase:
         return cbr_parameters
 
     def _get_keyword_import_prefix(self, keyword: RFKeywordCallInformation) -> str:
+        if not self.config.fully_qualified or not keyword.import_prefix:
+            return ""
         for resource_pattern in self.res_pattern_list:
-            if not keyword.import_prefix:
-                continue
             resource_name_match = resource_pattern.search(keyword.import_prefix)
             if resource_name_match:
                 return (
                     self.config.fully_qualified or False
                 ) * f"{get_matched_name(resource_name_match)}."
-        return (self.config.fully_qualified or False) * f"{keyword.import_prefix}."
+        return f"{keyword.import_prefix}."
 
     def _get_keyword_indent(self, keyword: RFKeywordCallInformation) -> str:
         return (
@@ -1028,11 +1028,11 @@ class RobotSuiteFileBuilder:
                 "must be mapped via one of the following options: 'library-regex', "
                 "'resource-regex', 'library-root', 'resource-root'. "
                 "The following subdivisions could not be identified "
-                f"as library or resource: {list(unknown_imports)}."
+                f"as library or resource: {sorted(unknown_imports)}."
             )
         return [
             Comment.from_params(comment=f"# UNKNOWN    {unknown}", indent="")
-            for unknown in unknown_imports
+            for unknown in sorted(unknown_imports)
         ]
 
     def _create_setting_section(self) -> SettingSection:

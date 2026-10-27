@@ -487,10 +487,15 @@ file or a library that is always needed. **Configuration file only.**
 - **Values:** a table with `libraries`, `resources` and `variables` lists.
   Default: all empty.
 
+`resources` takes resource **names without the `.resource` extension**. They
+are resolved like resources found in the TestBench export: `common` becomes
+`<resource-directory>/common.resource`, and an entry in
+[`resource-mapping`](#library-mapping--resource-mapping) overrides that path.
+
 ```toml
 [tool.testbench2robotframework.forced-import]
 libraries = ["Collections"]
-resources = ["common.resource"]
+resources = ["common"]
 variables = ["variables.py"]
 ```
 
